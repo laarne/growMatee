@@ -3271,33 +3271,29 @@ function ProfileView({ setActiveTab, notify }) {
 
 function BottomNav({ activeTab, setActiveTab }) {
   return (
-    <nav className="z-30 mx-auto grid w-full max-w-[560px] shrink-0 grid-cols-5 gap-1 border-t border-[#e3eadb] bg-white/95 px-3 pb-3 pt-2 backdrop-blur sm:rounded-b-[1.75rem] md:mb-3 md:rounded-[1.75rem] md:border md:shadow-[0_18px_42px_rgba(37,61,41,0.12)]">
+    <nav className="z-30 mx-auto grid w-full max-w-[430px] shrink-0 grid-cols-5 gap-1 border-t border-[#e3eadb] bg-white/95 px-2 pb-2 pt-1.5 backdrop-blur">
       {tabs.map(([Icon, label]) => {
         const isActive = activeTab === label;
-        const isGarden = label === "Garden";
 
         return (
           <button
             key={label}
             onClick={() => setActiveTab(label)}
             className={cn(
-              "gm-tap flex flex-col items-center gap-1 rounded-2xl px-1 py-1 text-xs font-black transition",
-              isGarden ? "-mt-5" : "pt-2",
-              isActive ? "text-[#203522]" : "text-[#52604d]"
+              "gm-tap flex min-h-[54px] flex-col items-center justify-center gap-0.5 rounded-2xl px-1 text-[10px] font-black transition",
+              isActive ? "text-[#203522]" : "text-[#63705e]"
             )}
             aria-current={isActive ? "page" : undefined}
           >
             <span
               className={cn(
-                "grid place-items-center transition",
-                isGarden ? cn("h-14 w-14 rounded-full ring-4 ring-white", isActive ? "shadow-lg" : "shadow-sm") : "h-8 w-8 rounded-2xl",
-                isActive && isGarden ? "gm-soft-pulse" : "",
-                isActive ? "bg-[#203522] text-white" : isGarden ? "bg-white text-[#52604d]" : "bg-transparent"
+                "grid h-8 w-8 place-items-center rounded-xl transition",
+                isActive ? "bg-[#203522] text-white shadow-sm" : "bg-transparent"
               )}
             >
-              <Icon size={isGarden ? 24 : 19} />
+              <Icon size={18} />
             </span>
-            <span>{label}</span>
+            <span className="leading-none">{label}</span>
           </button>
         );
       })}
@@ -3593,6 +3589,16 @@ export default function ProductApp() {
     return activeTab;
   }, [activeTab, gardenMode, selectedGarden, marketCreator]);
 
+  const headerKicker = useMemo(() => {
+    if (activeTab === "Market" && marketCreator) return "Leafy AI";
+    if (activeTab === "Market") return "Marketplace";
+    if (activeTab === "Feed") return "Community";
+    if (activeTab === "Garden") return gardenMode === "Visit" ? "Explore" : "Garden hub";
+    if (activeTab === "Rankings") return "Leaderboard";
+    if (activeTab === "Profile") return "Account";
+    return "GrowMate";
+  }, [activeTab, gardenMode, marketCreator]);
+
   const view = {
     Market: marketCreator ? (
       <MarketListingCreator
@@ -3632,18 +3638,26 @@ export default function ProductApp() {
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(217,249,157,0.34),transparent_28%),linear-gradient(135deg,#e8f0df,#f7faf1_45%,#dbe8d1)] font-sans text-[#203522] sm:px-4 lg:px-8">
       <PhoneShell>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="relative mb-4 flex items-center justify-center px-5 pt-5">
-            <h1 className="max-w-[270px] truncate text-center text-xl font-black tracking-tight text-[#203522] md:max-w-[560px]">{title}</h1>
-            <div className="absolute right-5 flex items-center gap-2">
+          <header className="mx-4 mb-4 mt-4 rounded-[1.6rem] bg-white/90 p-3 shadow-sm ring-1 ring-[#e4ecd8]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#edf7dc] shadow-inner">
+                  <img src="/growmate-logo.png" alt="GrowMate" className="h-8 w-8 object-contain" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#85a273]">{headerKicker}</p>
+                  <h1 className="truncate text-xl font-black tracking-tight text-[#203522]">{title}</h1>
+                </div>
+              </div>
               <button
                 onClick={() => openMessages()}
-                className="gm-tap grid h-10 w-10 place-items-center rounded-2xl bg-white text-[#203522] shadow-sm"
+                className="gm-tap grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#203522] text-white shadow-sm"
                 aria-label="Open messages"
               >
                 <MessageCircle size={18} />
               </button>
             </div>
-          </div>
+          </header>
           <ActionNotice notice={notice} onClear={() => setNotice(null)} />
           <div key={activeTab} className="gm-screen-in">{view}</div>
         </div>
