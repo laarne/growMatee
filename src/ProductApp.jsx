@@ -1747,7 +1747,7 @@ function MarketView({ notify, openListing, myMarketListings, onOpenCreator }) {
       if (sortBy === "Newest") return (b.createdAt ?? 0) - (a.createdAt ?? 0);
       return a.location.localeCompare(b.location);
     });
-  const featured = shown[0] ?? saleListings[0];
+  const featured = shown.find((item) => item.name === "Pechay Seedling Tray") ?? shown[0] ?? saleListings[0];
 
   return (
     <div className="px-5 pb-44">
