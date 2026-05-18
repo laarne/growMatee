@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">GrowMate</string>
+    <string name="title_activity_main">GrowMate</string>
+    <string name="package_name">com.growmate.app</string>
+    <string name="custom_url_scheme">com.growmate.app</string>
+</resources>

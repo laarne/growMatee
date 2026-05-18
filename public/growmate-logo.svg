@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title>growMate logo</title>
+  <rect width="64" height="64" rx="10" fill="#1f3f28"/>
+  <path
+    d="M32 47V31m0 0c-7-1-12-5.7-13.8-12.7C25.4 18.7 30.7 22.7 32 31Zm0 0c1.4-7.8 7.2-12.2 15-12.8C45.3 25.8 39.8 30.4 32 31Z"
+    fill="none"
+    stroke="#eaffd0"
+    stroke-width="4.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>
