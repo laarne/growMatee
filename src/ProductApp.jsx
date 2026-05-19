@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Award,
   AlertTriangle,
@@ -30,6 +30,7 @@ const plantPhotos = {
   pothos: "/plants/pothos-real.jpg",
   anthurium: "/plants/anthurium-real.jpg",
   cactus: "/plants/cactus-real.jpg",
+  cactusTrio: "/plants/cactus-trio-real.jpg",
   fern: "/plants/fern-real.jpg",
   herb: "/plants/herb-real.jpg",
   snake: "/plants/snake-real.jpg",
@@ -47,6 +48,8 @@ const plantPhotos = {
   chili: "/plants/chili-real.jpg",
   pechay: "/plants/pechay-real.jpg",
   calamansi: "/plants/calamansi-real.jpg",
+  silverSword: "/plants/silver-sword-real.jpg",
+  bougainvillea: "/plants/bougainvillea-real.jpg",
 };
 
 const PLANT_CATEGORIES = ["Indoor", "Outdoor", "Rare", "Flowering", "Succulents", "Herbs", "Veggies", "Fruit Trees", "Cuttings", "Trees"];
@@ -275,7 +278,7 @@ const marketPlants = [
     location: "Butuan City",
     type: "Buy",
     category: "Rare",
-    image: plantPhotos.fern,
+    image: plantPhotos.silverSword,
     seller: "Maria Dela Cruz",
     rating: "4.9",
     stock: "2 pots",
@@ -297,7 +300,7 @@ const marketPlants = [
     location: "Ampayon",
     type: "Buy",
     category: "Succulents",
-    image: plantPhotos.cactus,
+    image: plantPhotos.cactusTrio,
     seller: "Paolo Reyes",
     rating: "4.7",
     stock: "3 sets",
@@ -363,7 +366,7 @@ const marketPlants = [
     location: "Bayugan City",
     type: "Buy",
     category: "Outdoor",
-    image: plantPhotos.orchid,
+    image: plantPhotos.bougainvillea,
     seller: "Aling Nena",
     rating: "4.8",
     stock: "4 pots",
@@ -581,14 +584,14 @@ const marketPlants = [
 
 const sellerAvatars = {
   "Laarne Ramos": "/laarne-profile.png",
-  "Maria Dela Cruz": "/avatars/avatar-maria.png",
-  "Ana Santos": "/avatars/avatar-aling.png",
-  "Aling Nena": "/avatars/avatar-aling.png",
-  "Miguel Bautista": "/avatars/avatar-miguel.png",
-  "Mang Lito Santos": "/avatars/pinoy-lito.svg",
-  "Halaman Corner": "/avatars/avatar-aling.png",
-  "Tita Pearl's Garden": "/avatars/avatar-maria.png",
-  "Paolo Reyes": "/avatars/avatar-miguel.png",
+  "Maria Dela Cruz": "/avatars/avatar-maria-custom.webp",
+  "Ana Santos": "/avatars/avatar-ana-custom.webp",
+  "Aling Nena": "/avatars/avatar-pearl-custom.webp",
+  "Miguel Bautista": "/avatars/avatar-miguel-custom.webp",
+  "Mang Lito Santos": "/avatars/avatar-lito-custom.webp",
+  "Halaman Corner": "/avatars/avatar-paolo-custom.webp",
+  "Tita Pearl's Garden": "/avatars/avatar-ana-custom.webp",
+  "Paolo Reyes": "/avatars/avatar-paolo-custom.webp",
 };
 
 const aiScanResults = [
@@ -690,7 +693,7 @@ const messageThreads = [
   },
   {
     name: "Mang Lito Santos",
-    avatar: "/avatars/pinoy-lito.svg",
+    avatar: sellerAvatars["Mang Lito Santos"],
     context: "Pechay Seedling Tray",
     preview: "Seven seedlings are still available.",
     time: "3h",
@@ -765,6 +768,86 @@ const feedPosts = [
     mockComments: [
       { author: "Laarne Ramos", avatar: "/laarne-profile.png", text: "Maybe trim only the crossing branch first." },
       { author: "Maria Dela Cruz", avatar: sellerAvatars["Maria Dela Cruz"], text: "I would wait until the new leaves harden." },
+    ],
+  },
+  {
+    id: "feed-ana-pothos",
+    author: "Ana Santos",
+    avatar: sellerAvatars["Ana Santos"],
+    type: "Updates",
+    title: "Pothos cuttings finally rooted",
+    text: "Three nodes have strong white roots now. I kept them in bright shade for two weeks.",
+    image: plantPhotos.pothos,
+    meta: "Libertad - 1d",
+    likes: 84,
+    comments: 11,
+    mockComments: [
+      { author: "Laarne Ramos", avatar: "/laarne-profile.png", text: "Nice roots! Water propagation worked well." },
+      { author: "Aling Nena", avatar: sellerAvatars["Aling Nena"], text: "Pwede na yan sa soil mix." },
+    ],
+  },
+  {
+    id: "feed-paolo-cactus",
+    author: "Paolo Reyes",
+    avatar: sellerAvatars["Paolo Reyes"],
+    type: "Tips",
+    title: "Cactus watering reminder",
+    text: "I only water when the soil is fully dry. Ampayon heat is strong, but overwatering is still the real problem.",
+    image: plantPhotos.cactusTrio,
+    meta: "Ampayon - 2d",
+    likes: 67,
+    comments: 8,
+    mockComments: [
+      { author: "Miguel Bautista", avatar: sellerAvatars["Miguel Bautista"], text: "Agree. Less water, more light." },
+      { author: "Halaman Corner", avatar: sellerAvatars["Halaman Corner"], text: "This helped my mini cactus too." },
+    ],
+  },
+  {
+    id: "feed-lito-pechay",
+    author: "Mang Lito Santos",
+    avatar: sellerAvatars["Mang Lito Santos"],
+    type: "Harvests",
+    title: "Pechay trays are ready",
+    text: "Fresh pechay seedlings from San Vicente. Good for backyard plots and container gardens.",
+    image: plantPhotos.pechay,
+    meta: "San Vicente - 2d",
+    likes: 152,
+    comments: 17,
+    mockComments: [
+      { author: "Aling Nena", avatar: sellerAvatars["Aling Nena"], text: "Healthy seedlings. Nice spacing!" },
+      { author: "Ana Santos", avatar: sellerAvatars["Ana Santos"], text: "I want to try this on my balcony." },
+    ],
+  },
+  {
+    id: "feed-pearl-orchid",
+    author: "Tita Pearl's Garden",
+    avatar: sellerAvatars["Tita Pearl's Garden"],
+    type: "Questions",
+    title: "Orchid spike or root?",
+    text: "This new growth appeared near the base. Is it a flower spike or just another root?",
+    image: plantPhotos.orchid,
+    meta: "Cabadbaran - 3d",
+    likes: 119,
+    comments: 19,
+    mockComments: [
+      { author: "Maria Dela Cruz", avatar: sellerAvatars["Maria Dela Cruz"], text: "Looks like a new root from the tip shape." },
+      { author: "Laarne Ramos", avatar: "/laarne-profile.png", text: "Leafy AI can help compare spike vs root." },
+    ],
+  },
+  {
+    id: "feed-corner-peperomia",
+    author: "Halaman Corner",
+    avatar: sellerAvatars["Halaman Corner"],
+    type: "Updates",
+    title: "Peperomia shelf refresh",
+    text: "Moved the Watermelon Peperomia near the window. Leaves look firmer after adjusting watering.",
+    image: plantPhotos.peperomia,
+    meta: "Buenavista - 3d",
+    likes: 93,
+    comments: 12,
+    mockComments: [
+      { author: "Ana Santos", avatar: sellerAvatars["Ana Santos"], text: "The leaf pattern looks so clean." },
+      { author: "Paolo Reyes", avatar: sellerAvatars["Paolo Reyes"], text: "Nice indoor corner setup." },
     ],
   },
 ];
@@ -856,6 +939,90 @@ const communityGardens = [
       { name: "Siling Labuyo", image: plantPhotos.chili, tag: "Spicy" },
       { name: "Pechay", image: plantPhotos.pechay, tag: "Leafy" },
       { name: "Calamansi Backyard Tree", image: plantPhotos.calamansi, tag: "Fruit tree" },
+    ],
+  },
+  {
+    id: "ana",
+    owner: "Ana Santos",
+    handle: "@ana_cuttings",
+    avatar: sellerAvatars["Ana Santos"],
+    name: "Cutting Corner",
+    location: "Libertad",
+    cover: plantPhotos.pothos,
+    coverPhotos: [plantPhotos.pothos, plantPhotos.monstera, plantPhotos.hoya, plantPhotos.snake],
+    score: "7.6k",
+    followers: "612",
+    rank: "#8",
+    bio: "Rooted cuttings and beginner-friendly propagation.",
+    badges: ["Propagation pro", "Fast replies", "Beginner helper"],
+    plants: [
+      { name: "Golden Pothos", image: plantPhotos.pothos, tag: "Cuttings" },
+      { name: "Monstera Node", image: plantPhotos.monstera, tag: "Aroid" },
+      { name: "Hoya Carnosa", image: plantPhotos.hoya, tag: "Rooted" },
+      { name: "Snake Plant Pup", image: plantPhotos.snake, tag: "Hardy" },
+    ],
+  },
+  {
+    id: "paolo",
+    owner: "Paolo Reyes",
+    handle: "@paolo_sunny",
+    avatar: sellerAvatars["Paolo Reyes"],
+    name: "Sunny Succulent Shelf",
+    location: "Ampayon",
+    cover: plantPhotos.cactusTrio,
+    coverPhotos: [plantPhotos.cactusTrio, plantPhotos.cactus, plantPhotos.succulent, plantPhotos.bougainvillea],
+    score: "7.2k",
+    followers: "530",
+    rank: "#10",
+    bio: "Cactus, succulents, and dry balcony care.",
+    badges: ["Sunny shelf", "Low-water grower", "Weekend seller"],
+    plants: [
+      { name: "Desert Cactus Trio", image: plantPhotos.cactusTrio, tag: "Sunny" },
+      { name: "Mini Cactus", image: plantPhotos.cactus, tag: "Succulent" },
+      { name: "Mixed Succulents", image: plantPhotos.succulent, tag: "Low water" },
+      { name: "Bougainvillea", image: plantPhotos.bougainvillea, tag: "Outdoor" },
+    ],
+  },
+  {
+    id: "pearl",
+    owner: "Tita Pearl's Garden",
+    handle: "@tita_pearlblooms",
+    avatar: sellerAvatars["Tita Pearl's Garden"],
+    name: "Bloom Porch",
+    location: "Cabadbaran",
+    cover: plantPhotos.orchid,
+    coverPhotos: [plantPhotos.orchid, plantPhotos.walingWaling, plantPhotos.bougainvillea, plantPhotos.hoya],
+    score: "7.1k",
+    followers: "508",
+    rank: "#11",
+    bio: "Orchid blooms, porch flowers, and gentle care notes.",
+    badges: ["Flowering fan", "Careful seller", "Bloom watcher"],
+    plants: [
+      { name: "Phalaenopsis Orchid", image: plantPhotos.orchid, tag: "Flowering" },
+      { name: "Waling-waling", image: plantPhotos.walingWaling, tag: "Protected" },
+      { name: "Bougainvillea", image: plantPhotos.bougainvillea, tag: "Outdoor" },
+      { name: "Hoya Carnosa", image: plantPhotos.hoya, tag: "Blooms" },
+    ],
+  },
+  {
+    id: "corner",
+    owner: "Halaman Corner",
+    handle: "@halaman_corner",
+    avatar: sellerAvatars["Halaman Corner"],
+    name: "Indoor Corner",
+    location: "Buenavista",
+    cover: plantPhotos.peperomia,
+    coverPhotos: [plantPhotos.peperomia, plantPhotos.fiddle, plantPhotos.anthurium, plantPhotos.calathea],
+    score: "6.9k",
+    followers: "474",
+    rank: "#13",
+    bio: "Small-space indoor plants and care reminders.",
+    badges: ["Indoor stylist", "Care reminder", "Plant shelf"],
+    plants: [
+      { name: "Watermelon Peperomia", image: plantPhotos.peperomia, tag: "Indoor" },
+      { name: "Fiddle Leaf Fig", image: plantPhotos.fiddle, tag: "Tree" },
+      { name: "Anthurium", image: plantPhotos.anthurium, tag: "Rare" },
+      { name: "Calathea Orbifolia", image: plantPhotos.calathea, tag: "Humidity" },
     ],
   },
 ];
@@ -1312,7 +1479,7 @@ function SellerListingCheck({ notify }) {
 }
 
 function MarketPlantDetail({ plant, onClose, notify, openMessages }) {
-  const sellerAvatar = sellerAvatars[plant.seller] ?? "/avatars/avatar-maria.png";
+  const sellerAvatar = sellerAvatars[plant.seller] ?? "/avatars/avatar-maria-custom.webp";
   const condition = plant.category === "Cuttings" ? "Rooted and healthy" : "Healthy";
   const plantType = plant.category === "Cuttings" ? "Cutting (Rooted)" : plant.category;
   const distance = {
@@ -1937,10 +2104,85 @@ function GardenPhotoControls({ photos, currentIndex }) {
 
   return (
     <>
-      <span className="pointer-events-none absolute left-4 top-4 rounded-full bg-black/45 px-3 py-1 text-xs font-black text-white">
+      <span className="pointer-events-none absolute left-4 top-4 z-30 rounded-full bg-black/45 px-3 py-1 text-xs font-black text-white">
         {currentIndex + 1}/{photos.length}
       </span>
     </>
+  );
+}
+
+function PhotoLightbox({ photos, initialIndex = 0, title, subtitle, onClose }) {
+  const safePhotos = photos?.length ? photos : [];
+  const [index, setIndex] = useState(initialIndex);
+
+  useEffect(() => {
+    setIndex(initialIndex);
+  }, [initialIndex, photos]);
+
+  if (!safePhotos.length) return null;
+
+  const currentIndex = ((index % safePhotos.length) + safePhotos.length) % safePhotos.length;
+  const currentPhoto = safePhotos[currentIndex];
+  const showPrevious = () => setIndex((value) => value - 1);
+  const showNext = () => setIndex((value) => value + 1);
+
+  return (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#132618]/92 p-3"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      onClick={onClose}
+    >
+      <section className="relative flex h-[calc(100dvh-1.5rem)] w-full max-w-[760px] flex-col overflow-hidden rounded-[2rem] bg-[#0f1f14] shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="absolute left-4 right-4 top-4 z-10 flex items-center justify-between gap-3">
+          <button onClick={onClose} className="gm-tap grid h-11 w-11 place-items-center rounded-full bg-white text-[#203522] shadow-sm" aria-label="Close photo">
+            <ArrowLeft size={18} />
+          </button>
+          <span className="rounded-full bg-black/45 px-3 py-1 text-xs font-black text-white">
+            {currentIndex + 1}/{safePhotos.length}
+          </span>
+        </div>
+
+        <div className="relative min-h-0 flex-1 bg-black">
+          <div
+            role="img"
+            aria-label={title}
+            className="h-full w-full bg-contain bg-center bg-no-repeat"
+            style={{ backgroundImage: `url(${currentPhoto})` }}
+          />
+          {safePhotos.length > 1 && (
+            <>
+              <button onClick={showPrevious} className="gm-tap absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-[#203522]" aria-label="Previous cover photo">
+                <ArrowLeft size={18} />
+              </button>
+              <button onClick={showNext} className="gm-tap absolute right-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-[#203522]" aria-label="Next cover photo">
+                <ChevronRight size={20} />
+              </button>
+            </>
+          )}
+        </div>
+
+        <div className="bg-white px-5 py-4">
+          <p className="text-lg font-black text-[#203522]">{title}</p>
+          {subtitle && <p className="mt-1 text-sm font-semibold text-[#63705e]">{subtitle}</p>}
+          {safePhotos.length > 1 && (
+            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+              {safePhotos.map((photo, photoIndex) => (
+                <button
+                  key={`${photo}-${photoIndex}`}
+                  onClick={() => setIndex(photoIndex)}
+                  className={cn("gm-tap h-16 w-16 shrink-0 overflow-hidden rounded-2xl ring-2", currentIndex === photoIndex ? "ring-[#8bc34a]" : "ring-transparent")}
+                  aria-label={`Show cover photo ${photoIndex + 1}`}
+                >
+                  <PlantImage src={photo} alt="" className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -2057,11 +2299,26 @@ function VisitGardensView({ selectedGarden, setSelectedGarden, notify, openMessa
   const [followedGardens, setFollowedGardens] = useState([]);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [selectedPublicPlant, setSelectedPublicPlant] = useState(null);
+  const [gardenSearch, setGardenSearch] = useState("");
   const [coverIndex, setCoverIndex] = useState(0);
+  const [coverLightboxOpen, setCoverLightboxOpen] = useState(false);
   const [touchStart, setTouchStart] = useState(null);
+  const normalizedGardenSearch = gardenSearch.trim().toLowerCase();
+  const shownCommunityGardens = communityGardens.filter((garden) => {
+    if (!normalizedGardenSearch) return true;
+    return [
+      garden.owner,
+      garden.handle,
+      garden.name,
+      garden.location,
+      garden.bio,
+      ...(garden.plants ?? []).map((plant) => `${plant.name} ${plant.tag}`),
+    ].join(" ").toLowerCase().includes(normalizedGardenSearch);
+  });
 
   useEffect(() => {
     setCoverIndex(0);
+    setCoverLightboxOpen(false);
     setSelectedPublicPlant(null);
   }, [selectedGarden?.id]);
 
@@ -2075,7 +2332,6 @@ function VisitGardensView({ selectedGarden, setSelectedGarden, notify, openMessa
     const openPhoto = (title, detail, image) => {
       setPhotoPreview({ title, detail, image });
     };
-    const showNextCover = () => setCoverIndex((index) => (index + 1) % coverPhotos.length);
     const handleCoverSwipe = (event) => {
       if (touchStart === null || coverPhotos.length <= 1) return;
       const delta = touchStart - event.changedTouches[0].clientX;
@@ -2123,20 +2379,20 @@ function VisitGardensView({ selectedGarden, setSelectedGarden, notify, openMessa
           <ArrowLeft size={16} /> Gardens
         </button>
 
-        <section className="group gm-card-in overflow-hidden rounded-[2rem] bg-white shadow-sm transition hover:shadow-[0_18px_42px_rgba(37,61,41,0.18)]">
+        <section className="gm-card-in overflow-hidden rounded-[2rem] bg-white shadow-sm">
           <div
             className="relative h-52"
             onTouchStart={(event) => setTouchStart(event.touches[0].clientX)}
             onTouchEnd={handleCoverSwipe}
-          >
-            <button
-              onClick={showNextCover}
-              className="gm-tap absolute inset-0 block w-full text-left"
-              aria-label={`Show next ${selectedGarden.name} cover photo`}
             >
-              <PlantImage src={currentCover} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+              <button
+              onClick={() => setCoverLightboxOpen(true)}
+              className="gm-tap absolute inset-0 block w-full text-left"
+              aria-label={`Open ${selectedGarden.name} cover photo`}
+            >
+              <PlantImage src={currentCover} alt="" className="h-full w-full object-cover" />
             </button>
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition duration-300 group-hover:from-black/95" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
             <GardenPhotoControls photos={coverPhotos} currentIndex={currentCoverIndex} />
             <div className="pointer-events-none absolute bottom-4 left-4 right-4 text-white">
               <div className="flex items-end gap-3">
@@ -2209,6 +2465,16 @@ function VisitGardensView({ selectedGarden, setSelectedGarden, notify, openMessa
           </div>
         </section>
 
+        {coverLightboxOpen && (
+          <PhotoLightbox
+            photos={coverPhotos}
+            initialIndex={currentCoverIndex}
+            title={selectedGarden.name}
+            subtitle={`${selectedGarden.owner} - ${selectedGarden.location}`}
+            onClose={() => setCoverLightboxOpen(false)}
+          />
+        )}
+
         {photoPreview && (
           <section className="gm-sheet-in mt-4 overflow-hidden rounded-[1.7rem] bg-white shadow-sm">
             <PlantImage src={photoPreview.image} alt={photoPreview.title} className="h-56 w-full object-cover" />
@@ -2261,8 +2527,22 @@ function VisitGardensView({ selectedGarden, setSelectedGarden, notify, openMessa
   }
 
   return (
-    <div className="grid gap-4 px-5 pb-44 md:grid-cols-2 xl:grid-cols-3">
-      {communityGardens.map((garden) => (
+    <div className="px-5 pb-44">
+      <div className="sticky top-0 z-10 -mx-5 bg-[#f5f8ef]/90 px-5 pb-3 pt-1 backdrop-blur">
+        <div className="flex items-center gap-2 rounded-3xl bg-white px-4 py-3 shadow-sm">
+          <Search size={18} className="text-[#89947f]" />
+          <input
+            value={gardenSearch}
+            onChange={(event) => setGardenSearch(event.target.value)}
+            className="w-full bg-transparent text-sm font-semibold text-[#203522] outline-none placeholder:text-[#89947f]"
+            placeholder="Search people, gardens, locations, plants..."
+          />
+        </div>
+        <p className="mt-2 px-1 text-xs font-black text-[#7a8572]">{shownCommunityGardens.length} gardens found</p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {shownCommunityGardens.map((garden) => (
         <button
           key={garden.id}
           onClick={() => setSelectedGarden(garden)}
@@ -2300,6 +2580,13 @@ function VisitGardensView({ selectedGarden, setSelectedGarden, notify, openMessa
           </div>
         </button>
       ))}
+      </div>
+      {shownCommunityGardens.length === 0 && (
+        <div className="gm-card-in mt-4 rounded-[1.6rem] bg-white p-5 text-center shadow-sm">
+          <p className="font-black text-[#203522]">No gardens found</p>
+          <p className="mt-1 text-sm font-semibold text-[#7a8572]">Try another name, place, or plant.</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -2310,12 +2597,14 @@ function GardenView({ notify, gardenMode, setGardenMode, selectedGarden, setSele
   const [selectedPlant, setSelectedPlant] = useState(null);
   const [gardenCovers, setGardenCovers] = useState([plantPhotos.fern, plantPhotos.monstera, plantPhotos.alocasia, plantPhotos.hoya, plantPhotos.calamansi]);
   const [gardenCoverIndex, setGardenCoverIndex] = useState(0);
-  const [gardenTouchStart, setGardenTouchStart] = useState(null);
   const [gardenCategory, setGardenCategory] = useState("All");
   const [showAddPlant, setShowAddPlant] = useState(false);
   const [showGardenPhotoPicker, setShowGardenPhotoPicker] = useState(false);
   const [showPlantPhotoPicker, setShowPlantPhotoPicker] = useState(false);
   const [showPlantEditor, setShowPlantEditor] = useState(false);
+  const [coverLightboxOpen, setCoverLightboxOpen] = useState(false);
+  const gardenPointerStart = useRef(null);
+  const gardenPointerSwiped = useRef(false);
 
   const updateGardenCover = (image, label) => {
     setGardenCovers((covers) => {
@@ -2330,14 +2619,14 @@ function GardenView({ notify, gardenMode, setGardenMode, selectedGarden, setSele
   const shownGardenPlants = gardenCategory === "All" ? gardenPlants : gardenPlants.filter((plant) => plant.category === gardenCategory);
   const currentGardenCoverIndex = Math.min(gardenCoverIndex, gardenCovers.length - 1);
   const currentGardenCover = gardenCovers[currentGardenCoverIndex];
-  const showNextGardenCover = () => setGardenCoverIndex((index) => (index + 1) % gardenCovers.length);
-  const handleGardenCoverSwipe = (event) => {
-    if (gardenTouchStart === null || gardenCovers.length <= 1) return;
-    const delta = gardenTouchStart - event.changedTouches[0].clientX;
+  const handleGardenCoverPointerEnd = (clientX) => {
+    if (gardenPointerStart.current === null || gardenCovers.length <= 1) return;
+    const delta = gardenPointerStart.current - clientX;
     if (Math.abs(delta) > 35) {
       setGardenCoverIndex((index) => (delta > 0 ? index + 1 : index - 1 + gardenCovers.length) % gardenCovers.length);
+      gardenPointerSwiped.current = true;
     }
-    setGardenTouchStart(null);
+    gardenPointerStart.current = null;
   };
 
   const updateSelectedPlantPhoto = (image, label) => {
@@ -2407,35 +2696,65 @@ function GardenView({ notify, gardenMode, setGardenMode, selectedGarden, setSele
       <div className="-mx-5">
         <GardenModeSwitch gardenMode={gardenMode} setGardenMode={setGardenMode} setSelectedGarden={setSelectedGarden} />
       </div>
-      <section
-        onClick={showNextGardenCover}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            showNextGardenCover();
-          }
-        }}
-        onTouchStart={(event) => setGardenTouchStart(event.touches[0].clientX)}
-        onTouchEnd={handleGardenCoverSwipe}
-        role="button"
-        tabIndex={0}
-        className="group gm-card-in gm-tap cursor-pointer select-none overflow-hidden rounded-[2rem] bg-white shadow-sm outline-none transition hover:shadow-[0_18px_42px_rgba(37,61,41,0.18)] focus-visible:ring-4 focus-visible:ring-[#d9f99d]"
-      >
+      <section className="group gm-card-in select-none overflow-hidden rounded-[2rem] bg-white shadow-sm outline-none transition hover:shadow-[0_18px_42px_rgba(37,61,41,0.18)]">
         <div className="relative h-44">
           <PlantImage src={currentGardenCover} alt="" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent" />
+          <button
+            onClick={() => {
+              if (gardenPointerSwiped.current) {
+                gardenPointerSwiped.current = false;
+                return;
+              }
+              setCoverLightboxOpen(true);
+            }}
+            onPointerDown={(event) => {
+              gardenPointerStart.current = event.clientX;
+              gardenPointerSwiped.current = false;
+            }}
+            onPointerUp={(event) => handleGardenCoverPointerEnd(event.clientX)}
+            onPointerCancel={() => {
+              gardenPointerStart.current = null;
+            }}
+            className="gm-tap absolute inset-0 z-10 block cursor-zoom-in text-left outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#d9f99d]"
+            aria-label="Open garden cover photo"
+          />
+          <div className="pointer-events-none absolute inset-0 z-20 bg-gradient-to-t from-black/95 via-black/45 to-transparent" />
           <button
             onClick={(event) => {
               event.stopPropagation();
               setShowGardenPhotoPicker((value) => !value);
             }}
-            className="gm-tap absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-2xl bg-white/90 text-[#203522]"
+            className="gm-tap absolute right-4 top-4 z-30 grid h-10 w-10 place-items-center rounded-2xl bg-white/90 text-[#203522]"
             aria-label="Change garden photo"
           >
             <Camera size={18} />
           </button>
+          {gardenCovers.length > 1 && (
+            <>
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setGardenCoverIndex((index) => (index - 1 + gardenCovers.length) % gardenCovers.length);
+                }}
+                className="gm-tap absolute left-4 top-1/2 z-30 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-white/85 text-[#203522] shadow-sm"
+                aria-label="Previous garden cover photo"
+              >
+                <ArrowLeft size={16} />
+              </button>
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setGardenCoverIndex((index) => (index + 1) % gardenCovers.length);
+                }}
+                className="gm-tap absolute right-4 top-1/2 z-30 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-white/85 text-[#203522] shadow-sm"
+                aria-label="Next garden cover photo"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </>
+          )}
           <GardenPhotoControls photos={gardenCovers} currentIndex={currentGardenCoverIndex} />
-          <div className="absolute bottom-5 left-5 right-5 text-white">
+          <div className="pointer-events-none absolute bottom-5 left-5 right-5 z-30 text-white">
             <p className="text-2xl font-black">My Plant Collection</p>
             <p className="mt-1 text-sm font-semibold text-white/85">42 plants - 38 updates - Rank #2</p>
           </div>
@@ -2453,6 +2772,16 @@ function GardenView({ notify, gardenMode, setGardenMode, selectedGarden, setSele
           ))}
         </div>
       </section>
+
+      {coverLightboxOpen && (
+        <PhotoLightbox
+          photos={gardenCovers}
+          initialIndex={currentGardenCoverIndex}
+          title="My Plant Collection"
+          subtitle="Laarne Ramos' garden cover photos"
+          onClose={() => setCoverLightboxOpen(false)}
+        />
+      )}
 
       {showGardenPhotoPicker && (
         <PhotoPicker
@@ -2696,6 +3025,12 @@ function GardenView({ notify, gardenMode, setGardenMode, selectedGarden, setSele
 
 function FeedView({ notify, openMessages, openGarden }) {
   const [feedFilter, setFeedFilter] = useState("All");
+  const [userPosts, setUserPosts] = useState([]);
+  const [showComposer, setShowComposer] = useState(false);
+  const [composerType, setComposerType] = useState("Updates");
+  const [composerTitle, setComposerTitle] = useState("");
+  const [composerText, setComposerText] = useState("");
+  const [composerImage, setComposerImage] = useState(plantPhotos.monstera);
   const [likedPosts, setLikedPosts] = useState({});
   const [activeComments, setActiveComments] = useState(null);
   const [commentDraft, setCommentDraft] = useState("");
@@ -2706,7 +3041,8 @@ function FeedView({ notify, openMessages, openGarden }) {
     }, {})
   );
   const filters = ["All", "Updates", "Questions", "Harvests", "Tips"];
-  const visiblePosts = feedPosts.filter((post) => {
+  const allFeedPosts = [...userPosts, ...feedPosts];
+  const visiblePosts = allFeedPosts.filter((post) => {
     if (feedFilter === "All") return true;
     return post.type === feedFilter;
   });
@@ -2724,6 +3060,42 @@ function FeedView({ notify, openMessages, openGarden }) {
     }));
     setCommentDraft("");
   };
+  const openComposer = (type = "Updates") => {
+    setComposerType(type);
+    setShowComposer(true);
+  };
+  const submitPost = () => {
+    const title = composerTitle.trim();
+    const text = composerText.trim();
+    if (!title && !text) {
+      notify("Post needs text", "Write a title or update before posting.");
+      return;
+    }
+
+    const id = `feed-user-${Date.now()}`;
+    setUserPosts((posts) => [
+      {
+        id,
+        author: "Laarne Ramos",
+        avatar: "/laarne-profile.png",
+        type: composerType,
+        title: title || (composerType === "Questions" ? "Plant question" : "Garden update"),
+        text: text || "Shared from My Plant Collection.",
+        image: composerImage,
+        meta: "Butuan City - now",
+        likes: 0,
+        comments: 0,
+        mockComments: [],
+      },
+      ...posts,
+    ]);
+    setPostComments((items) => ({ ...items, [id]: [] }));
+    setComposerTitle("");
+    setComposerText("");
+    setComposerImage(plantPhotos.monstera);
+    setShowComposer(false);
+    setFeedFilter("All");
+  };
 
   return (
     <div className="space-y-4 px-5 pb-52">
@@ -2731,7 +3103,7 @@ function FeedView({ notify, openMessages, openGarden }) {
         <div className="flex items-center gap-3">
           <AvatarImage src="/laarne-profile.png" alt="Laarne Ramos profile" className="h-12 w-12 rounded-2xl object-cover" />
           <button
-            onClick={() => notify("Create post", "Share a garden update, question, or care tip.")}
+            onClick={() => openComposer("Updates")}
             className="gm-tap min-h-12 flex-1 rounded-full bg-[#f7faf1] px-4 text-left text-sm font-bold text-[#63705e] ring-1 ring-[#edf1e8]"
           >
             Share with the plant community...
@@ -2739,20 +3111,74 @@ function FeedView({ notify, openMessages, openGarden }) {
         </div>
         <div className="mt-3 grid grid-cols-4 gap-2">
           {[
-            [Camera, "Photo"],
-            [MessageCircle, "Question"],
-            [ScanLine, "Ask Leafy"],
-            [Leaf, "Update"],
+            [Camera, "Photo", "Updates", plantPhotos.monstera],
+            [MessageCircle, "Question", "Questions", plantPhotos.calathea],
+            [ScanLine, "Ask Leafy", "Tips", plantPhotos.anthurium],
+            [Leaf, "Update", "Updates", plantPhotos.fern],
           ].map(([Icon, label]) => (
             <button
               key={label}
-              onClick={() => notify(label, `${label} post composer opened.`)}
+              onClick={() => openComposer(label === "Photo" ? "Updates" : label === "Ask Leafy" ? "Tips" : label === "Question" ? "Questions" : "Updates")}
               className="gm-tap flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#edf7dc] px-3 py-2 text-xs font-black text-[#315d37]"
             >
               <Icon size={15} /> {label}
             </button>
           ))}
         </div>
+        {showComposer && (
+          <div className="gm-sheet-in mt-4 rounded-[1.4rem] bg-[#f7faf1] p-3 ring-1 ring-[#edf1e8]">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-sm font-black text-[#203522]">Create post</p>
+              <button onClick={() => setShowComposer(false)} className="gm-tap rounded-full bg-white px-3 py-1.5 text-xs font-black text-[#63705e]">
+                Cancel
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={composerType}
+                onChange={(event) => setComposerType(event.target.value)}
+                className="rounded-2xl bg-white px-3 py-3 text-sm font-black text-[#203522] outline-none ring-1 ring-[#edf1e8]"
+              >
+                {["Updates", "Questions", "Harvests", "Tips"].map((type) => (
+                  <option key={type}>{type}</option>
+                ))}
+              </select>
+              <select
+                value={composerImage}
+                onChange={(event) => setComposerImage(event.target.value)}
+                className="rounded-2xl bg-white px-3 py-3 text-sm font-black text-[#203522] outline-none ring-1 ring-[#edf1e8]"
+              >
+                {[
+                  ["Monstera", plantPhotos.monstera],
+                  ["Calathea", plantPhotos.calathea],
+                  ["Herbs", plantPhotos.herb],
+                  ["Pechay", plantPhotos.pechay],
+                  ["Orchid", plantPhotos.orchid],
+                ].map(([label, image]) => (
+                  <option key={label} value={image}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <input
+              value={composerTitle}
+              onChange={(event) => setComposerTitle(event.target.value)}
+              className="mt-2 w-full rounded-2xl bg-white px-3 py-3 text-sm font-black text-[#203522] outline-none ring-1 ring-[#edf1e8] placeholder:text-[#8b967f]"
+              placeholder="Post title"
+            />
+            <textarea
+              value={composerText}
+              onChange={(event) => setComposerText(event.target.value)}
+              className="mt-2 min-h-24 w-full rounded-2xl bg-white px-3 py-3 text-sm font-semibold leading-5 text-[#203522] outline-none ring-1 ring-[#edf1e8] placeholder:text-[#8b967f]"
+              placeholder="Share your plant update, question, harvest, or Leafy AI tip..."
+            />
+            <div className="mt-3 grid grid-cols-[4.5rem_1fr] gap-3">
+              <PlantImage src={composerImage} alt="" className="h-16 w-full rounded-2xl object-cover" />
+              <button onClick={submitPost} className="gm-tap rounded-full bg-[#203522] px-4 text-sm font-black text-white">
+                Post to Feed
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       <div className="gm-x-scroll flex gap-2 overflow-x-auto pb-1">
@@ -2765,7 +3191,7 @@ function FeedView({ notify, openMessages, openGarden }) {
               feedFilter === filter ? "bg-[#203522] text-white" : "bg-white text-[#63705e]"
             )}
           >
-            {filter === "All" ? `All - ${feedPosts.length}` : filter}
+            {filter === "All" ? `All - ${allFeedPosts.length}` : filter}
           </button>
         ))}
       </div>
@@ -2899,7 +3325,7 @@ function RankView({ notify, openGarden }) {
     "bg-[#fff1e6] text-[#9a3412] ring-1 ring-[#fdba74]",
   ];
   const fallbackAvatars = {
-    "Benjie Cruz": "/avatars/avatar-miguel.png",
+    "Benjie Cruz": "/avatars/avatar-miguel-custom.webp",
   };
   const ownRank = {
     Growers: ["#12", "2,430 pts", "320 pts away from Top 10"],
@@ -3081,10 +3507,21 @@ function ProfileView({ setActiveTab, notify, myMarketListings = [] }) {
       reviewNote: "Rare plant source check required before publishing.",
     },
   ];
-  const myFeedPosts = feedPosts.filter((item) => item.author === "Laarne Ramos");
+  const [profileFeedPosts, setProfileFeedPosts] = useState(() => feedPosts.filter((item) => item.author === "Laarne Ramos"));
+  const [managedPost, setManagedPost] = useState(null);
   const [editing, setEditing] = useState(false);
   const [profileName, setProfileName] = useState("Laarne Ramos");
   const [profileBio, setProfileBio] = useState("Aroid shelf lab and rooted cuttings.");
+  const saveManagedPost = () => {
+    if (!managedPost) return;
+    setProfileFeedPosts((posts) => posts.map((post) => (post.id === managedPost.id ? { ...post, title: managedPost.title, text: managedPost.text, type: managedPost.type } : post)));
+    setManagedPost(null);
+  };
+  const hideManagedPost = () => {
+    if (!managedPost) return;
+    setProfileFeedPosts((posts) => posts.filter((post) => post.id !== managedPost.id));
+    setManagedPost(null);
+  };
   const renderProfileListing = (item) => (
     <article key={item.name} className="gm-card-in gm-tap flex items-center gap-3 rounded-[1.5rem] bg-white p-3 shadow-sm">
       <PlantImage src={item.image} alt={item.name} className="h-16 w-16 shrink-0 rounded-2xl object-cover" />
@@ -3235,10 +3672,10 @@ function ProfileView({ setActiveTab, notify, myMarketListings = [] }) {
             <h3 className="text-lg font-black text-[#203522]">My Feed Posts</h3>
             <p className="text-xs font-bold text-[#52604d]">Community updates and Leafy AI notes</p>
           </div>
-          <StatusPill tone="blue">{myFeedPosts.length} post</StatusPill>
+          <StatusPill tone="blue">{profileFeedPosts.length} post</StatusPill>
         </div>
         <div className="space-y-3">
-          {myFeedPosts.map((post) => (
+          {profileFeedPosts.map((post) => (
             <article key={post.id} className="gm-card-in gm-tap flex items-center gap-3 rounded-[1.5rem] bg-white p-3 shadow-sm">
               <PlantImage src={post.image} alt={post.title} className="h-16 w-16 shrink-0 rounded-2xl object-cover" />
               <div className="min-w-0 flex-1">
@@ -3248,7 +3685,7 @@ function ProfileView({ setActiveTab, notify, myMarketListings = [] }) {
                 <p className="mt-2 truncate text-xs font-bold text-[#52604d]">{post.likes} likes - {post.comments} comments</p>
               </div>
               <button
-                onClick={() => notify("Feed post", `${post.title} is active in Feed.`)}
+                onClick={() => setManagedPost(post)}
                 className="gm-tap shrink-0 rounded-full bg-[#f0f4e8] px-3 py-2 text-xs font-black text-[#315d37]"
               >
                 Manage
@@ -3257,6 +3694,81 @@ function ProfileView({ setActiveTab, notify, myMarketListings = [] }) {
           ))}
         </div>
       </section>
+
+      {managedPost && (
+        <div className="fixed inset-0 z-[95] flex items-end justify-center bg-[#203522]/35 px-4 pb-4" onClick={() => setManagedPost(null)}>
+          <section className="gm-sheet-in w-full max-w-[430px] rounded-[2rem] bg-white p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-[#8bc34a]">Manage post</p>
+                <h3 className="mt-1 text-xl font-black text-[#203522]">{managedPost.title}</h3>
+              </div>
+              <button onClick={() => setManagedPost(null)} className="gm-tap rounded-full bg-[#f0f4e8] px-3 py-2 text-xs font-black text-[#52604d]">
+                Close
+              </button>
+            </div>
+
+            <div className="mt-4 grid grid-cols-[72px_1fr] gap-3">
+              <PlantImage src={managedPost.image} alt={managedPost.title} className="h-20 w-full rounded-2xl object-cover" />
+              <div className="space-y-2">
+                <input
+                  value={managedPost.title}
+                  onChange={(event) => setManagedPost((post) => ({ ...post, title: event.target.value }))}
+                  className="w-full rounded-2xl bg-[#f7faf1] px-4 py-3 text-sm font-black text-[#203522] outline-none"
+                />
+                <select
+                  value={managedPost.type}
+                  onChange={(event) => setManagedPost((post) => ({ ...post, type: event.target.value }))}
+                  className="w-full rounded-2xl bg-[#f7faf1] px-4 py-3 text-sm font-black text-[#203522] outline-none"
+                >
+                  {["Updates", "Questions", "Harvests", "Tips"].map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <textarea
+              value={managedPost.text}
+              onChange={(event) => setManagedPost((post) => ({ ...post, text: event.target.value }))}
+              className="mt-3 min-h-24 w-full rounded-2xl bg-[#f7faf1] px-4 py-3 text-sm font-semibold leading-5 text-[#203522] outline-none"
+            />
+
+            <div className="mt-4 rounded-[1.4rem] bg-[#f7faf1] p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-black text-[#203522]">Comments</p>
+                <p className="text-xs font-black text-[#7a8572]">{managedPost.comments} total</p>
+              </div>
+              <div className="mt-3 space-y-2">
+                {(managedPost.mockComments ?? []).slice(0, 2).map((comment) => (
+                  <div key={`${comment.author}-${comment.text}`} className="rounded-2xl bg-white px-3 py-2">
+                    <p className="text-xs font-black text-[#203522]">{comment.author}</p>
+                    <p className="mt-1 text-xs font-semibold text-[#52604d]">{comment.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button onClick={saveManagedPost} className="gm-tap rounded-full bg-[#203522] px-4 py-3 text-sm font-black text-white">
+                Save changes
+              </button>
+              <button
+                onClick={() => {
+                  setManagedPost(null);
+                  setActiveTab("Feed");
+                }}
+                className="gm-tap rounded-full bg-[#edf7dc] px-4 py-3 text-sm font-black text-[#315d37]"
+              >
+                View in Feed
+              </button>
+              <button onClick={hideManagedPost} className="gm-tap col-span-2 rounded-full border border-[#ead7c0] bg-[#fff8e8] px-4 py-3 text-sm font-black text-[#9a3412]">
+                Hide from profile
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       <section className="mt-5">
         <div className="mb-3 flex items-center justify-between">
@@ -3369,7 +3881,7 @@ function MessagesPanel({ targetName, collapsed, onCollapse, onExpand, onClose })
     },
     {
       name: "Mika Santos",
-      avatar: "/avatars/avatar-maria.png",
+      avatar: "/avatars/avatar-maria-custom.webp",
       type: "Requests",
       context: "Calathea question",
       meta: "Message request",
@@ -3384,7 +3896,7 @@ function MessagesPanel({ targetName, collapsed, onCollapse, onExpand, onClose })
     targetName && targetName !== "__inbox" && !availableThreads.some((thread) => thread.name === targetName)
       ? {
           name: targetName,
-          avatar: sellerAvatars[targetName] ?? "/avatars/avatar-maria.png",
+          avatar: sellerAvatars[targetName] ?? "/avatars/avatar-maria-custom.webp",
           type: "Friends",
           context: "GrowMate chat",
           meta: "Friend",
