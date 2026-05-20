@@ -1,4 +1,4 @@
-const PLANT_ID_ENDPOINT = "/api/plant-id-scan";
+const PLANT_ID_ENDPOINT = "/.netlify/functions/plant-id-scan";
 
 const protectedPlantNames = [
   "vanda sanderiana",

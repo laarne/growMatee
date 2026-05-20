@@ -5,7 +5,7 @@ function plantIdDevProxy(apiKey) {
   return {
     name: "growmate-plant-id-dev-proxy",
     configureServer(server) {
-      server.middlewares.use("/api/plant-id-scan", async (req, res) => {
+      const handlePlantIdScan = async (req, res) => {
         if (req.method !== "POST") {
           res.statusCode = 405;
           res.end(JSON.stringify({ error: "Method not allowed" }));
@@ -34,7 +34,10 @@ function plantIdDevProxy(apiKey) {
           res.setHeader("Content-Type", "application/json");
           res.end(JSON.stringify({ error: error.message ?? "Plant.id proxy failed" }));
         }
-      });
+      };
+
+      server.middlewares.use("/api/plant-id-scan", handlePlantIdScan);
+      server.middlewares.use("/.netlify/functions/plant-id-scan", handlePlantIdScan);
     },
   };
 }
