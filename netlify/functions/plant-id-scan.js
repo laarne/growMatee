@@ -12,6 +12,15 @@ exports.handler = async (event) => {
     if (!apiKey) throw new Error("Plant.id API key is missing");
 
     const body = JSON.parse(event.body || "{}");
+    if (!Array.isArray(body.images) || body.images.length === 0) {
+      return {
+        statusCode: 400,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ error: "Please send one captured plant photo." }),
+      };
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
     const response = await fetch("https://plant.id/api/v3/identification?classification_level=species", {
       method: "POST",
       headers: {
@@ -19,7 +28,9 @@ exports.handler = async (event) => {
         "Api-Key": apiKey,
       },
       body: JSON.stringify({ images: body.images ?? [] }),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
 
     const text = await response.text();
     return {
@@ -28,10 +39,13 @@ exports.handler = async (event) => {
       body: text,
     };
   } catch (error) {
+    const isTimeout = error?.name === "AbortError";
     return {
-      statusCode: 500,
+      statusCode: isTimeout ? 504 : 500,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ error: error.message || "Plant.id scan failed" }),
+      body: JSON.stringify({
+        error: isTimeout ? "Plant.id took too long. Try a clearer, closer plant photo." : error.message || "Plant.id scan failed",
+      }),
     };
   }
 };

@@ -23,6 +23,36 @@ function fileToBase64(file) {
   });
 }
 
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+async function fileToCompressedBase64(file) {
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  const image = await loadImage(dataUrl);
+  const maxSize = 1100;
+  const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+  const width = Math.max(1, Math.round(image.width * scale));
+  const height = Math.max(1, Math.round(image.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0, width, height);
+  const compressed = canvas.toDataURL("image/jpeg", 0.78);
+  return compressed.includes(",") ? compressed.split(",")[1] : compressed;
+}
+
 function cleanText(value, fallback) {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
@@ -81,7 +111,7 @@ function statusMeta(status) {
 
 export async function scanPlantWithPlantId(file) {
   const imageUrl = URL.createObjectURL(file);
-  const imageBase64 = await fileToBase64(file);
+  const imageBase64 = await fileToCompressedBase64(file).catch(() => fileToBase64(file));
   const response = await fetch(PLANT_ID_ENDPOINT, {
     method: "POST",
     headers: {
