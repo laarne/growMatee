@@ -2,6 +2,9 @@ const REMOTE_PLANT_ID_ENDPOINT = "https://gleaming-sunshine-c5c54e.netlify.app/.
 
 function getPlantIdEndpoint() {
   if (typeof window === "undefined") return REMOTE_PLANT_ID_ENDPOINT;
+  if (window.Capacitor?.isNativePlatform?.()) return REMOTE_PLANT_ID_ENDPOINT;
+  const hostname = window.location?.hostname;
+  if (hostname === "localhost") return REMOTE_PLANT_ID_ENDPOINT;
   const protocol = window.location?.protocol;
   if (protocol === "http:" || protocol === "https:") return "/.netlify/functions/plant-id-scan";
   return REMOTE_PLANT_ID_ENDPOINT;
