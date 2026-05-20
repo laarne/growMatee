@@ -1,4 +1,11 @@
-const PLANT_ID_ENDPOINT = "/.netlify/functions/plant-id-scan";
+const REMOTE_PLANT_ID_ENDPOINT = "https://gleaming-sunshine-c5c54e.netlify.app/.netlify/functions/plant-id-scan";
+
+function getPlantIdEndpoint() {
+  if (typeof window === "undefined") return REMOTE_PLANT_ID_ENDPOINT;
+  const protocol = window.location?.protocol;
+  if (protocol === "http:" || protocol === "https:") return "/.netlify/functions/plant-id-scan";
+  return REMOTE_PLANT_ID_ENDPOINT;
+}
 
 const protectedPlantNames = [
   "vanda sanderiana",
@@ -112,7 +119,7 @@ function statusMeta(status) {
 export async function scanPlantWithPlantId(file) {
   const imageUrl = URL.createObjectURL(file);
   const imageBase64 = await fileToCompressedBase64(file).catch(() => fileToBase64(file));
-  const response = await fetch(PLANT_ID_ENDPOINT, {
+  const response = await fetch(getPlantIdEndpoint(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
