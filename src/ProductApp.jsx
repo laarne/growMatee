@@ -23,6 +23,7 @@ import {
   Trophy,
   UserRound,
 } from "lucide-react";
+import { scanPlantWithPlantId } from "./lib/plantIdScan";
 
 const plantPhotos = {
   monstera: "/plants/monstera-real.jpg",
@@ -1827,7 +1828,9 @@ function MarketPlantDetail({ plant, onClose, notify, openMessages }) {
 
 function MarketListingCreator({ onCreate, onCancel, notify }) {
   const topRef = React.useRef(null);
-  const [scanResult, setScanResult] = useState(aiScanResults[0]);
+  const scanInputRef = React.useRef(null);
+  const [scanResult, setScanResult] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
   const [localName, setLocalName] = useState("");
   const [category, setCategory] = useState("Indoor");
   const [price, setPrice] = useState("PHP 180");
@@ -1835,10 +1838,12 @@ function MarketListingCreator({ onCreate, onCancel, notify }) {
   const [stockUnit, setStockUnit] = useState("Pot");
   const [delivery, setDelivery] = useState("Pickup / Meetup / Delivery");
   const [description, setDescription] = useState("Healthy, beginner-friendly plant ready for a new home.");
-  const ScanIcon = scanResult.icon;
-  const isBlocked = scanResult.status === "Blocked";
-  const isReview = scanResult.status === "Review";
-  const safetyRows = isBlocked
+  const ScanIcon = scanResult?.icon ?? ScanLine;
+  const isBlocked = scanResult?.status === "Blocked";
+  const isReview = scanResult?.status === "Review";
+  const safetyRows = !scanResult
+    ? []
+    : isBlocked
     ? [
         ["Plant identified", `${scanResult.commonName} - ${scanResult.confidence} match`, AlertTriangle],
         ["Selling Status", "Blocked from Marketplace", Ban],
@@ -1856,18 +1861,39 @@ function MarketListingCreator({ onCreate, onCancel, notify }) {
           ["Protected Species Check", "No CITES / DENR restriction detected", Check],
         ];
 
-  const scanNext = () => {
-    const currentIndex = aiScanResults.findIndex((result) => result.id === scanResult.id);
-    const nextResult = aiScanResults[(currentIndex + 1) % aiScanResults.length];
-    setScanResult(nextResult);
-    setLocalName("");
-    setCategory(nextResult.suggestedCategory ?? category);
-    setDescription(`${nextResult.commonName} identified by Leafy AI. Add price, stock, delivery, and care notes before posting.`);
-    notify("Leafy AI scanned", `${nextResult.commonName} checked for Market listing.`);
+  const applyScanResult = (nextResult) => {
+    const Icon = nextResult.status === "Blocked" ? Ban : nextResult.status === "Review" ? AlertTriangle : Check;
+    setScanResult({ ...nextResult, icon: Icon });
+    setLocalName(nextResult.localNames?.[0] ?? "");
+    setCategory(nextResult.suggestedCategory ?? nextResult.category ?? category);
+    setDescription(nextResult.description ?? `${nextResult.commonName} identified by Leafy AI. Add price, stock, delivery, and care notes before posting.`);
     requestAnimationFrame(() => topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
+  const scanCapturedImage = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setIsScanning(true);
+    const plantIdKey = import.meta.env.VITE_PLANT_ID_API_KEY;
+    try {
+      const result = await scanPlantWithPlantId(file, plantIdKey);
+      applyScanResult(result);
+      notify(result.source === "plant.id" ? "Plant.id scan complete" : "Demo scan complete", `${result.commonName} checked for Market listing.`);
+    } catch (error) {
+      setScanResult(null);
+      notify("Plant.id scan failed", "Please capture a clearer real plant photo and try again.");
+    } finally {
+      setIsScanning(false);
+      event.target.value = "";
+    }
+  };
+
   const createListing = () => {
+    if (!scanResult) {
+      notify("Scan required", "Capture a real plant photo before posting to Market.");
+      return;
+    }
+
     if (isBlocked) {
       notify("Market listing blocked", "Leafy AI found a protected-species risk. This item cannot be sold.");
       return;
@@ -1928,26 +1954,36 @@ function MarketListingCreator({ onCreate, onCancel, notify }) {
       </div>
 
       <div className="px-5 pb-5">
-      <div className={cn("mt-4 flex gap-3 rounded-[1.4rem] p-3", isBlocked ? "bg-rose-50" : isReview ? "bg-amber-50" : "bg-[#f0f9eb]")}>
-        <PlantImage src={scanResult.image} alt={scanResult.commonName} className="h-20 w-20 shrink-0 rounded-3xl object-cover" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-[#315d37]">AI Result</p>
-            <span
-              className={cn(
-                "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black",
-                isBlocked ? "bg-rose-50 text-rose-700" : isReview ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"
-              )}
-            >
-              <ScanIcon size={12} /> {isBlocked ? "Blocked" : isReview ? "Review" : "Safe to sell"}
-            </span>
+      {scanResult ? (
+        <div className={cn("mt-4 flex gap-3 rounded-[1.4rem] p-3", isBlocked ? "bg-rose-50" : isReview ? "bg-amber-50" : "bg-[#f0f9eb]")}>
+          <PlantImage src={scanResult.image} alt={scanResult.commonName} className="h-20 w-20 shrink-0 rounded-3xl object-cover" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-[#315d37]">Plant.id Result</p>
+              <span
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black",
+                  isBlocked ? "bg-rose-50 text-rose-700" : isReview ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"
+                )}
+              >
+                <ScanIcon size={12} /> {isBlocked ? "Blocked" : isReview ? "Review" : "Safe to sell"}
+              </span>
+            </div>
+            <h3 className="mt-1 text-lg font-black leading-tight text-[#203522]">{scanResult.commonName}</h3>
+            <p className="mt-1 text-xs font-bold italic text-[#7a8572]">{scanResult.scientificName}</p>
+            <p className="mt-1 text-xs font-black text-[#315d37]">{scanResult.confidence} match</p>
+            <p className="mt-2 text-xs font-semibold leading-4 text-[#52604d]">Scanned from captured image with Plant.id image evaluation.</p>
           </div>
-          <h3 className="mt-1 text-lg font-black leading-tight text-[#203522]">{scanResult.commonName}</h3>
-          <p className="mt-1 text-xs font-bold italic text-[#7a8572]">{scanResult.scientificName}</p>
-          <p className="mt-1 text-xs font-black text-[#315d37]">{scanResult.confidence} match</p>
-          <p className="mt-2 text-xs font-semibold leading-4 text-[#52604d]">Add a local name below if buyers know it by another name.</p>
         </div>
-      </div>
+      ) : (
+        <div className="mt-4 rounded-[1.4rem] border border-dashed border-[#cbdabe] bg-[#fbfdf7] p-5 text-center">
+          <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#edf7dc] text-[#315d37]">
+            <Camera size={22} />
+          </span>
+          <p className="mt-3 font-black text-[#203522]">Capture a real plant photo</p>
+          <p className="mt-1 text-sm font-semibold leading-5 text-[#63705e]">Plant.id will identify the plant before you can post it to Market.</p>
+        </div>
+      )}
 
       <div className="mt-4 grid gap-2 md:grid-cols-3">
         {safetyRows.map(([title, detail, Icon]) => (
@@ -1976,8 +2012,9 @@ function MarketListingCreator({ onCreate, onCancel, notify }) {
         <label className="text-xs font-black text-[#52604d]">
           Leafy AI name
           <input
-            value={scanResult.commonName}
+            value={scanResult?.commonName ?? ""}
             readOnly
+            placeholder="Scan first"
             className="mt-1 w-full rounded-2xl border border-[#dfe8d7] bg-[#fbfdf7] px-4 py-3 text-sm font-black text-[#52604d] outline-none"
           />
         </label>
@@ -2038,6 +2075,19 @@ function MarketListingCreator({ onCreate, onCancel, notify }) {
         <textarea value={description} onChange={(event) => setDescription(event.target.value)} className="mt-1 min-h-24 w-full rounded-2xl border border-[#dfe8d7] bg-white px-4 py-3 text-sm font-semibold leading-5 text-[#203522] outline-none focus:border-[#8bc34a]" />
       </label>
 
+      {scanResult?.careTips?.length > 0 && (
+        <div className="mt-4 rounded-[1.4rem] bg-[#f7faf1] p-4 ring-1 ring-[#edf1e8]">
+          <p className="font-black text-[#203522]">Leafy care notes</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {scanResult.careTips.map((tip) => (
+              <span key={tip} className="rounded-full bg-white px-3 py-2 text-xs font-black text-[#315d37] ring-1 ring-[#dfe8d7]">
+                {tip}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mt-4 flex items-start justify-between gap-3 rounded-[1.4rem] border border-[#dfe8d7] bg-[#fbfdf7] p-4">
         <div className="min-w-0">
           <p className="font-black text-[#203522]">Marketplace fee</p>
@@ -2050,14 +2100,21 @@ function MarketListingCreator({ onCreate, onCancel, notify }) {
       </div>
 
       <div className="mt-4 grid grid-cols-[auto_1fr] gap-2">
-        <button onClick={scanNext} className="gm-tap grid h-12 w-12 place-items-center rounded-full bg-[#edf7dc] text-[#315d37]" aria-label="Scan another market plant">
-          <Camera size={18} />
+        <input ref={scanInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={scanCapturedImage} />
+        <button
+          onClick={() => scanInputRef.current?.click()}
+          className="gm-tap grid h-12 w-12 place-items-center rounded-full bg-[#edf7dc] text-[#315d37]"
+          aria-label="Capture plant photo for Gemini scan"
+          disabled={isScanning}
+        >
+          {isScanning ? <ScanLine size={18} className="animate-pulse" /> : <Camera size={18} />}
         </button>
         <button
           onClick={createListing}
-          className={cn("gm-tap rounded-full px-4 py-3 text-sm font-black", isBlocked ? "bg-[#f0f4e8] text-[#9aa690]" : "bg-[#203522] text-white")}
+          className={cn("gm-tap rounded-full px-4 py-3 text-sm font-black", isBlocked || isScanning || !scanResult ? "bg-[#f0f4e8] text-[#9aa690]" : "bg-[#203522] text-white")}
+          disabled={isScanning || !scanResult}
         >
-          {isReview ? "Send to review" : "Post to Market"}
+          {isScanning ? "Scanning plant..." : !scanResult ? "Scan plant first" : isReview ? "Send to review" : "Post to Market"}
         </button>
       </div>
 
@@ -2065,8 +2122,8 @@ function MarketListingCreator({ onCreate, onCancel, notify }) {
         <p className="font-black text-[#203522]">Before posting</p>
         <div className="mt-3 space-y-2">
           {[
-            "Plant verified by Leafy AI",
-            isReview ? "Human review required before publishing" : "Approved for Marketplace",
+            scanResult ? "Plant verified by Plant.id" : "Capture a real plant photo first",
+            scanResult ? (isReview ? "Human review required before publishing" : "Approved for Marketplace") : "No mock scan result will be used",
             "10% fee applies only after sale",
           ].map((item) => (
             <div key={item} className="flex items-center gap-2 text-sm font-semibold text-[#52604d]">
