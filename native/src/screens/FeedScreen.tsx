@@ -7,6 +7,8 @@ import { useAuth } from "../context/AuthContext";
 import { createFeedPost, getFeedPosts, getPostComments, addPostComment, togglePostReaction, deletePost, type FeedPost, type PostComment } from "../services/feed";
 import { pickImageFromLibrary, uploadPublicImage, type PickedImage } from "../services/storage";
 import { createReport } from "../services/reports";
+import { getOrCreateMyGarden, getGardenPlants, type GardenPlant } from "../services/gardens";
+import { supabase } from "../services/supabase";
 import { colors } from "../theme/colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -21,6 +23,17 @@ export function FeedScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPosting, setIsPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pagination state
+  const [hasMore, setHasMore] = useState(true);
+
+  // Garden Plant Link states
+  const [userPlants, setUserPlants] = useState<GardenPlant[]>([]);
+  const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null);
+
+  // Plant detail modal states
+  const [detailPlant, setDetailPlant] = useState<any>(null);
+  const [isLoadingPlantDetail, setIsLoadingPlantDetail] = useState(false);
 
   // Comments states
   const [activePostComments, setActivePostComments] = useState<string | null>(null);
@@ -73,13 +86,21 @@ export function FeedScreen() {
     }
   }
 
-  async function loadPosts() {
-    setIsLoading(true);
-    setError(null);
+  async function loadPosts(isLoadMore = false) {
+    if (!isLoadMore) {
+      setIsLoading(true);
+      setError(null);
+    }
 
     try {
-      const data = await getFeedPosts(user?.id);
-      setPosts(data);
+      const lastPost = isLoadMore && posts.length > 0 ? posts[posts.length - 1] : undefined;
+      const data = await getFeedPosts(user?.id, 10, lastPost?.createdAt);
+      if (isLoadMore) {
+        setPosts((prev) => [...prev, ...data]);
+      } else {
+        setPosts(data);
+      }
+      setHasMore(data.length === 10);
     } catch (loadError) {
       const message = loadError instanceof Error ? loadError.message : "Unable to load feed.";
       setError(message);
@@ -88,8 +109,20 @@ export function FeedScreen() {
     }
   }
 
+  async function loadUserPlants() {
+    if (!user) return;
+    try {
+      const garden = await getOrCreateMyGarden(user.id);
+      const plants = await getGardenPlants(garden.id);
+      setUserPlants(plants);
+    } catch (err) {
+      console.error("Failed to load user plants for feed linking", err);
+    }
+  }
+
   useEffect(() => {
     loadPosts();
+    loadUserPlants();
   }, [user?.id]);
 
   async function handlePost() {
@@ -100,16 +133,53 @@ export function FeedScreen() {
 
     try {
       const uploadedPhoto = photo ? await uploadPublicImage("feed-photos", user.id, "posts", photo) : null;
-      await createFeedPost(user.id, body.trim(), type, uploadedPhoto?.publicUrl);
+      await createFeedPost(user.id, body.trim(), type, uploadedPhoto?.publicUrl, selectedPlantId);
       setBody("");
       setPhoto(null);
       setType("update");
+      setSelectedPlantId(null);
       await loadPosts();
     } catch (postError) {
       const message = postError instanceof Error ? postError.message : "Unable to create post.";
       setError(message);
     } finally {
       setIsPosting(false);
+    }
+  }
+
+  async function handleViewPlantDetail(plantId: string, plantName: string) {
+    setIsLoadingPlantDetail(true);
+    setDetailPlant({ name: plantName });
+    try {
+      if (supabase) {
+        const { data, error } = await supabase
+          .from("garden_plants")
+          .select("id, name, local_name, scientific_name, category, condition, care_notes, garden_plant_photos(storage_path)")
+          .eq("id", plantId)
+          .maybeSingle();
+
+        if (!error && data) {
+          const photoRow = data.garden_plant_photos?.[0];
+          const photoUrl = photoRow 
+            ? supabase.storage.from("garden-photos").getPublicUrl(photoRow.storage_path).data.publicUrl
+            : null;
+
+          setDetailPlant({
+            id: data.id,
+            name: data.name,
+            localName: data.local_name,
+            scientificName: data.scientific_name,
+            category: data.category,
+            condition: data.condition,
+            careNotes: data.care_notes,
+            photoUrl,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load linked plant details", err);
+    } finally {
+      setIsLoadingPlantDetail(false);
     }
   }
 
@@ -208,6 +278,29 @@ export function FeedScreen() {
           value={body}
         />
         {photo && <Image source={{ uri: photo.uri }} style={styles.preview} />}
+
+        {userPlants.length > 0 && (
+          <View style={styles.plantSelectorRow}>
+            <Text style={styles.selectorLabel}>Link Plant (Optional):</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.plantScroll}>
+              {userPlants.map((plant) => {
+                const isSelected = selectedPlantId === plant.id;
+                return (
+                  <Pressable
+                    key={plant.id}
+                    onPress={() => setSelectedPlantId(isSelected ? null : plant.id)}
+                    style={[styles.plantChip, isSelected && styles.plantChipActive]}
+                  >
+                    <Text style={[styles.plantChipText, isSelected && styles.plantChipTextActive]}>
+                      🌱 {plant.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
         <View style={styles.actions}>
           {postTypes.map((postType) => (
             <Button key={postType} variant={type === postType ? "primary" : "secondary"} onPress={() => setType(postType)}>
@@ -275,6 +368,16 @@ export function FeedScreen() {
             {post.imageUrl && <Image source={{ uri: post.imageUrl }} style={styles.postImage} />}
             <Text style={styles.postBody}>{post.body}</Text>
 
+            {post.gardenPlantId && (
+              <Pressable
+                onPress={() => handleViewPlantDetail(post.gardenPlantId!, post.gardenPlantName!)}
+                style={styles.linkedPlantBadge}
+              >
+                <MaterialCommunityIcons name="leaf" size={14} color={colors.white} />
+                <Text style={styles.linkedPlantText}>Linked Plant: {post.gardenPlantName}</Text>
+              </Pressable>
+            )}
+
             <View style={styles.reactionsBar}>
               <Pressable style={styles.actionBtn} onPress={() => handleToggleLike(post.id)}>
                 <Text style={styles.actionBtnText}>
@@ -326,6 +429,14 @@ export function FeedScreen() {
           </Card>
         ))}
 
+      {!isLoading && hasMore && posts.length > 0 && (
+        <View style={styles.loadMoreContainer}>
+          <Button variant="secondary" onPress={() => loadPosts(true)}>
+            Load More Posts
+          </Button>
+        </View>
+      )}
+
       {/* Report Modal */}
       <Modal visible={showReportModal} animationType="fade" transparent={true}>
         <View style={styles.modalOverlay}>
@@ -368,6 +479,53 @@ export function FeedScreen() {
                 </Button>
               </View>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Detailed Plant Modal */}
+      <Modal visible={detailPlant !== null} animationType="slide" transparent={false} onRequestClose={() => setDetailPlant(null)}>
+        <View style={styles.plantDetailContainer}>
+          <View style={styles.plantDetailHeader}>
+            <Text style={styles.plantDetailTitle}>{detailPlant?.name}</Text>
+            <Text style={styles.plantDetailSubtitle}>Linked Garden Plant</Text>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.plantDetailScroll}>
+            {isLoadingPlantDetail ? (
+              <View style={styles.loaderWrap}>
+                <ActivityIndicator color={colors.green} size="large" />
+                <Text style={styles.loadingText}>Loading plant info...</Text>
+              </View>
+            ) : (
+              <Card>
+                {detailPlant?.photoUrl && <Image source={{ uri: detailPlant.photoUrl }} style={styles.plantImageDetail} />}
+                <Text style={styles.plantNameDetail}>{detailPlant?.name}</Text>
+                
+                {detailPlant?.scientificName && (
+                  <Text style={styles.scientificNameText}>Scientific: {detailPlant.scientificName}</Text>
+                )}
+                {detailPlant?.localName && (
+                  <Text style={styles.plantDetailMeta}>Local Name: {detailPlant.localName}</Text>
+                )}
+                {detailPlant?.category && (
+                  <Text style={styles.plantDetailMeta}>Category: {detailPlant.category}</Text>
+                )}
+                {detailPlant?.condition && (
+                  <Text style={styles.plantDetailMeta}>Condition: {detailPlant.condition}</Text>
+                )}
+                {detailPlant?.careNotes && (
+                  <View style={styles.notesBox}>
+                    <Text style={styles.notesLabel}>Care Notes:</Text>
+                    <Text style={styles.notesText}>{detailPlant.careNotes}</Text>
+                  </View>
+                )}
+              </Card>
+            )}
+          </ScrollView>
+
+          <View style={styles.plantDetailFooter}>
+            <Button onPress={() => setDetailPlant(null)}>Close</Button>
           </View>
         </View>
       </Modal>
@@ -628,5 +786,141 @@ const styles = StyleSheet.create({
   },
   flexButton: {
     flex: 1,
+  },
+  plantSelectorRow: {
+    marginTop: 14,
+  },
+  selectorLabel: {
+    color: colors.greenMuted,
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 6,
+  },
+  plantScroll: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  plantChip: {
+    backgroundColor: colors.sage,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+  },
+  plantChipActive: {
+    backgroundColor: colors.green,
+  },
+  plantChipText: {
+    color: colors.green,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  plantChipTextActive: {
+    color: colors.white,
+  },
+  linkedPlantBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.green,
+    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  linkedPlantText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  loadMoreContainer: {
+    marginVertical: 16,
+    alignItems: "center",
+  },
+  plantDetailContainer: {
+    flex: 1,
+    backgroundColor: colors.cream,
+    paddingTop: 50,
+  },
+  plantDetailHeader: {
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  plantDetailTitle: {
+    color: colors.green,
+    fontSize: 22,
+    fontWeight: "900",
+  },
+  plantDetailSubtitle: {
+    color: colors.greenMuted,
+    fontSize: 14,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  plantDetailScroll: {
+    padding: 20,
+  },
+  plantImageDetail: {
+    width: "100%",
+    height: 200,
+    borderRadius: 16,
+    backgroundColor: colors.sage,
+    marginBottom: 12,
+  },
+  plantNameDetail: {
+    color: colors.green,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  scientificNameText: {
+    color: colors.greenMuted,
+    fontSize: 12,
+    fontStyle: "italic",
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  plantDetailMeta: {
+    color: colors.greenMuted,
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  notesBox: {
+    backgroundColor: colors.cream,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 12,
+  },
+  notesLabel: {
+    color: colors.green,
+    fontSize: 12,
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+  notesText: {
+    color: colors.greenMuted,
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 18,
+  },
+  plantDetailFooter: {
+    padding: 20,
+    backgroundColor: colors.cream,
+  },
+  loaderWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 40,
+  },
+  loadingText: {
+    color: colors.green,
+    fontSize: 14,
+    fontWeight: "800",
+    marginTop: 10,
   },
 });

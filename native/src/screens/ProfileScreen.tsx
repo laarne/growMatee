@@ -280,7 +280,14 @@ export function ProfileScreen({
                 <View key={order.id} style={styles.orderItem}>
                   <View style={styles.orderHeader}>
                     <Text style={styles.orderRole}>{roleLabel}</Text>
-                    <Text style={[styles.orderStatus, order.status === "completed" && styles.statusCompleted, order.status === "cancelled" && styles.statusCancelled]}>
+                    <Text style={[
+                      styles.orderStatus,
+                      order.status === "completed" && styles.statusCompleted,
+                      order.status === "cancelled" && styles.statusCancelled,
+                      order.status === "paid" && styles.statusPaid,
+                      order.status === "refunded" && styles.statusRefunded,
+                      order.status === "disputed" && styles.statusDisputed,
+                    ]}>
                       {order.status}
                     </Text>
                   </View>
@@ -290,28 +297,99 @@ export function ProfileScreen({
                   
                   {order.status === "pending" && (
                     <View style={styles.actionRow}>
-                      {!isBuyer && (
+                      {isBuyer ? (
                         <View style={styles.flexButton}>
-                          <Button disabled={updatingOrderId === order.id} onPress={() => handleUpdateOrderStatus(order.id, "completed")}>
-                            Complete
+                          <Button disabled={updatingOrderId === order.id} onPress={() => handleUpdateOrderStatus(order.id, "paid")}>
+                            Pay Now
                           </Button>
                         </View>
-                      )}
+                      ) : null}
                       <View style={styles.flexButton}>
                         <Button disabled={updatingOrderId === order.id} variant="secondary" onPress={() => handleUpdateOrderStatus(order.id, "cancelled")}>
-                          Cancel
+                          Cancel Order
                         </Button>
                       </View>
                     </View>
                   )}
 
-                  {order.status === "completed" && isBuyer && !hasReviewed && (
+                  {order.status === "paid" && (
                     <View style={styles.actionRow}>
-                      <View style={styles.flexButton}>
-                        <Button onPress={() => handleOpenReviewModal(order.id, order.sellerId)}>
-                          Leave Review
-                        </Button>
-                      </View>
+                      {!isBuyer && (
+                        <View style={styles.flexButton}>
+                          <Button disabled={updatingOrderId === order.id} onPress={() => handleUpdateOrderStatus(order.id, "completed")}>
+                            Complete Sale
+                          </Button>
+                        </View>
+                      )}
+                      {isBuyer ? (
+                        <View style={styles.flexButton}>
+                          <Button disabled={updatingOrderId === order.id} variant="secondary" onPress={() => handleUpdateOrderStatus(order.id, "disputed")}>
+                            Dispute Order
+                          </Button>
+                        </View>
+                      ) : (
+                        <View style={styles.flexButton}>
+                          <Button disabled={updatingOrderId === order.id} variant="secondary" onPress={() => handleUpdateOrderStatus(order.id, "refunded")}>
+                            Refund & Cancel
+                          </Button>
+                        </View>
+                      )}
+                    </View>
+                  )}
+
+                  {order.status === "completed" && (
+                    <View style={styles.actionRow}>
+                      {isBuyer && !hasReviewed && (
+                        <View style={styles.flexButton}>
+                          <Button onPress={() => handleOpenReviewModal(order.id, order.sellerId)}>
+                            Leave Review
+                          </Button>
+                        </View>
+                      )}
+                      {isBuyer && (
+                        <View style={styles.flexButton}>
+                          <Button disabled={updatingOrderId === order.id} variant="secondary" onPress={() => handleUpdateOrderStatus(order.id, "disputed")}>
+                            Dispute Order
+                          </Button>
+                        </View>
+                      )}
+                    </View>
+                  )}
+
+                  {order.status === "disputed" && (
+                    <View style={styles.actionRow}>
+                      {!isBuyer ? (
+                        <>
+                          <View style={styles.flexButton}>
+                            <Button disabled={updatingOrderId === order.id} onPress={() => handleUpdateOrderStatus(order.id, "refunded")}>
+                              Issue Refund
+                            </Button>
+                          </View>
+                          <View style={styles.flexButton}>
+                            <Button disabled={updatingOrderId === order.id} variant="secondary" onPress={() => handleUpdateOrderStatus(order.id, "completed")}>
+                              Resolve Completed
+                            </Button>
+                          </View>
+                        </>
+                      ) : (
+                        <Text style={{ color: "#9f2d20", fontSize: 12, fontWeight: "800", marginTop: 4 }}>
+                          Under dispute. Support team is reviewing.
+                        </Text>
+                      )}
+                      {canSeeAdminDashboard && (
+                        <>
+                          <View style={styles.flexButton}>
+                            <Button disabled={updatingOrderId === order.id} onPress={() => handleUpdateOrderStatus(order.id, "completed")}>
+                              Admin: Complete
+                            </Button>
+                          </View>
+                          <View style={styles.flexButton}>
+                            <Button disabled={updatingOrderId === order.id} variant="secondary" onPress={() => handleUpdateOrderStatus(order.id, "refunded")}>
+                              Admin: Refund
+                            </Button>
+                          </View>
+                        </>
+                      )}
                     </View>
                   )}
                 </View>
@@ -549,6 +627,15 @@ const styles = StyleSheet.create({
   },
   statusCancelled: {
     color: "#9f2d20",
+  },
+  statusPaid: {
+    color: "#1e3a8a",
+  },
+  statusRefunded: {
+    color: "#6b7280",
+  },
+  statusDisputed: {
+    color: "#b91c1c",
   },
   orderTitle: {
     color: colors.green,

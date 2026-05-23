@@ -5,6 +5,7 @@ import { Card } from "../components/Card";
 import { Screen } from "../components/Screen";
 import { useAuth } from "../context/AuthContext";
 import { getMessages, sendMessage, markConversationAsRead, type Message } from "../services/messages";
+import { supabase } from "../services/supabase";
 import { colors } from "../theme/colors";
 
 type ChatDetailScreenProps = {
@@ -70,15 +71,59 @@ export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailS
       markConversationAsRead(conversationId, user.id).catch(console.error);
     }
 
-    // Poll for new messages every 3 seconds to simulate real-time chat
+    let channel: any = null;
+
+    if (supabase) {
+      channel = supabase
+        .channel(`chat:${conversationId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "messages",
+            filter: `conversation_id=eq.${conversationId}`,
+          },
+          (payload: any) => {
+            const newMsg = payload.new;
+            setMessages((current) => {
+              if (current.some((m) => m.id === newMsg.id)) {
+                return current;
+              }
+              return [
+                ...current,
+                {
+                  id: newMsg.id,
+                  conversationId: newMsg.conversation_id,
+                  senderId: newMsg.sender_id,
+                  body: newMsg.body,
+                  imageUrl: newMsg.image_url,
+                  createdAt: newMsg.created_at,
+                },
+              ];
+            });
+            if (user) {
+              markConversationAsRead(conversationId, user.id).catch(console.error);
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    // Poll for new messages every 5 seconds as a silent fallback
     const interval = setInterval(() => {
       loadMessages(true);
       if (user) {
         markConversationAsRead(conversationId, user.id).catch(console.error);
       }
-    }, 3000);
+    }, 5000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (supabase && channel) {
+        supabase.removeChannel(channel);
+      }
+    };
   }, [conversationId, user?.id]);
 
   // Scroll to bottom when messages load or change

@@ -22,6 +22,8 @@ type FeedPostRow = {
   body: string;
   image_url: string | null;
   created_at: string;
+  garden_plant_id?: string | null;
+  garden_plants?: { name: string } | { name: string }[] | null;
   author?: AuthorRow | AuthorRow[] | null;
   post_reactions?: ReactionRow[];
   post_comments?: CommentRow[];
@@ -40,6 +42,8 @@ export type FeedPost = {
   reactionsCount: number;
   commentsCount: number;
   isLikedByMe: boolean;
+  gardenPlantId: string | null;
+  gardenPlantName: string | null;
 };
 
 export type PostComment = {
@@ -72,10 +76,10 @@ function getAuthor(author?: AuthorRow | AuthorRow[] | null) {
   return author ?? null;
 }
 
-export async function getFeedPosts(currentUserId?: string): Promise<FeedPost[]> {
+export async function getFeedPosts(currentUserId?: string, limit = 10, lastCreatedAt?: string): Promise<FeedPost[]> {
   if (!supabase) return [];
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("feed_posts")
     .select(
       `
@@ -86,14 +90,24 @@ export async function getFeedPosts(currentUserId?: string): Promise<FeedPost[]> 
       body,
       image_url,
       created_at,
+      garden_plant_id,
+      garden_plants(name),
       author:profiles!feed_posts_user_id_fkey(display_name, location, avatar_url),
       post_reactions(user_id),
       post_comments(id)
     `,
     )
-    .eq("is_public", true)
+    .eq("is_public", true);
+
+  if (lastCreatedAt) {
+    query = query.lt("created_at", lastCreatedAt);
+  }
+
+  query = query
     .order("created_at", { ascending: false })
-    .limit(30);
+    .limit(limit);
+
+  const { data, error } = await query;
 
   if (error) {
     throw error;
@@ -108,6 +122,10 @@ export async function getFeedPosts(currentUserId?: string): Promise<FeedPost[]> 
       ? reactions.some((r) => r.user_id === currentUserId)
       : false;
 
+    const gardenPlant = post.garden_plants
+      ? (Array.isArray(post.garden_plants) ? post.garden_plants[0] : post.garden_plants)
+      : null;
+
     return {
       id: post.id,
       userId: post.user_id,
@@ -121,11 +139,19 @@ export async function getFeedPosts(currentUserId?: string): Promise<FeedPost[]> 
       reactionsCount: reactions.length,
       commentsCount: comments.length,
       isLikedByMe,
+      gardenPlantId: post.garden_plant_id ?? null,
+      gardenPlantName: gardenPlant?.name ?? null,
     };
   });
 }
 
-export async function createFeedPost(userId: string, body: string, type: FeedPost["type"] = "update", imageUrl?: string | null) {
+export async function createFeedPost(
+  userId: string,
+  body: string,
+  type: FeedPost["type"] = "update",
+  imageUrl?: string | null,
+  gardenPlantId?: string | null
+) {
   if (!supabase) throw new Error("Supabase is not configured.");
 
   const { error } = await supabase.from("feed_posts").insert({
@@ -133,6 +159,7 @@ export async function createFeedPost(userId: string, body: string, type: FeedPos
     body,
     type,
     image_url: imageUrl || null,
+    garden_plant_id: gardenPlantId || null,
     is_public: true,
   });
 

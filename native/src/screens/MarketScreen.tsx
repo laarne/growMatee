@@ -69,16 +69,26 @@ export function MarketScreen({
   const [appShopName, setAppShopName] = useState("");
   const [appReason, setAppReason] = useState("");
   const [appPhoto, setAppPhoto] = useState<PickedImage | null>(null);
+  const [hasMore, setHasMore] = useState(true);
 
   const visibleListings = useMemo(() => listings, [listings]);
 
-  async function loadListings(nextSearch = search) {
-    setIsLoadingListings(true);
-    setListingError(null);
+  async function loadListings(nextSearch = search, isLoadMore = false) {
+    if (!isLoadMore) {
+      setIsLoadingListings(true);
+      setListingError(null);
+    }
 
     try {
-      const data = await getActiveListings(nextSearch);
-      setListings(data);
+      const lastItem = isLoadMore && listings.length > 0 ? listings[listings.length - 1] : undefined;
+      const data = await getActiveListings(nextSearch, 10, lastItem?.publishedAt || undefined);
+      
+      if (isLoadMore) {
+        setListings((prev) => [...prev, ...data]);
+      } else {
+        setListings(data);
+      }
+      setHasMore(data.length === 10);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to load listings.";
       setListingError(message);
@@ -340,6 +350,14 @@ export function MarketScreen({
           </Card>
         ))}
 
+      {!isLoadingListings && !listingError && hasMore && visibleListings.length > 0 && (
+        <View style={styles.loadMoreContainer}>
+          <Button variant="secondary" onPress={() => loadListings(search, true)}>
+            Load More Listings
+          </Button>
+        </View>
+      )}
+
       {orderMessage && <Text style={styles.orderMessage}>{orderMessage}</Text>}
     </Screen>
   );
@@ -548,5 +566,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     paddingHorizontal: 14,
     paddingVertical: 13,
+  },
+  loadMoreContainer: {
+    marginVertical: 16,
+    alignItems: "center",
   },
 });

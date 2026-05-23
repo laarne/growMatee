@@ -26,6 +26,7 @@ type ListingRow = {
   description: string | null;
   listing_photos?: ListingPhotoRow[];
   seller?: SellerRow | SellerRow[] | null;
+  published_at?: string | null;
 };
 
 export type MarketListing = {
@@ -43,6 +44,7 @@ export type MarketListing = {
   description: string | null;
   sellerName: string;
   photoUrl: string | null;
+  publishedAt?: string | null;
 };
 
 export type SellerListing = {
@@ -88,7 +90,7 @@ function getSeller(seller?: SellerRow | SellerRow[] | null) {
   return seller ?? null;
 }
 
-export async function getActiveListings(searchTerm = ""): Promise<MarketListing[]> {
+export async function getActiveListings(searchTerm = "", limit = 10, lastPublishedAt?: string): Promise<MarketListing[]> {
   if (!supabase) return [];
 
   let query = supabase
@@ -107,18 +109,25 @@ export async function getActiveListings(searchTerm = ""): Promise<MarketListing[
       location,
       delivery_option,
       description,
+      published_at,
       listing_photos(storage_path, alt_text, sort_order),
       seller:profiles!listings_seller_id_fkey(display_name, location)
     `,
     )
-    .eq("status", "active")
-    .order("published_at", { ascending: false, nullsFirst: false })
-    .limit(30);
+    .eq("status", "active");
 
   const trimmedSearch = searchTerm.trim();
   if (trimmedSearch) {
     query = query.or(`name.ilike.%${trimmedSearch}%,local_name.ilike.%${trimmedSearch}%,category.ilike.%${trimmedSearch}%`);
   }
+
+  if (lastPublishedAt) {
+    query = query.lt("published_at", lastPublishedAt);
+  }
+
+  query = query
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .limit(limit);
 
   const { data, error } = await query;
 
@@ -145,6 +154,7 @@ export async function getActiveListings(searchTerm = ""): Promise<MarketListing[
       description: listing.description,
       sellerName: seller?.display_name ?? "Verified seller",
       photoUrl: getPhotoUrl(sortedPhotos[0]?.storage_path),
+      publishedAt: listing.published_at ?? null,
     };
   });
 }
