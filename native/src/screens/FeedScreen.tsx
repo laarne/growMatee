@@ -44,6 +44,10 @@ export function FeedScreen() {
   const [newCommentTexts, setNewCommentTexts] = useState<Record<string, string>>({});
   const [isLoadingComments, setIsLoadingComments] = useState<Record<string, boolean>>({});
 
+  // Options sheet state
+  const [showOptionsModal, setShowOptionsModal] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<FeedPost | null>(null);
+
   // Report and delete states
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportPostId, setReportPostId] = useState<string | null>(null);
@@ -402,15 +406,16 @@ export function FeedScreen() {
                     {post.type}
                   </Text>
                 </View>
-                {post.userId === user?.id ? (
-                  <Pressable onPress={() => handleDeletePost(post.id)} style={styles.postAction} hitSlop={8}>
-                    <Text style={styles.deleteText}>Delete</Text>
-                  </Pressable>
-                ) : (
-                  <Pressable onPress={() => handleOpenReportModal(post.id)} style={styles.postAction} hitSlop={8}>
-                    <Text style={styles.reportText}>Report</Text>
-                  </Pressable>
-                )}
+                <Pressable
+                  onPress={() => {
+                    setSelectedPost(post);
+                    setShowOptionsModal(true);
+                  }}
+                  style={styles.postAction}
+                  hitSlop={8}
+                >
+                  <MaterialCommunityIcons name="dots-horizontal" size={20} color={colors.textPrimary} />
+                </Pressable>
               </View>
             </View>
 
@@ -631,6 +636,42 @@ export function FeedScreen() {
 
           <View style={styles.plantDetailFooter}>
             <Button onPress={() => setDetailPlant(null)}>Close</Button>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Post Options Bottom Sheet Modal */}
+      <Modal visible={showOptionsModal} animationType="slide" transparent={true} onRequestClose={() => setShowOptionsModal(false)}>
+        <View style={styles.bottomModalOverlay}>
+          <Pressable style={{ flex: 1, width: "100%" }} onPress={() => setShowOptionsModal(false)} />
+          <View style={styles.optionsSheet}>
+            <View style={styles.optionsHandle} />
+            {selectedPost?.userId === user?.id ? (
+              <Pressable
+                onPress={() => {
+                  setShowOptionsModal(false);
+                  if (selectedPost) handleDeletePost(selectedPost.id);
+                }}
+                style={styles.optionBtn}
+              >
+                <MaterialCommunityIcons name="delete-outline" size={20} color="#ef4444" />
+                <Text style={styles.optionBtnTextDanger}>Delete Post</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                onPress={() => {
+                  setShowOptionsModal(false);
+                  if (selectedPost) handleOpenReportModal(selectedPost.id);
+                }}
+                style={styles.optionBtn}
+              >
+                <MaterialCommunityIcons name="alert-circle-outline" size={20} color={colors.textPrimary} />
+                <Text style={styles.optionBtnText}>Report Post</Text>
+              </Pressable>
+            )}
+            <Pressable onPress={() => setShowOptionsModal(false)} style={[styles.optionBtn, styles.optionCancelBtn]}>
+              <Text style={styles.optionCancelText}>Cancel</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -1075,6 +1116,61 @@ const styles = StyleSheet.create({
     color: colors.greenMuted,
     fontSize: 11,
     fontWeight: "900",
+  },
+  bottomModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  optionsSheet: {
+    backgroundColor: colors.surface0,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: 20,
+    width: "100%",
+    gap: 12,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  optionsHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: colors.line,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 8,
+  },
+  optionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: radius.md,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  optionBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  optionBtnTextDanger: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#ef4444",
+  },
+  optionCancelBtn: {
+    justifyContent: "center",
+    backgroundColor: colors.surface1,
+    borderColor: "transparent",
+    marginTop: 4,
+  },
+  optionCancelText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.textSecondary,
   },
 });
 
