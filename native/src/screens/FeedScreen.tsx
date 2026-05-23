@@ -12,6 +12,15 @@ import { colors, radius, shadow } from "../theme/colors";
 
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
+const mockStories = [
+  { id: "1", name: "Your Story", avatarLetter: "U", isSelf: true, color: "#22c55e" },
+  { id: "2", name: "JM Plants", avatarLetter: "J", color: "#f59e0b" },
+  { id: "3", name: "Leafy AI", avatarLetter: "L", isBot: true, color: "#10b981" },
+  { id: "4", name: "GreenThumb", avatarLetter: "G", color: "#3b82f6" },
+  { id: "5", name: "UrbanJungle", avatarLetter: "U", color: "#ec4899" },
+  { id: "6", name: "BloomAroma", avatarLetter: "B", color: "#8b5cf6" },
+];
+
 export function FeedScreen() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -267,6 +276,31 @@ export function FeedScreen() {
 
   return (
     <Screen sectionLabel="Community" title="Feed">
+      {/* ── Stories Row ── */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.storiesContainer}
+        style={styles.storiesScroll}
+      >
+        {mockStories.map((story) => (
+          <View key={story.id} style={styles.storyItem}>
+            <View style={[styles.storyRing, { borderColor: story.color }]}>
+              <View style={styles.storyAvatarFallback}>
+                {story.isBot ? (
+                  <MaterialCommunityIcons name="robot-outline" size={20} color={colors.green} />
+                ) : (
+                  <Text style={styles.storyAvatarText}>{story.avatarLetter}</Text>
+                )}
+              </View>
+            </View>
+            <Text numberOfLines={1} style={styles.storyName}>
+              {story.name}
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
+
       {/* ── Composer ── */}
       <View style={styles.composerCard}>
         <View style={styles.composerRow}>
@@ -351,71 +385,111 @@ export function FeedScreen() {
           <View key={post.id} style={styles.postCard}>
             {/* Header */}
             <View style={styles.postHeader}>
-              <View style={styles.postAvatar}>
-                <Text style={styles.postAvatarText}>
-                  {(post.authorName?.[0] ?? "?").toUpperCase()}
-                </Text>
+              <View style={styles.postHeaderLeft}>
+                <View style={styles.postAvatar}>
+                  <Text style={styles.postAvatarText}>
+                    {(post.authorName?.[0] ?? "?").toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.postMeta}>
+                  <Text style={styles.postAuthor}>{post.authorName}</Text>
+                  <Text style={styles.postTime}>{getRelativeTime(post.createdAt)}</Text>
+                </View>
               </View>
-              <View style={styles.postMeta}>
-                <Text style={styles.postAuthor}>{post.authorName}</Text>
-                <Text style={styles.postTime}>{getRelativeTime(post.createdAt)}</Text>
-              </View>
-              <View style={[(typeColor[post.type] ? styles.typeBadge : styles.typeBadge)]}>
+              <View style={styles.postHeaderRight}>
                 <View style={[styles.typeBadge, { backgroundColor: (typeColor[post.type] ?? typeColor.update).bg }]}>
                   <Text style={[styles.typeBadgeText, { color: (typeColor[post.type] ?? typeColor.update).text }]}>
                     {post.type}
                   </Text>
                 </View>
+                {post.userId === user?.id ? (
+                  <Pressable onPress={() => handleDeletePost(post.id)} style={styles.postAction} hitSlop={8}>
+                    <Text style={styles.deleteText}>Delete</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable onPress={() => handleOpenReportModal(post.id)} style={styles.postAction} hitSlop={8}>
+                    <Text style={styles.reportText}>Report</Text>
+                  </Pressable>
+                )}
               </View>
-              {post.userId === user?.id ? (
-                <Pressable onPress={() => handleDeletePost(post.id)} style={styles.postAction} hitSlop={8}>
-                  <Text style={styles.deleteText}>Delete</Text>
-                </Pressable>
-              ) : (
-                <Pressable onPress={() => handleOpenReportModal(post.id)} style={styles.postAction} hitSlop={8}>
-                  <Text style={styles.reportText}>Report</Text>
-                </Pressable>
-              )}
             </View>
-
-            {/* Body */}
-            <Text style={styles.postBody}>{post.body}</Text>
 
             {/* Image */}
             {post.imageUrl && (
               <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
             )}
 
-            {/* Divider */}
-            <View style={styles.postDivider} />
-
-            {/* Actions */}
+            {/* Actions Row */}
             <View style={styles.postActions}>
-              <Pressable style={styles.postActionBtn} onPress={() => handleToggleLike(post.id)}>
+              <View style={styles.postActionsLeft}>
+                <Pressable style={styles.actionIconBtn} onPress={() => handleToggleLike(post.id)}>
+                  <MaterialCommunityIcons
+                    name={post.isLikedByMe ? "heart" : "heart-outline"}
+                    size={24}
+                    color={post.isLikedByMe ? "#ef4444" : colors.textPrimary}
+                  />
+                </Pressable>
+                <Pressable style={styles.actionIconBtn} onPress={() => handleToggleComments(post.id)}>
+                  <MaterialCommunityIcons
+                    name="comment-outline"
+                    size={24}
+                    color={colors.textPrimary}
+                  />
+                </Pressable>
+                <Pressable style={styles.actionIconBtn}>
+                  <MaterialCommunityIcons
+                    name="send-outline"
+                    size={24}
+                    color={colors.textPrimary}
+                  />
+                </Pressable>
+              </View>
+              <Pressable style={styles.actionIconBtn}>
                 <MaterialCommunityIcons
-                  name={post.isLikedByMe ? "heart" : "heart-outline"}
-                  size={20}
-                  color={post.isLikedByMe ? "#ef4444" : colors.textSecondary}
+                  name="bookmark-outline"
+                  size={24}
+                  color={colors.textPrimary}
                 />
-                {post.reactionsCount > 0 && (
-                  <Text style={[styles.postActionText, post.isLikedByMe && styles.postActionTextLiked]}>
-                    {post.reactionsCount}
-                  </Text>
-                )}
-              </Pressable>
-              <Pressable style={styles.postActionBtn} onPress={() => handleToggleComments(post.id)}>
-                <MaterialCommunityIcons
-                  name={activePostComments === post.id ? "comment" : "comment-outline"}
-                  size={20}
-                  color={activePostComments === post.id ? colors.green : colors.textSecondary}
-                />
-                {post.commentsCount > 0 && (
-                  <Text style={styles.postActionText}>{post.commentsCount}</Text>
-                )}
               </Pressable>
             </View>
 
-            {/* Comments */}
+            {/* Content Section (Caption & Likes) */}
+            <View style={styles.postContentSection}>
+              {post.reactionsCount > 0 && (
+                <Text style={styles.likesText}>
+                  {post.reactionsCount === 1 ? "1 like" : `${post.reactionsCount} likes`}
+                </Text>
+              )}
+
+              <View style={styles.captionRow}>
+                <Text style={styles.captionText}>
+                  <Text style={styles.boldAuthor}>{post.authorName}</Text>{" "}
+                  {post.body}
+                </Text>
+              </View>
+
+              {post.gardenPlantId && (
+                <Pressable
+                  onPress={() => handleViewPlantDetail(post.gardenPlantId!, post.gardenPlantName || "Linked Plant")}
+                  style={styles.linkedBadgeWrapper}
+                >
+                  <MaterialCommunityIcons name="flower-outline" size={14} color={colors.green} />
+                  <Text style={styles.linkedBadgeText}>
+                    Linked plant: {post.gardenPlantName}
+                  </Text>
+                </Pressable>
+              )}
+
+              {post.commentsCount > 0 && activePostComments !== post.id && (
+                <Pressable onPress={() => handleToggleComments(post.id)}>
+                  <Text style={styles.viewCommentsLink}>
+                    View all {post.commentsCount} comments
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+
+            {/* Comments Section */}
             {activePostComments === post.id && (
               <View style={styles.commentsSection}>
                 {isLoadingComments[post.id] ? (
@@ -662,54 +736,110 @@ const styles = StyleSheet.create({
   },
   loadMoreText: { fontSize: 13, fontWeight: "700", color: colors.greenMuted },
 
-  // ── Post card ─────────────────────────────────────────
-  postCard: {
-    backgroundColor: colors.surface0,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.line,
+  // ── Stories Row ───────────────────────────────────────
+  storiesScroll: {
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
     marginBottom: 12,
-    overflow: "hidden",
-    ...shadow.sm,
   },
-  postHeader: {
+  storiesContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 16,
     flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 14,
-    paddingBottom: 10,
   },
-  postAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  storyItem: {
+    alignItems: "center",
+    width: 68,
+  },
+  storyRing: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.white,
+    marginBottom: 4,
+  },
+  storyAvatarFallback: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: colors.surface2,
     alignItems: "center",
     justifyContent: "center",
   },
-  postAvatarText: { fontSize: 15, fontWeight: "800", color: colors.green },
-  postMeta: { flex: 1 },
-  postAuthor: { fontSize: 14, fontWeight: "700", color: colors.textPrimary },
-  postTime: { fontSize: 11, color: colors.textTertiary, fontWeight: "600", marginTop: 1 },
-  typeBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.full,
+  storyAvatarText: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: colors.green,
   },
-  typeBadgeText: { fontSize: 11, fontWeight: "800", textTransform: "capitalize" },
-  postAction: { padding: 4 },
+  storyName: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.textSecondary,
+    textAlign: "center",
+  },
+
+  // ── Post card ─────────────────────────────────────────
+  postCard: {
+    backgroundColor: colors.white,
+    borderColor: colors.line,
+    borderBottomWidth: 1,
+    borderTopWidth: 1,
+    marginBottom: 16,
+    overflow: "hidden",
+  },
+  postHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  postHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  postHeaderRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  postAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surface2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  postAvatarText: { fontSize: 14, fontWeight: "800", color: colors.green },
+  postMeta: { },
+  postAuthor: { fontSize: 13, fontWeight: "800", color: colors.textPrimary },
+  postTime: { fontSize: 10, color: colors.textTertiary, fontWeight: "600", marginTop: 1 },
+  typeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.sm,
+  },
+  typeBadgeText: { fontSize: 10, fontWeight: "900", textTransform: "capitalize" },
+  postAction: { paddingHorizontal: 4 },
 
   postBody: {
-    fontSize: 15,
+    fontSize: 14,
     color: colors.textPrimary,
     fontWeight: "500",
-    lineHeight: 23,
+    lineHeight: 20,
     paddingHorizontal: 14,
-    paddingBottom: 12,
+    paddingBottom: 10,
   },
   postImage: {
     width: "100%",
-    height: 220,
+    aspectRatio: 1,
     backgroundColor: colors.surface1,
     marginBottom: 0,
   },
@@ -717,20 +847,69 @@ const styles = StyleSheet.create({
 
   postActions: {
     flexDirection: "row",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    gap: 4,
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  postActionBtn: {
+  postActionsLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: radius.full,
+    gap: 14,
   },
-  postActionText: { fontSize: 13, fontWeight: "600", color: colors.textSecondary },
-  postActionTextLiked: { color: "#ef4444" },
+  actionIconBtn: {
+    padding: 2,
+  },
+  postContentSection: {
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+  },
+  likesText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  captionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 4,
+  },
+  boldAuthor: {
+    fontWeight: "800",
+    color: colors.textPrimary,
+    fontSize: 13,
+  },
+  captionText: {
+    fontSize: 13,
+    color: colors.textPrimary,
+    lineHeight: 18,
+  },
+  viewCommentsLink: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  linkedBadgeWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#f0fdf4",
+    borderColor: "#dcfce7",
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    alignSelf: "flex-start",
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  linkedBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.green,
+  },
 
   // ── Comments ──────────────────────────────────────────
   commentsSection: {
