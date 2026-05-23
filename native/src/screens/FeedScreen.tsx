@@ -369,11 +369,11 @@ export function FeedScreen() {
               </View>
               {post.userId === user?.id ? (
                 <Pressable onPress={() => handleDeletePost(post.id)} style={styles.postAction} hitSlop={8}>
-                  <MaterialCommunityIcons name="delete-outline" size={18} color="#ef4444" />
+                  <Text style={styles.deleteText}>Delete</Text>
                 </Pressable>
               ) : (
                 <Pressable onPress={() => handleOpenReportModal(post.id)} style={styles.postAction} hitSlop={8}>
-                  <MaterialCommunityIcons name="dots-horizontal" size={20} color={colors.textTertiary} />
+                  <Text style={styles.reportText}>Report</Text>
                 </Pressable>
               )}
             </View>
@@ -887,5 +887,15 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   linkedPlantText: { color: colors.white, fontSize: 11, fontWeight: "800" },
+  deleteText: {
+    color: "#ef4444",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  reportText: {
+    color: colors.greenMuted,
+    fontSize: 11,
+    fontWeight: "900",
+  },
 });
 
