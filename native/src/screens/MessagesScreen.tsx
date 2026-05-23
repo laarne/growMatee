@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Screen } from "../components/Screen";
 import { useAuth } from "../context/AuthContext";
 import { getConversations, type Conversation } from "../services/messages";
-import { colors } from "../theme/colors";
+import { colors, radius } from "../theme/colors";
 
 type MessagesScreenProps = {
   onOpenChat: (conversationId: string, title: string) => void;
@@ -23,7 +24,20 @@ export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
     setError(null);
     try {
       const data = await getConversations(user.id);
-      setConversations(data);
+      const leafyConvo: Conversation = {
+        id: "leafy-ai-assistant",
+        type: "leafy",
+        listingId: null,
+        gardenId: null,
+        title: "Leafy AI Assistant",
+        updatedAt: new Date().toISOString(),
+        otherMember: {
+          id: "leafy-ai",
+          displayName: "Leafy AI Assistant",
+          avatarUrl: null,
+        },
+      };
+      setConversations([leafyConvo, ...data]);
     } catch (convoError) {
       const message = convoError instanceof Error ? convoError.message : "Unable to load inbox.";
       setError(message);
@@ -37,7 +51,7 @@ export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
   }, [user?.id]);
 
   return (
-    <Screen>
+    <Screen sectionLabel="Inbox" title="Messages">
       <View style={styles.headerRow}>
         <Text style={styles.title}>Inbox</Text>
         <Button variant="secondary" onPress={loadConversations}>
@@ -59,7 +73,7 @@ export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
         </Card>
       )}
 
-      {!isLoading && conversations.length === 0 && (
+      {!isLoading && conversations.filter((c) => c.id !== "leafy-ai-assistant").length === 0 && (
         <Card>
           <Text style={styles.emptyTitle}>No messages yet</Text>
           <Text style={styles.body}>Inquiries from marketplace listings and chats will appear here.</Text>
@@ -68,13 +82,23 @@ export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
 
       {!isLoading &&
         conversations.map((convo) => {
+          const isLeafy = convo.id === "leafy-ai-assistant";
           const chatTitle = convo.title || convo.otherMember?.displayName || "GrowMate Chat";
-          const subtitle = convo.type === "market" ? "Marketplace Inquiry" : "Direct Message";
+          const subtitle = isLeafy
+            ? "Instant Plant Care & Gardening Tips"
+            : convo.type === "market"
+            ? "Marketplace Inquiry"
+            : "Direct Message";
+
           return (
             <Pressable key={convo.id} onPress={() => onOpenChat(convo.id, chatTitle)}>
               <Card>
                 <View style={styles.convoRow}>
-                  {convo.otherMember?.avatarUrl ? (
+                  {isLeafy ? (
+                    <View style={[styles.avatarFallback, { backgroundColor: colors.surface2 || "#e8f0e6" }]}>
+                      <MaterialCommunityIcons name="robot-outline" size={24} color={colors.green} />
+                    </View>
+                  ) : convo.otherMember?.avatarUrl ? (
                     <Image source={{ uri: convo.otherMember.avatarUrl }} style={styles.avatar} />
                   ) : (
                     <View style={styles.avatarFallback}>
@@ -87,12 +111,18 @@ export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
                     <Text style={styles.chatTitle}>{chatTitle}</Text>
                     <Text style={styles.subtitle}>{subtitle}</Text>
                   </View>
-                  <Text style={styles.time}>
-                    {new Date(convo.updatedAt).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </Text>
+                  {isLeafy ? (
+                    <View style={styles.aiStatusBadge}>
+                      <Text style={styles.aiStatusText}>AI BOT</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.time}>
+                      {new Date(convo.updatedAt).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </Text>
+                  )}
                 </View>
               </Card>
             </Pressable>
@@ -175,5 +205,16 @@ const styles = StyleSheet.create({
     color: colors.greenMuted,
     fontSize: 11,
     fontWeight: "800",
+  },
+  aiStatusBadge: {
+    backgroundColor: "#e8f5e9",
+    borderRadius: radius.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  aiStatusText: {
+    color: "#2e7d32",
+    fontSize: 10,
+    fontWeight: "900",
   },
 });

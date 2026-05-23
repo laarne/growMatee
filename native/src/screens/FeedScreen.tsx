@@ -7,12 +7,10 @@ import { useAuth } from "../context/AuthContext";
 import { createFeedPost, getFeedPosts, getPostComments, addPostComment, togglePostReaction, deletePost, type FeedPost, type PostComment } from "../services/feed";
 import { pickImageFromLibrary, uploadPublicImage, type PickedImage } from "../services/storage";
 import { createReport } from "../services/reports";
-import { getOrCreateMyGarden, getGardenPlants, type GardenPlant } from "../services/gardens";
 import { supabase } from "../services/supabase";
-import { colors } from "../theme/colors";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { colors, radius, shadow } from "../theme/colors";
 
-const postTypes: FeedPost["type"][] = ["update", "question", "harvest", "tip"];
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 export function FeedScreen() {
   const { user } = useAuth();
@@ -26,10 +24,6 @@ export function FeedScreen() {
 
   // Pagination state
   const [hasMore, setHasMore] = useState(true);
-
-  // Garden Plant Link states
-  const [userPlants, setUserPlants] = useState<GardenPlant[]>([]);
-  const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null);
 
   // Plant detail modal states
   const [detailPlant, setDetailPlant] = useState<any>(null);
@@ -109,20 +103,8 @@ export function FeedScreen() {
     }
   }
 
-  async function loadUserPlants() {
-    if (!user) return;
-    try {
-      const garden = await getOrCreateMyGarden(user.id);
-      const plants = await getGardenPlants(garden.id);
-      setUserPlants(plants);
-    } catch (err) {
-      console.error("Failed to load user plants for feed linking", err);
-    }
-  }
-
   useEffect(() => {
     loadPosts();
-    loadUserPlants();
   }, [user?.id]);
 
   async function handlePost() {
@@ -133,11 +115,10 @@ export function FeedScreen() {
 
     try {
       const uploadedPhoto = photo ? await uploadPublicImage("feed-photos", user.id, "posts", photo) : null;
-      await createFeedPost(user.id, body.trim(), type, uploadedPhoto?.publicUrl, selectedPlantId);
+      await createFeedPost(user.id, body.trim(), type, uploadedPhoto?.publicUrl, null);
       setBody("");
       setPhoto(null);
       setType("update");
-      setSelectedPlantId(null);
       await loadPosts();
     } catch (postError) {
       const message = postError instanceof Error ? postError.message : "Unable to create post.";
@@ -265,176 +246,226 @@ export function FeedScreen() {
     }
   }
 
+  const typeColor: Record<string, { bg: string; text: string }> = {
+    update:   { bg: "#e0f2fe", text: "#0369a1" },
+    question: { bg: "#fef3c7", text: "#92650a" },
+    harvest:  { bg: "#dcfce7", text: "#15803d" },
+    tip:      { bg: "#fdf4ff", text: "#7e22ce" },
+  };
+
+  function getRelativeTime(dateStr: string) {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return new Date(dateStr).toLocaleDateString();
+  }
+
   return (
-    <Screen>
-      <Text style={styles.title}>Feed</Text>
-      <Card>
-        <TextInput
-          multiline
-          onChangeText={setBody}
-          placeholder="Share with the plant community..."
-          placeholderTextColor="#8a9583"
-          style={styles.composer}
-          value={body}
-        />
+    <Screen sectionLabel="Community" title="Feed">
+      {/* ── Composer ── */}
+      <View style={styles.composerCard}>
+        <View style={styles.composerRow}>
+          <View style={styles.composerAvatar}>
+            <Text style={styles.composerAvatarText}>
+              {(user?.email?.[0] ?? "U").toUpperCase()}
+            </Text>
+          </View>
+          <TextInput
+            multiline
+            onChangeText={setBody}
+            placeholder="Share with the plant community..."
+            placeholderTextColor={colors.textTertiary}
+            style={styles.composer}
+            value={body}
+          />
+        </View>
         {photo && <Image source={{ uri: photo.uri }} style={styles.preview} />}
 
-        {userPlants.length > 0 && (
-          <View style={styles.plantSelectorRow}>
-            <Text style={styles.selectorLabel}>Link Plant (Optional):</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.plantScroll}>
-              {userPlants.map((plant) => {
-                const isSelected = selectedPlantId === plant.id;
-                return (
-                  <Pressable
-                    key={plant.id}
-                    onPress={() => setSelectedPlantId(isSelected ? null : plant.id)}
-                    style={[styles.plantChip, isSelected && styles.plantChipActive]}
-                  >
-                    <Text style={[styles.plantChipText, isSelected && styles.plantChipTextActive]}>
-                      🌱 {plant.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-        )}
+        <View style={styles.composerBar}>
+          <Pressable
+            onPress={handlePickPhoto}
+            style={({ pressed }) => [styles.composerIconBtn, pressed && styles.iconBtnPressed]}
+            hitSlop={8}
+          >
+            <MaterialCommunityIcons
+              name={photo ? "image-edit-outline" : "image-outline"}
+              size={22}
+              color={photo ? colors.green : colors.textTertiary}
+            />
+            <Text style={[styles.composerActionText, photo && { color: colors.green }]}>Photo</Text>
+          </Pressable>
 
-        <View style={styles.actions}>
-          {postTypes.map((postType) => (
-            <Button key={postType} variant={type === postType ? "primary" : "secondary"} onPress={() => setType(postType)}>
-              {postType}
-            </Button>
-          ))}
-        </View>
-        <View style={styles.buttonGap}>
-          <Button variant="secondary" onPress={handlePickPhoto}>
-            {photo ? "Change photo" : "Add photo"}
-          </Button>
-        </View>
-        <View style={styles.buttonGap}>
-          <Button disabled={isPosting || !body.trim()} onPress={handlePost}>
-            {isPosting ? "Posting..." : "Post"}
-          </Button>
-        </View>
-      </Card>
+          <View style={styles.composerBarSpacer} />
 
+          <Pressable
+            onPress={handlePost}
+            disabled={isPosting || !body.trim()}
+            style={({ pressed }) => [
+              styles.sendBtn,
+              (pressed || !body.trim() || isPosting) && styles.sendBtnDisabled,
+            ]}
+          >
+            {isPosting ? (
+              <ActivityIndicator color={colors.white} size={14} />
+            ) : (
+              <MaterialCommunityIcons name="send" size={16} color={colors.white} />
+            )}
+            <Text style={styles.sendBtnText}>Post</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* ── Error ── */}
       {error && (
-        <Card tint="warning">
-          <Text style={styles.emptyTitle}>Feed error</Text>
-          <Text style={styles.body}>{error}</Text>
-        </Card>
+        <View style={styles.errorBanner}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={16} color={colors.errorText} />
+          <Text style={styles.errorBannerText}>{error}</Text>
+        </View>
       )}
 
+      {/* ── Loading ── */}
       {isLoading && (
-        <Card>
-          <ActivityIndicator color={colors.green} />
-          <Text style={styles.body}>Loading community posts...</Text>
-        </Card>
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.green} size="large" />
+          <Text style={styles.centerText}>Loading posts...</Text>
+        </View>
       )}
 
+      {/* ── Empty ── */}
       {!isLoading && posts.length === 0 && (
-        <Card>
+        <View style={styles.center}>
+          <MaterialCommunityIcons name="forum-outline" size={48} color={colors.line} />
           <Text style={styles.emptyTitle}>No posts yet</Text>
-          <Text style={styles.body}>Garden updates, questions, harvests, and Leafy AI notes will appear here.</Text>
-        </Card>
+          <Text style={styles.emptySub}>Be the first to share something with the community!</Text>
+        </View>
       )}
 
+      {/* ── Posts ── */}
       {!isLoading &&
         posts.map((post) => (
-          <Card key={post.id}>
+          <View key={post.id} style={styles.postCard}>
+            {/* Header */}
             <View style={styles.postHeader}>
-              <View style={styles.authorSection}>
-                <View>
-                  <Text style={styles.author}>{post.authorName}</Text>
-                  <Text style={styles.meta}>
-                    {post.authorLocation ?? "GrowMate"} - {new Date(post.createdAt).toLocaleDateString()}
+              <View style={styles.postAvatar}>
+                <Text style={styles.postAvatarText}>
+                  {(post.authorName?.[0] ?? "?").toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.postMeta}>
+                <Text style={styles.postAuthor}>{post.authorName}</Text>
+                <Text style={styles.postTime}>{getRelativeTime(post.createdAt)}</Text>
+              </View>
+              <View style={[(typeColor[post.type] ? styles.typeBadge : styles.typeBadge)]}>
+                <View style={[styles.typeBadge, { backgroundColor: (typeColor[post.type] ?? typeColor.update).bg }]}>
+                  <Text style={[styles.typeBadgeText, { color: (typeColor[post.type] ?? typeColor.update).text }]}>
+                    {post.type}
                   </Text>
                 </View>
-                {post.userId === user?.id ? (
-                  <Pressable onPress={() => handleDeletePost(post.id)} style={styles.actionIconPress}>
-                    <MaterialCommunityIcons name="delete-outline" size={20} color="#d14b4b" />
-                  </Pressable>
-                ) : (
-                  <Pressable onPress={() => handleOpenReportModal(post.id)} style={styles.actionIconPress}>
-                    <MaterialCommunityIcons name="alert-circle-outline" size={20} color={colors.green} />
-                  </Pressable>
-                )}
               </View>
-              <Text style={styles.tag}>{post.type}</Text>
+              {post.userId === user?.id ? (
+                <Pressable onPress={() => handleDeletePost(post.id)} style={styles.postAction} hitSlop={8}>
+                  <MaterialCommunityIcons name="delete-outline" size={18} color="#ef4444" />
+                </Pressable>
+              ) : (
+                <Pressable onPress={() => handleOpenReportModal(post.id)} style={styles.postAction} hitSlop={8}>
+                  <MaterialCommunityIcons name="dots-horizontal" size={20} color={colors.textTertiary} />
+                </Pressable>
+              )}
             </View>
-            {post.title && <Text style={styles.postTitle}>{post.title}</Text>}
-            {post.imageUrl && <Image source={{ uri: post.imageUrl }} style={styles.postImage} />}
+
+            {/* Body */}
             <Text style={styles.postBody}>{post.body}</Text>
 
-            {post.gardenPlantId && (
-              <Pressable
-                onPress={() => handleViewPlantDetail(post.gardenPlantId!, post.gardenPlantName!)}
-                style={styles.linkedPlantBadge}
-              >
-                <MaterialCommunityIcons name="leaf" size={14} color={colors.white} />
-                <Text style={styles.linkedPlantText}>Linked Plant: {post.gardenPlantName}</Text>
-              </Pressable>
+            {/* Image */}
+            {post.imageUrl && (
+              <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
             )}
 
-            <View style={styles.reactionsBar}>
-              <Pressable style={styles.actionBtn} onPress={() => handleToggleLike(post.id)}>
-                <Text style={styles.actionBtnText}>
-                  {post.isLikedByMe ? "❤️" : "🖤"} {post.reactionsCount} Likes
-                </Text>
+            {/* Divider */}
+            <View style={styles.postDivider} />
+
+            {/* Actions */}
+            <View style={styles.postActions}>
+              <Pressable style={styles.postActionBtn} onPress={() => handleToggleLike(post.id)}>
+                <MaterialCommunityIcons
+                  name={post.isLikedByMe ? "heart" : "heart-outline"}
+                  size={20}
+                  color={post.isLikedByMe ? "#ef4444" : colors.textSecondary}
+                />
+                {post.reactionsCount > 0 && (
+                  <Text style={[styles.postActionText, post.isLikedByMe && styles.postActionTextLiked]}>
+                    {post.reactionsCount}
+                  </Text>
+                )}
               </Pressable>
-              <Pressable style={styles.actionBtn} onPress={() => handleToggleComments(post.id)}>
-                <Text style={styles.actionBtnText}>
-                  💬 {post.commentsCount} Comments
-                </Text>
+              <Pressable style={styles.postActionBtn} onPress={() => handleToggleComments(post.id)}>
+                <MaterialCommunityIcons
+                  name={activePostComments === post.id ? "comment" : "comment-outline"}
+                  size={20}
+                  color={activePostComments === post.id ? colors.green : colors.textSecondary}
+                />
+                {post.commentsCount > 0 && (
+                  <Text style={styles.postActionText}>{post.commentsCount}</Text>
+                )}
               </Pressable>
             </View>
 
+            {/* Comments */}
             {activePostComments === post.id && (
               <View style={styles.commentsSection}>
                 {isLoadingComments[post.id] ? (
-                  <ActivityIndicator color={colors.green} size="small" style={styles.commentLoader} />
+                  <ActivityIndicator color={colors.green} size="small" />
                 ) : (
                   <>
                     {(commentsMap[post.id] ?? []).map((comment) => (
-                      <View key={comment.id} style={styles.commentItem}>
-                        <Text style={styles.commentAuthor}>{comment.authorName}</Text>
-                        <Text style={styles.commentText}>{comment.body}</Text>
+                      <View key={comment.id} style={styles.commentRow}>
+                        <View style={styles.commentAvatar}>
+                          <Text style={styles.commentAvatarText}>
+                            {(comment.authorName?.[0] ?? "?").toUpperCase()}
+                          </Text>
+                        </View>
+                        <View style={styles.commentBubble}>
+                          <Text style={styles.commentAuthor}>{comment.authorName}</Text>
+                          <Text style={styles.commentText}>{comment.body}</Text>
+                        </View>
                       </View>
                     ))}
                     {(!commentsMap[post.id] || commentsMap[post.id].length === 0) && (
-                      <Text style={styles.noComments}>No comments yet. Write the first one!</Text>
+                      <Text style={styles.noComments}>Be the first to comment</Text>
                     )}
                     <View style={styles.commentComposer}>
                       <TextInput
                         onChangeText={(val) => setNewCommentTexts((prev) => ({ ...prev, [post.id]: val }))}
                         placeholder="Write a comment..."
-                        placeholderTextColor="#8a9583"
+                        placeholderTextColor={colors.textTertiary}
                         style={styles.commentInput}
                         value={newCommentTexts[post.id] || ""}
                       />
                       <Pressable
                         disabled={!(newCommentTexts[post.id] || "").trim()}
-                        style={styles.commentSubmit}
+                        style={[styles.commentSend, !(newCommentTexts[post.id] || "").trim() && styles.commentSendDisabled]}
                         onPress={() => handleSubmitComment(post.id)}
                       >
-                        <Text style={styles.commentSubmitText}>Send</Text>
+                        <MaterialCommunityIcons name="send" size={16} color={colors.white} />
                       </Pressable>
                     </View>
                   </>
                 )}
               </View>
             )}
-          </Card>
+          </View>
         ))}
 
       {!isLoading && hasMore && posts.length > 0 && (
-        <View style={styles.loadMoreContainer}>
-          <Button variant="secondary" onPress={() => loadPosts(true)}>
-            Load More Posts
-          </Button>
-        </View>
+        <Pressable onPress={() => loadPosts(true)} style={styles.loadMoreBtn}>
+          <Text style={styles.loadMoreText}>Load more posts</Text>
+          <MaterialCommunityIcons name="chevron-down" size={16} color={colors.greenMuted} />
+        </Pressable>
       )}
 
       {/* Report Modal */}
@@ -534,183 +565,223 @@ export function FeedScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: {
-    color: colors.green,
-    fontSize: 30,
-    fontWeight: "900",
+  // ── Composer ──────────────────────────────────────────
+  composerCard: {
+    backgroundColor: colors.surface0,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginBottom: 16,
+    padding: 14,
+    ...shadow.sm,
   },
-  composer: {
-    borderRadius: 24,
-    backgroundColor: colors.cream,
-    color: colors.green,
-    fontSize: 14,
-    fontWeight: "700",
-    minHeight: 92,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    textAlignVertical: "top",
-  },
-  actions: {
+  composerRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    alignItems: "flex-start",
     gap: 10,
-    marginTop: 14,
   },
-  preview: {
-    backgroundColor: colors.sage,
-    borderRadius: 20,
-    height: 180,
-    marginTop: 14,
-    width: "100%",
-  },
-  buttonGap: {
-    marginTop: 14,
-  },
-  emptyTitle: {
-    color: colors.green,
-    fontSize: 17,
-    fontWeight: "900",
-  },
-  body: {
-    marginTop: 8,
-    color: colors.greenMuted,
-    fontSize: 14,
-    fontWeight: "700",
-    lineHeight: 22,
-  },
-  postHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  author: {
-    color: colors.green,
-    fontSize: 16,
-    fontWeight: "900",
-  },
-  meta: {
-    color: colors.greenMuted,
-    fontSize: 12,
-    fontWeight: "800",
-    marginTop: 3,
-  },
-  tag: {
-    backgroundColor: colors.sage,
-    borderRadius: 999,
-    color: colors.green,
-    fontSize: 12,
-    fontWeight: "900",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    textTransform: "capitalize",
-  },
-  postTitle: {
-    color: colors.green,
-    fontSize: 18,
-    fontWeight: "900",
-    marginTop: 16,
-  },
-  postBody: {
-    color: colors.greenMuted,
-    fontSize: 15,
-    fontWeight: "700",
-    lineHeight: 23,
-    marginTop: 10,
-  },
-  postImage: {
-    backgroundColor: colors.sage,
-    borderRadius: 20,
-    height: 210,
-    marginTop: 14,
-    width: "100%",
-  },
-  reactionsBar: {
-    borderTopColor: colors.line,
-    borderTopWidth: 1,
-    flexDirection: "row",
-    gap: 16,
-    marginTop: 16,
-    paddingTop: 12,
-  },
-  actionBtn: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 6,
-  },
-  actionBtnText: {
-    color: colors.green,
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  commentsSection: {
-    backgroundColor: colors.cream,
+  composerAvatar: {
+    width: 36,
+    height: 36,
     borderRadius: 18,
-    marginTop: 14,
-    padding: 12,
-  },
-  commentLoader: {
-    marginVertical: 10,
-  },
-  commentItem: {
-    borderBottomColor: colors.line,
-    borderBottomWidth: 1,
-    paddingVertical: 8,
-  },
-  commentAuthor: {
-    color: colors.green,
-    fontSize: 12,
-    fontWeight: "900",
-  },
-  commentText: {
-    color: colors.greenMuted,
-    fontSize: 13,
-    fontWeight: "700",
+    backgroundColor: colors.surface2,
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: 2,
   },
-  noComments: {
-    color: colors.greenMuted,
-    fontSize: 12,
-    fontWeight: "700",
-    marginVertical: 10,
-    textAlign: "center",
-  },
-  commentComposer: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 12,
-  },
-  commentInput: {
-    backgroundColor: colors.white,
-    borderColor: colors.line,
-    borderRadius: 18,
-    borderWidth: 1,
-    color: colors.green,
+  composerAvatarText: { fontSize: 14, fontWeight: "800", color: colors.green },
+  composer: {
     flex: 1,
-    fontSize: 13,
-    fontWeight: "700",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    minHeight: 60,
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: "500",
+    textAlignVertical: "top",
+    paddingTop: 0,
   },
-  commentSubmit: {
+  preview: {
+    width: "100%",
+    height: 180,
+    borderRadius: radius.md,
+    marginTop: 10,
+    backgroundColor: colors.surface1,
+  },
+  composerBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  composerBarSpacer: { flex: 1 },
+  composerIconBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+  },
+  iconBtnPressed: { backgroundColor: colors.surface1 },
+  composerActionText: { fontSize: 13, fontWeight: "700", color: colors.textTertiary },
+  sendBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     backgroundColor: colors.green,
-    borderRadius: 18,
-    paddingHorizontal: 14,
+    borderRadius: radius.full,
+    paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  commentSubmitText: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: "900",
-  },
-  authorSection: {
+  sendBtnDisabled: { opacity: 0.4 },
+  sendBtnText: { color: colors.white, fontSize: 13, fontWeight: "700" },
+
+  // ── States ────────────────────────────────────────────
+  errorBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    backgroundColor: colors.error,
+    borderRadius: radius.md,
+    padding: 12,
+    marginBottom: 14,
   },
-  actionIconPress: {
-    padding: 4,
+  errorBannerText: { color: colors.errorText, fontSize: 13, fontWeight: "600", flex: 1 },
+  center: { alignItems: "center", paddingVertical: 40, gap: 10 },
+  centerText: { color: colors.textSecondary, fontSize: 14, fontWeight: "600" },
+  emptyTitle: { fontSize: 17, fontWeight: "700", color: colors.textPrimary },
+  emptySub: { fontSize: 13, color: colors.textSecondary, textAlign: "center", lineHeight: 20 },
+  loadMoreBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 14,
+    marginBottom: 8,
   },
+  loadMoreText: { fontSize: 13, fontWeight: "700", color: colors.greenMuted },
+
+  // ── Post card ─────────────────────────────────────────
+  postCard: {
+    backgroundColor: colors.surface0,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginBottom: 12,
+    overflow: "hidden",
+    ...shadow.sm,
+  },
+  postHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 14,
+    paddingBottom: 10,
+  },
+  postAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  postAvatarText: { fontSize: 15, fontWeight: "800", color: colors.green },
+  postMeta: { flex: 1 },
+  postAuthor: { fontSize: 14, fontWeight: "700", color: colors.textPrimary },
+  postTime: { fontSize: 11, color: colors.textTertiary, fontWeight: "600", marginTop: 1 },
+  typeBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+  },
+  typeBadgeText: { fontSize: 11, fontWeight: "800", textTransform: "capitalize" },
+  postAction: { padding: 4 },
+
+  postBody: {
+    fontSize: 15,
+    color: colors.textPrimary,
+    fontWeight: "500",
+    lineHeight: 23,
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+  },
+  postImage: {
+    width: "100%",
+    height: 220,
+    backgroundColor: colors.surface1,
+    marginBottom: 0,
+  },
+  postDivider: { height: 1, backgroundColor: colors.line, marginTop: 8 },
+
+  postActions: {
+    flexDirection: "row",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  postActionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: radius.full,
+  },
+  postActionText: { fontSize: 13, fontWeight: "600", color: colors.textSecondary },
+  postActionTextLiked: { color: "#ef4444" },
+
+  // ── Comments ──────────────────────────────────────────
+  commentsSection: {
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    padding: 12,
+    gap: 10,
+  },
+  commentRow: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
+  commentAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.surface1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  commentAvatarText: { fontSize: 11, fontWeight: "800", color: colors.green },
+  commentBubble: {
+    flex: 1,
+    backgroundColor: colors.surface1,
+    borderRadius: radius.md,
+    padding: 10,
+  },
+  commentAuthor: { fontSize: 12, fontWeight: "700", color: colors.textPrimary },
+  commentText: { fontSize: 13, color: colors.textSecondary, marginTop: 2, lineHeight: 18 },
+  noComments: { fontSize: 12, color: colors.textTertiary, textAlign: "center", paddingVertical: 6 },
+  commentComposer: { flexDirection: "row", gap: 8, alignItems: "center", marginTop: 4 },
+  commentInput: {
+    flex: 1,
+    backgroundColor: colors.surface1,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.line,
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: "500",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  commentSend: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.green,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+    commentSendDisabled: { opacity: 0.4 },
+
+  // ── Report modal ──────────────────────────────────────
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -719,105 +790,91 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: colors.cream,
-    borderRadius: 24,
+    backgroundColor: colors.surface0,
+    borderRadius: radius.xl,
     padding: 20,
     width: "100%",
     maxWidth: 340,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    ...shadow.md,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: "900",
-    color: colors.green,
-    marginBottom: 16,
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.textPrimary,
+    marginBottom: 14,
     textAlign: "center",
   },
   modalLabel: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: colors.greenMuted,
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.textSecondary,
     marginBottom: 8,
   },
-  reasonsContainer: {
-    flexDirection: "row",
-    marginBottom: 14,
-  },
+  reasonsContainer: { flexDirection: "row", marginBottom: 14 },
   reasonChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: colors.sage,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface1,
     marginRight: 8,
-    borderWidth: 1,
-    borderColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: colors.line,
   },
-  reasonChipActive: {
-    backgroundColor: colors.green,
-  },
-  reasonChipText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: colors.green,
-  },
-  reasonChipTextActive: {
-    color: colors.white,
-  },
+  reasonChipActive: { backgroundColor: colors.green, borderColor: colors.green },
+  reasonChipText: { fontSize: 12, fontWeight: "700", color: colors.textSecondary },
+  reasonChipTextActive: { color: colors.white },
   modalInput: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface1,
     borderColor: colors.line,
     borderWidth: 1,
-    borderRadius: 18,
-    color: colors.green,
+    borderRadius: radius.md,
+    color: colors.textPrimary,
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "600",
     padding: 12,
     height: 100,
     textAlignVertical: "top",
     marginBottom: 16,
   },
-  modalActions: {
-    flexDirection: "row",
-    gap: 10,
+  modalActions: { flexDirection: "row", gap: 10 },
+  flexButton: { flex: 1 },
+
+  // ── Plant detail modal ─────────────────────────────────
+  plantDetailContainer: { flex: 1, backgroundColor: colors.cream, paddingTop: 50 },
+  plantDetailHeader: {
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
   },
-  flexButton: {
-    flex: 1,
+  plantDetailTitle: { color: colors.textPrimary, fontSize: 22, fontWeight: "800" },
+  plantDetailSubtitle: { color: colors.textSecondary, fontSize: 14, fontWeight: "600", marginTop: 2 },
+  plantDetailScroll: { padding: 20 },
+  plantImageDetail: {
+    width: "100%",
+    height: 200,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface1,
+    marginBottom: 12,
   },
-  plantSelectorRow: {
-    marginTop: 14,
+  plantNameDetail: { color: colors.textPrimary, fontSize: 18, fontWeight: "800" },
+  scientificNameText: { color: colors.textSecondary, fontSize: 12, fontStyle: "italic", fontWeight: "600", marginTop: 4 },
+  plantDetailMeta: { color: colors.textSecondary, fontSize: 13, fontWeight: "600", marginTop: 4 },
+  notesBox: {
+    backgroundColor: colors.surface1,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: 10,
+    marginTop: 12,
   },
-  selectorLabel: {
-    color: colors.greenMuted,
-    fontSize: 12,
-    fontWeight: "800",
-    marginBottom: 6,
-  },
-  plantScroll: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  plantChip: {
-    backgroundColor: colors.sage,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 8,
-  },
-  plantChipActive: {
-    backgroundColor: colors.green,
-  },
-  plantChipText: {
-    color: colors.green,
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  plantChipTextActive: {
-    color: colors.white,
-  },
+  notesLabel: { color: colors.textPrimary, fontSize: 12, fontWeight: "800", marginBottom: 4 },
+  notesText: { color: colors.textSecondary, fontSize: 13, fontWeight: "600", lineHeight: 18 },
+  plantDetailFooter: { padding: 20, backgroundColor: colors.cream },
+  loaderWrap: { alignItems: "center", justifyContent: "center", padding: 40 },
+  loadingText: { color: colors.textPrimary, fontSize: 14, fontWeight: "700", marginTop: 10 },
+
+  // Legacy — kept for plant detail modal references
   linkedPlantBadge: {
     alignSelf: "flex-start",
     backgroundColor: colors.green,
@@ -829,98 +886,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  linkedPlantText: {
-    color: colors.white,
-    fontSize: 11,
-    fontWeight: "900",
-  },
-  loadMoreContainer: {
-    marginVertical: 16,
-    alignItems: "center",
-  },
-  plantDetailContainer: {
-    flex: 1,
-    backgroundColor: colors.cream,
-    paddingTop: 50,
-  },
-  plantDetailHeader: {
-    paddingHorizontal: 20,
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-  },
-  plantDetailTitle: {
-    color: colors.green,
-    fontSize: 22,
-    fontWeight: "900",
-  },
-  plantDetailSubtitle: {
-    color: colors.greenMuted,
-    fontSize: 14,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-  plantDetailScroll: {
-    padding: 20,
-  },
-  plantImageDetail: {
-    width: "100%",
-    height: 200,
-    borderRadius: 16,
-    backgroundColor: colors.sage,
-    marginBottom: 12,
-  },
-  plantNameDetail: {
-    color: colors.green,
-    fontSize: 18,
-    fontWeight: "900",
-  },
-  scientificNameText: {
-    color: colors.greenMuted,
-    fontSize: 12,
-    fontStyle: "italic",
-    fontWeight: "700",
-    marginTop: 4,
-  },
-  plantDetailMeta: {
-    color: colors.greenMuted,
-    fontSize: 13,
-    fontWeight: "700",
-    marginTop: 4,
-  },
-  notesBox: {
-    backgroundColor: colors.cream,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 10,
-    marginTop: 12,
-  },
-  notesLabel: {
-    color: colors.green,
-    fontSize: 12,
-    fontWeight: "900",
-    marginBottom: 4,
-  },
-  notesText: {
-    color: colors.greenMuted,
-    fontSize: 13,
-    fontWeight: "700",
-    lineHeight: 18,
-  },
-  plantDetailFooter: {
-    padding: 20,
-    backgroundColor: colors.cream,
-  },
-  loaderWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 40,
-  },
-  loadingText: {
-    color: colors.green,
-    fontSize: 14,
-    fontWeight: "800",
-    marginTop: 10,
-  },
+  linkedPlantText: { color: colors.white, fontSize: 11, fontWeight: "800" },
 });
+

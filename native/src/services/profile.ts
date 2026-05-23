@@ -7,6 +7,7 @@ export type Profile = {
   display_name: string;
   username: string | null;
   avatar_url: string | null;
+  cover_url: string | null;
   location: string | null;
   bio: string | null;
   seller_status: SellerStatus;
@@ -27,12 +28,14 @@ export async function getCurrentProfile(userId: string): Promise<Profile | null>
 
 export async function updateProfileAvatar(userId: string, avatarUrl: string) {
   if (!supabase) throw new Error("Supabase is not configured.");
-
   const { error } = await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("id", userId);
+  if (error) throw error;
+}
 
-  if (error) {
-    throw error;
-  }
+export async function updateProfileCover(userId: string, coverUrl: string) {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { error } = await supabase.from("profiles").update({ cover_url: coverUrl }).eq("id", userId);
+  if (error) throw error;
 }
 
 export async function updateProfile(

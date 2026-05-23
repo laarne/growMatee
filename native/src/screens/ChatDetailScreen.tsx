@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { Screen } from "../components/Screen";
@@ -25,6 +26,36 @@ export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailS
   const scrollViewRef = useRef<ScrollView>(null);
 
   async function loadMessages(silent = false) {
+    if (conversationId === "leafy-ai-assistant") {
+      if (!silent) {
+        setIsLoading(true);
+      }
+      try {
+        const stored = await AsyncStorage.getItem("growmate_leafy_chat_messages");
+        if (stored) {
+          setMessages(JSON.parse(stored));
+        } else {
+          const welcomeMsg: Message = {
+            id: "welcome-leafy",
+            conversationId: "leafy-ai-assistant",
+            senderId: "leafy-ai",
+            body: "Hello! I am Leafy, your GrowMate AI assistant. 🌿 Ask me anything about plant care, watering, soils, or gardening tips!",
+            imageUrl: null,
+            createdAt: new Date().toISOString()
+          };
+          setMessages([welcomeMsg]);
+          await AsyncStorage.setItem("growmate_leafy_chat_messages", JSON.stringify([welcomeMsg]));
+        }
+      } catch (e) {
+        console.warn("AsyncStorage leafy chat error:", e);
+      } finally {
+        if (!silent) {
+          setIsLoading(false);
+        }
+      }
+      return;
+    }
+
     if (!silent) {
       setIsLoading(true);
     }
@@ -53,6 +84,61 @@ export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailS
     const content = text.trim();
     setText("");
 
+    if (conversationId === "leafy-ai-assistant") {
+      const userMsg: Message = {
+        id: `msg-${Date.now()}`,
+        conversationId: "leafy-ai-assistant",
+        senderId: user.id,
+        body: content,
+        imageUrl: null,
+        createdAt: new Date().toISOString()
+      };
+      const updatedMessages = [...messages, userMsg];
+      setMessages(updatedMessages);
+      await AsyncStorage.setItem("growmate_leafy_chat_messages", JSON.stringify(updatedMessages));
+      
+      // Auto scroll
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 50);
+
+      // Generate leafy response
+      setTimeout(async () => {
+        let leafyResponseText = "That's a great question! Make sure your plant gets the right amount of indirect sunlight and check the soil moisture before watering. 🌿";
+        
+        const lower = content.toLowerCase();
+        if (lower.includes("watering") || lower.includes("water")) {
+          leafyResponseText = "Most indoor plants prefer the 'soak and dry' method: water thoroughly until it drains out, then let the top 2 inches of soil dry completely before watering again.";
+        } else if (lower.includes("monstera")) {
+          leafyResponseText = "Monsteras love bright, indirect light and a well-draining soil mix (adding orchid bark and perlite helps!). Water every 1-2 weeks.";
+        } else if (lower.includes("sunlight") || lower.includes("light")) {
+          leafyResponseText = "Light is key! Direct sun can burn leaves (like Calatheas), while too little light makes plants leggy. Bright, indirect light near a window is usually safest.";
+        } else if (lower.includes("soil") || lower.includes("repot")) {
+          leafyResponseText = "When repotting, choose a container with drainage holes that is only 2 inches larger than the current pot. Use chunky soil to keep roots oxygenated!";
+        } else if (lower.includes("yellow") || lower.includes("leaves")) {
+          leafyResponseText = "Yellow leaves usually point to overwatering or root rot. Let the soil dry out, check drainage holes, and prune any yellow foliage.";
+        }
+
+        const leafyMsg: Message = {
+          id: `msg-${Date.now()}-leafy`,
+          conversationId: "leafy-ai-assistant",
+          senderId: "leafy-ai",
+          body: leafyResponseText,
+          imageUrl: null,
+          createdAt: new Date().toISOString()
+        };
+        const finalMessages = [...updatedMessages, leafyMsg];
+        setMessages(finalMessages);
+        await AsyncStorage.setItem("growmate_leafy_chat_messages", JSON.stringify(finalMessages));
+        setIsSending(false);
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 50);
+      }, 1200);
+
+      return;
+    }
+
     try {
       const newMsg = await sendMessage(conversationId, user.id, content);
       setMessages((current) => [...current, newMsg]);
@@ -67,13 +153,13 @@ export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailS
 
   useEffect(() => {
     loadMessages();
-    if (user) {
+    if (user && conversationId !== "leafy-ai-assistant") {
       markConversationAsRead(conversationId, user.id).catch(console.error);
     }
 
     let channel: any = null;
 
-    if (supabase) {
+    if (supabase && conversationId !== "leafy-ai-assistant") {
       channel = supabase
         .channel(`chat:${conversationId}`)
         .on(
@@ -112,9 +198,11 @@ export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailS
 
     // Poll for new messages every 5 seconds as a silent fallback
     const interval = setInterval(() => {
-      loadMessages(true);
-      if (user) {
-        markConversationAsRead(conversationId, user.id).catch(console.error);
+      if (conversationId !== "leafy-ai-assistant") {
+        loadMessages(true);
+        if (user) {
+          markConversationAsRead(conversationId, user.id).catch(console.error);
+        }
       }
     }, 5000);
 

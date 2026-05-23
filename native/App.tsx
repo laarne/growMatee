@@ -1,10 +1,10 @@
 import { StatusBar } from "expo-status-bar";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
+import { NavigationProvider, useNavigationContext } from "./src/context/NavigationContext";
 import { AuthScreen } from "./src/screens/AuthScreen";
-import { getUnreadMessagesCount } from "./src/services/messages";
 import { FeedScreen } from "./src/screens/FeedScreen";
 import { GardenScreen } from "./src/screens/GardenScreen";
 import { MarketScreen } from "./src/screens/MarketScreen";
@@ -17,51 +17,44 @@ import { colors } from "./src/theme/colors";
 
 type TabKey = "Market" | "Feed" | "Garden" | "Messages" | "Rankings" | "Profile";
 
-const tabs: TabKey[] = ["Market", "Feed", "Garden", "Messages", "Rankings", "Profile"];
+const tabs: TabKey[] = ["Market", "Feed", "Garden", "Rankings", "Profile"];
 
 const logoSource = require("./assets/icon.png");
 
-const tabIcons: Record<TabKey, keyof typeof MaterialCommunityIcons.glyphMap> = {
+// Prototype-matching icons: outline for inactive, filled/solid for active
+const tabIconsInactive: Record<TabKey, keyof typeof MaterialCommunityIcons.glyphMap> = {
   Market: "storefront-outline",
-  Feed: "message-text-outline",
-  Garden: "leaf",
+  Feed: "forum-outline",
+  Garden: "flower-outline",
   Messages: "email-outline",
   Rankings: "trophy-outline",
   Profile: "account-outline",
 };
 
+const tabIconsActive: Record<TabKey, keyof typeof MaterialCommunityIcons.glyphMap> = {
+  Market: "storefront",
+  Feed: "forum",
+  Garden: "flower",
+  Messages: "email",
+  Rankings: "trophy",
+  Profile: "account",
+};
+
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <NavigationProvider>
+        <AppContent />
+      </NavigationProvider>
     </AuthProvider>
   );
 }
 
 function AppContent() {
-  const [activeTab, setActiveTab] = useState<TabKey>("Market");
+  const { activeTab, setActiveTab } = useNavigationContext();
   const [activeChat, setActiveChat] = useState<{ id: string; title: string } | null>(null);
   const [activeListingId, setActiveListingId] = useState<string | null>(null);
-  const { isLoading, session, user } = useAuth();
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    if (!session || !user) return;
-
-    const fetchUnread = async () => {
-      try {
-        const count = await getUnreadMessagesCount(user.id);
-        setUnreadCount(count);
-      } catch (err) {
-        console.error("Failed to fetch unread count", err);
-      }
-    };
-
-    fetchUnread();
-
-    const interval = setInterval(fetchUnread, 5000);
-    return () => clearInterval(interval);
-  }, [session, user?.id]);
+  const { isLoading, session } = useAuth();
 
   if (isLoading) {
     return (
@@ -114,26 +107,35 @@ function AppContent() {
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
-      {activeTab === "Market" && (
-        <MarketScreen onOpenChat={handleOpenChat} onOpenListingDetail={handleOpenListingDetail} />
-      )}
-      {activeTab === "Feed" && <FeedScreen />}
-      {activeTab === "Garden" && <GardenScreen />}
-      {activeTab === "Messages" && <MessagesScreen onOpenChat={handleOpenChat} />}
-      {activeTab === "Rankings" && <RankingsScreen />}
-      {activeTab === "Profile" && <ProfileScreen onOpenListingDetail={handleOpenListingDetail} />}
+
+      {/* Screen content — flex:1 so it fills all space above the nav bar */}
+      <View style={styles.screenContainer}>
+        {activeTab === "Market" && (
+          <MarketScreen onOpenChat={handleOpenChat} onOpenListingDetail={handleOpenListingDetail} />
+        )}
+        {activeTab === "Feed" && <FeedScreen />}
+        {activeTab === "Garden" && <GardenScreen />}
+        {activeTab === "Messages" && <MessagesScreen onOpenChat={handleOpenChat} />}
+        {activeTab === "Rankings" && <RankingsScreen />}
+        {activeTab === "Profile" && <ProfileScreen onOpenListingDetail={handleOpenListingDetail} />}
+      </View>
+
+      {/* Bottom nav — NOT absolutely positioned; sits as a flex child */}
       <View style={styles.nav}>
         {tabs.map((tab) => {
           const isActive = tab === activeTab;
           return (
-            <Pressable key={tab} onPress={() => setActiveTab(tab)} style={styles.navItem}>
-              <View style={[styles.iconBubble, isActive && styles.iconBubbleActive]}>
-                <MaterialCommunityIcons color={isActive ? colors.white : colors.greenMuted} name={tabIcons[tab]} size={22} />
-                {tab === "Messages" && unreadCount > 0 && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{unreadCount > 99 ? "99+" : unreadCount}</Text>
-                  </View>
-                )}
+            <Pressable
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              style={({ pressed }) => [styles.navItem, pressed && styles.navItemPressed]}
+            >
+              <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
+                <MaterialCommunityIcons
+                  color={isActive ? colors.white : colors.greenMuted}
+                  name={isActive ? tabIconsActive[tab] : tabIconsInactive[tab]}
+                  size={24}
+                />
               </View>
               <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>{tab}</Text>
             </Pressable>
@@ -144,10 +146,19 @@ function AppContent() {
   );
 }
 
+const NAV_HEIGHT = Platform.OS === "ios" ? 80 : 68;
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.cream,
+    // On web, ensure the root fills the viewport and clips correctly
+    ...(Platform.OS === "web" ? { height: "100vh" as any, overflow: "hidden" as any } : {}),
+  },
+  screenContainer: {
+    flex: 1,
+    // Prevent content from bleeding under the nav bar
+    overflow: "hidden" as any,
   },
   loading: {
     alignItems: "center",
@@ -168,57 +179,50 @@ const styles = StyleSheet.create({
     width: 86,
   },
   nav: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
     flexDirection: "row",
     justifyContent: "space-around",
+    alignItems: "center",
     borderTopColor: colors.line,
     borderTopWidth: 1,
-    backgroundColor: "rgba(255,255,255,0.96)",
-    paddingBottom: 22,
-    paddingTop: 10,
+    backgroundColor: colors.white,
+    height: NAV_HEIGHT,
+    paddingBottom: Platform.OS === "ios" ? 20 : 8,
+    paddingTop: 8,
+    paddingHorizontal: 4,
+    // Subtle top shadow
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 8,
   },
   navItem: {
     alignItems: "center",
-    gap: 4,
-    minWidth: 58,
+    justifyContent: "center",
+    flex: 1,
+    gap: 3,
   },
-  iconBubble: {
-    width: 36,
-    height: 36,
+  navItemPressed: {
+    opacity: 0.7,
+  },
+  iconWrap: {
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 18,
+    borderRadius: 20,
   },
-  iconBubbleActive: {
+  iconWrapActive: {
     backgroundColor: colors.green,
   },
   navLabel: {
     color: colors.greenMuted,
-    fontSize: 11,
-    fontWeight: "800",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
   navLabelActive: {
     color: colors.green,
-    fontWeight: "900",
-  },
-  badge: {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    backgroundColor: "#d14b4b",
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: colors.white,
-    fontSize: 9,
     fontWeight: "900",
   },
 });

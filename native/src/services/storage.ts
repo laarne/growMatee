@@ -43,6 +43,34 @@ export async function pickImageFromLibrary(): Promise<PickedImage | null> {
   };
 }
 
+export async function takePhotoWithCamera(): Promise<PickedImage | null> {
+  const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+  if (!permission.granted) {
+    throw new Error("Camera permission is required to take photos.");
+  }
+
+  const result = await ImagePicker.launchCameraAsync({
+    allowsEditing: true,
+    base64: true,
+    mediaTypes: ["images"],
+    quality: 0.85,
+  });
+
+  if (result.canceled) {
+    return null;
+  }
+
+  const asset = result.assets[0];
+
+  return {
+    uri: asset.uri,
+    fileName: asset.fileName,
+    mimeType: asset.mimeType,
+    base64: asset.base64,
+  };
+}
+
 function getFileExtension(image: PickedImage) {
   const fromName = image.fileName?.split(".").pop();
   if (fromName) return fromName.toLowerCase();

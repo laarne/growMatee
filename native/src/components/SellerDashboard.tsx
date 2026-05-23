@@ -40,10 +40,8 @@ export function SellerDashboard() {
 
   async function loadListings() {
     if (!user) return;
-
     setIsLoading(true);
     setError(null);
-
     try {
       const data = await getSellerListings(user.id);
       setListings(data);
@@ -59,6 +57,62 @@ export function SellerDashboard() {
     loadListings();
   }, [user?.id]);
 
+  /** Run the Leafy AI scan and populate form fields automatically */
+  async function runLeafyScan(pickedPhoto: PickedImage) {
+    setIsScanning(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const result = await scanPlantWithLeafy(pickedPhoto);
+      setScanResult(result);
+      // Auto-fill fields — only overwrite if the field is currently empty
+      setName((current) => current.trim() || result.bestMatch);
+      setScientificName((current) => current.trim() || result.scientificName || "");
+      setCategory((current) => current.trim() || result.category);
+      // Build a helpful auto-description
+      const confidence = `Leafy AI identified this as ${result.bestMatch} (${result.confidence}% confidence).`;
+      setDescription((current) => current.trim() || `${confidence} ${result.reviewReason}`);
+      setMessage(
+        result.saleStatus === "safe_to_sell"
+          ? "✅ Leafy scan complete — fields filled automatically."
+          : "⚠️ Leafy scan complete — admin review will be required."
+      );
+    } catch (scanError) {
+      const nextMessage = scanError instanceof Error ? scanError.message : "Leafy scan failed.";
+      setError(nextMessage);
+    } finally {
+      setIsScanning(false);
+    }
+  }
+
+  async function handlePickPhoto() {
+    setError(null);
+    try {
+      const pickedPhoto = await pickImageFromLibrary();
+      if (pickedPhoto) {
+        // Reset previous scan state when a new photo is chosen
+        setScanResult(null);
+        setMessage(null);
+        setPhoto(pickedPhoto);
+        // 🔑 Automatically scan after upload
+        await runLeafyScan(pickedPhoto);
+      }
+    } catch (photoError) {
+      const nextMessage = photoError instanceof Error ? photoError.message : "Unable to choose listing photo.";
+      setError(nextMessage);
+    }
+  }
+
+  /** Manual re-scan trigger (still shown so user can rescan if needed) */
+  async function handleScanPhoto() {
+    if (!photo) {
+      setError("Add a listing photo before scanning.");
+      return;
+    }
+    await runLeafyScan(photo);
+  }
+
   async function handleCreateListing() {
     if (!user) return;
 
@@ -73,6 +127,10 @@ export function SellerDashboard() {
     setIsSaving(true);
     setMessage(null);
     setError(null);
+
+    // Leafy AI cleared it — go live immediately, no admin queue needed
+    const safeToSell = scanResult?.saleStatus === "safe_to_sell";
+    const initialStatus: "active" | "review" = safeToSell ? "active" : "review";
 
     try {
       const uploadedPhoto = photo ? await uploadPublicImage("listing-photos", user.id, "listings", photo) : null;
@@ -93,8 +151,14 @@ export function SellerDashboard() {
         aiProvider: scanResult?.provider ?? null,
         aiConfidence: scanResult?.confidence ?? null,
         aiResult: scanResult ?? null,
+        initialStatus,
       });
-      setMessage("Listing submitted for admin review.");
+
+      setMessage(
+        safeToSell
+          ? "✅ Listing is now live on the Marketplace!"
+          : "📋 Listing submitted for admin review before going live."
+      );
       setName("");
       setLocalName("");
       setScientificName("");
@@ -124,84 +188,126 @@ export function SellerDashboard() {
     }
   }
 
-  async function handlePickPhoto() {
-    setError(null);
-
-    try {
-      const pickedPhoto = await pickImageFromLibrary();
-      if (pickedPhoto) {
-        setPhoto(pickedPhoto);
-        setScanResult(null);
-      }
-    } catch (photoError) {
-      const nextMessage = photoError instanceof Error ? photoError.message : "Unable to choose listing photo.";
-      setError(nextMessage);
-    }
-  }
-
-  async function handleScanPhoto() {
-    if (!photo) {
-      setError("Add a listing photo before scanning.");
-      return;
-    }
-
-    setIsScanning(true);
-    setMessage(null);
-    setError(null);
-
-    try {
-      const result = await scanPlantWithLeafy(photo);
-      setScanResult(result);
-      setName((current) => current || result.bestMatch);
-      setScientificName((current) => current || result.scientificName || "");
-      setCategory((current) => current || result.category);
-      setDescription((current) => current || `Leafy AI identified this as ${result.bestMatch}. ${result.reviewReason}`);
-      setMessage(result.saleStatus === "safe_to_sell" ? "Leafy scan complete. Listing can be submitted for review." : "Leafy scan complete. Admin review is required.");
-    } catch (scanError) {
-      const nextMessage = scanError instanceof Error ? scanError.message : "Leafy scan failed.";
-      setError(nextMessage);
-    } finally {
-      setIsScanning(false);
-    }
-  }
-
   return (
     <Card>
       <Text style={styles.title}>Seller Dashboard</Text>
       <Text style={styles.body}>Create listings for review. Public Market visibility starts only after admin approval.</Text>
 
       <View style={styles.form}>
-        {photo && <Image source={{ uri: photo.uri }} style={styles.preview} />}
-        <Button variant="secondary" onPress={handlePickPhoto}>
-          {photo ? "Change listing photo" : "Add listing photo"}
-        </Button>
-        <Button disabled={!photo || isScanning} variant="secondary" onPress={handleScanPhoto}>
-          {isScanning ? "Scanning with Leafy..." : "Scan with Leafy AI"}
-        </Button>
-        {scanResult && (
+        {/* Photo preview with scanning overlay */}
+        <View style={styles.photoContainer}>
+          {photo ? (
+            <>
+              <Image source={{ uri: photo.uri }} style={styles.preview} />
+              {isScanning && (
+                <View style={styles.scanOverlay}>
+                  <View style={styles.scanOverlayInner}>
+                    <ActivityIndicator color={colors.white} size="large" />
+                    <Text style={styles.scanOverlayText}>Leafy AI is identifying your plant...</Text>
+                  </View>
+                </View>
+              )}
+              {scanResult && !isScanning && (
+                <View style={styles.scanBadgeOverlay}>
+                  <MaterialCommunityIcons color={colors.white} name="leaf" size={12} />
+                  <Text style={styles.scanBadgeOverlayText}>Leafy identified</Text>
+                </View>
+              )}
+            </>
+          ) : (
+            <Pressable onPress={handlePickPhoto} style={styles.photoPlaceholder}>
+              <MaterialCommunityIcons color={colors.greenMuted} name="image-plus" size={40} />
+              <Text style={styles.photoPlaceholderText}>Tap to add photo</Text>
+              <Text style={styles.photoPlaceholderSub}>Leafy AI will scan it automatically</Text>
+            </Pressable>
+          )}
+        </View>
+
+        <View style={styles.photoActionRow}>
+          <View style={styles.photoActionBtn}>
+            <Button variant="secondary" onPress={handlePickPhoto}>
+              {photo ? "Change photo" : "Add listing photo"}
+            </Button>
+          </View>
+          {photo && (
+            <View style={styles.photoActionBtn}>
+              <Button
+                disabled={isScanning}
+                variant="secondary"
+                onPress={handleScanPhoto}
+              >
+                {isScanning ? "Scanning..." : "Re-scan"}
+              </Button>
+            </View>
+          )}
+        </View>
+
+        {/* Leafy scan result card */}
+        {scanResult && !isScanning && (
           <View style={styles.scanCard}>
             <View style={styles.scanHeader}>
-              <Text style={styles.scanEyebrow}>Leafy AI result</Text>
-              <Text style={[styles.scanBadge, scanResult.saleStatus !== "safe_to_sell" && styles.scanBadgeWarning]}>
+              <View style={styles.scanHeaderLeft}>
+                <MaterialCommunityIcons color={colors.green} name="leaf-circle" size={18} />
+                <Text style={styles.scanEyebrow}>Leafy AI Result</Text>
+              </View>
+              <Text style={[styles.scanStatusBadge, scanResult.saleStatus !== "safe_to_sell" && styles.scanStatusWarning]}>
                 {scanResult.saleStatus === "safe_to_sell" ? "Safe to sell" : "Needs review"}
               </Text>
             </View>
             <Text style={styles.scanTitle}>{scanResult.bestMatch}</Text>
             <Text style={styles.scanMeta}>
-              {scanResult.scientificName ?? "Scientific name unavailable"} - {scanResult.confidence}% match
+              {scanResult.scientificName ?? "Scientific name unavailable"} · {scanResult.confidence}% match
             </Text>
+            {scanResult.family && (
+              <Text style={styles.scanMeta}>Family: {scanResult.family}</Text>
+            )}
             <Text style={styles.scanBody}>{scanResult.reviewReason}</Text>
           </View>
         )}
-        <TextInput onChangeText={setName} placeholder="Plant name" placeholderTextColor="#8a9583" style={styles.input} value={name} />
-        <TextInput onChangeText={setLocalName} placeholder="Local name, optional" placeholderTextColor="#8a9583" style={styles.input} value={localName} />
-        <TextInput onChangeText={setScientificName} placeholder="Scientific name, optional" placeholderTextColor="#8a9583" style={styles.input} value={scientificName} />
-        <TextInput onChangeText={setCategory} placeholder="Category" placeholderTextColor="#8a9583" style={styles.input} value={category} />
+
+        {/* Form fields — auto-filled by Leafy AI */}
+        <View style={styles.fieldGroup}>
+          {isScanning ? (
+            <View style={styles.fieldSkeleton}>
+              <ActivityIndicator color={colors.greenMuted} size="small" />
+              <Text style={styles.fieldSkeletonText}>Filling plant details...</Text>
+            </View>
+          ) : null}
+          <TextInput
+            onChangeText={setName}
+            placeholder="Plant name"
+            placeholderTextColor="#8a9583"
+            style={styles.input}
+            value={name}
+          />
+          <TextInput
+            onChangeText={setLocalName}
+            placeholder="Local name, optional"
+            placeholderTextColor="#8a9583"
+            style={styles.input}
+            value={localName}
+          />
+          <TextInput
+            onChangeText={setScientificName}
+            placeholder="Scientific name, optional"
+            placeholderTextColor="#8a9583"
+            style={styles.input}
+            value={scientificName}
+          />
+          <TextInput
+            onChangeText={setCategory}
+            placeholder="Category (e.g. Aroid, Succulent)"
+            placeholderTextColor="#8a9583"
+            style={styles.input}
+            value={category}
+          />
+        </View>
+
         <View style={styles.row}>
           <TextInput
             keyboardType="numeric"
             onChangeText={setPrice}
-            placeholder="Price"
+            placeholder="Price (PHP)"
             placeholderTextColor="#8a9583"
             style={[styles.input, styles.rowInput]}
             value={price}
@@ -211,10 +317,11 @@ export function SellerDashboard() {
             onChangeText={setQuantity}
             placeholder="Qty"
             placeholderTextColor="#8a9583"
-            style={[styles.input, styles.rowInput]}
+            style={[styles.input, styles.qtyInput]}
             value={quantity}
           />
         </View>
+
         <View style={styles.unitRow}>
           {units.map((unit, index) => (
             <Button key={unit} variant={index === unitIndex ? "primary" : "secondary"} onPress={() => setUnitIndex(index)}>
@@ -222,8 +329,21 @@ export function SellerDashboard() {
             </Button>
           ))}
         </View>
-        <TextInput onChangeText={setLocation} placeholder="Location (e.g. Butuan City)" placeholderTextColor="#8a9583" style={styles.input} value={location} />
-        <TextInput onChangeText={setDeliveryOption} placeholder="Delivery Options (e.g. Meetup / Delivery)" placeholderTextColor="#8a9583" style={styles.input} value={deliveryOption} />
+
+        <TextInput
+          onChangeText={setLocation}
+          placeholder="Location (e.g. Butuan City)"
+          placeholderTextColor="#8a9583"
+          style={styles.input}
+          value={location}
+        />
+        <TextInput
+          onChangeText={setDeliveryOption}
+          placeholder="Delivery Options (e.g. Meetup / Delivery)"
+          placeholderTextColor="#8a9583"
+          style={styles.input}
+          value={deliveryOption}
+        />
         <TextInput
           multiline
           onChangeText={setDescription}
@@ -232,13 +352,26 @@ export function SellerDashboard() {
           style={[styles.input, styles.textarea]}
           value={description}
         />
-        <Button disabled={isSaving} onPress={handleCreateListing}>
-          {isSaving ? "Submitting..." : "Submit for review"}
+
+        {message && (
+          <View style={styles.messageCard}>
+            <Text style={styles.success}>{message}</Text>
+          </View>
+        )}
+        {error && (
+          <View style={styles.errorCard}>
+            <Text style={styles.error}>{error}</Text>
+          </View>
+        )}
+
+        <Button disabled={isSaving || isScanning} onPress={handleCreateListing}>
+          {isSaving
+            ? "Publishing..."
+            : scanResult?.saleStatus === "safe_to_sell"
+            ? "Publish to Marketplace"
+            : "Submit for review"}
         </Button>
       </View>
-
-      {message && <Text style={styles.success}>{message}</Text>}
-      {error && <Text style={styles.error}>{error}</Text>}
 
       <View style={styles.divider} />
       <Text style={styles.subtitle}>My listings</Text>
@@ -251,7 +384,7 @@ export function SellerDashboard() {
               <View style={styles.flexItem}>
                 <Text style={styles.listingName}>{listing.name}</Text>
                 <Text style={styles.listingMeta}>
-                  PHP {listing.price.toLocaleString("en-PH")} - {listing.quantity} {listing.unit} - {listing.status}
+                  PHP {listing.price.toLocaleString("en-PH")} · {listing.quantity} {listing.unit} · {listing.status}
                 </Text>
               </View>
               {listing.status !== "archived" && (
@@ -289,39 +422,80 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 16,
   },
-  input: {
-    backgroundColor: colors.cream,
-    borderColor: colors.line,
-    borderRadius: 18,
-    borderWidth: 1,
-    color: colors.green,
-    fontSize: 14,
-    fontWeight: "700",
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-  },
-  row: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  rowInput: {
-    flex: 1,
-  },
-  unitRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  textarea: {
-    minHeight: 92,
-    textAlignVertical: "top",
+  // ── Photo area ──────────────────────────────────────────
+  photoContainer: {
+    position: "relative",
+    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: colors.sage,
   },
   preview: {
-    backgroundColor: colors.sage,
-    borderRadius: 20,
-    height: 180,
+    height: 200,
     width: "100%",
   },
+  photoPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+    height: 160,
+    gap: 8,
+    backgroundColor: colors.sage,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.sageStrong,
+    borderStyle: "dashed",
+  },
+  photoPlaceholderText: {
+    color: colors.green,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  photoPlaceholderSub: {
+    color: colors.greenMuted,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  scanOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(29,63,37,0.72)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scanOverlayInner: {
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 24,
+  },
+  scanOverlayText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  scanBadgeOverlay: {
+    position: "absolute",
+    bottom: 10,
+    left: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.green,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  scanBadgeOverlayText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  photoActionRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  photoActionBtn: {
+    flex: 1,
+  },
+  // ── Scan result card ─────────────────────────────────────
   scanCard: {
     backgroundColor: "#f0f9eb",
     borderColor: "#cce8bd",
@@ -333,17 +507,21 @@ const styles = StyleSheet.create({
   scanHeader: {
     alignItems: "center",
     flexDirection: "row",
-    gap: 10,
     justifyContent: "space-between",
+  },
+  scanHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   scanEyebrow: {
     color: colors.greenMuted,
     fontSize: 11,
     fontWeight: "900",
-    letterSpacing: 1,
+    letterSpacing: 0.8,
     textTransform: "uppercase",
   },
-  scanBadge: {
+  scanStatusBadge: {
     backgroundColor: "#dcfce7",
     borderRadius: 999,
     color: colors.green,
@@ -353,7 +531,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  scanBadgeWarning: {
+  scanStatusWarning: {
     backgroundColor: "#fff2cc",
     color: "#8a5a00",
   },
@@ -373,19 +551,82 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 20,
   },
+  // ── Form fields ──────────────────────────────────────────
+  fieldGroup: {
+    gap: 10,
+  },
+  fieldSkeleton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: colors.sage,
+    borderRadius: 14,
+  },
+  fieldSkeletonText: {
+    color: colors.greenMuted,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  input: {
+    backgroundColor: colors.cream,
+    borderColor: colors.line,
+    borderRadius: 18,
+    borderWidth: 1,
+    color: colors.green,
+    fontSize: 14,
+    fontWeight: "700",
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  row: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  rowInput: {
+    flex: 1,
+  },
+  qtyInput: {
+    width: 72,
+  },
+  unitRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  textarea: {
+    minHeight: 92,
+    textAlignVertical: "top",
+  },
+  // ── Messages ─────────────────────────────────────────────
+  messageCard: {
+    backgroundColor: "#f0f9eb",
+    borderColor: "#cce8bd",
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  errorCard: {
+    backgroundColor: "#fff1f0",
+    borderColor: "#f5c6c2",
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
   success: {
     color: colors.green,
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 20,
-    marginTop: 12,
   },
   error: {
     color: "#9f2d20",
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 20,
-    marginTop: 12,
   },
   divider: {
     backgroundColor: colors.line,
@@ -395,6 +636,7 @@ const styles = StyleSheet.create({
   loader: {
     marginVertical: 10,
   },
+  // ── Listing list ─────────────────────────────────────────
   listingItem: {
     borderColor: colors.line,
     borderRadius: 16,

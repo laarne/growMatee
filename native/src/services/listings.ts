@@ -75,6 +75,8 @@ export type ListingInput = {
   aiProvider?: string | null;
   aiConfidence?: number | null;
   aiResult?: Record<string, unknown> | null;
+  /** When 'active', listing goes live immediately (Leafy AI cleared it). Default: 'review' */
+  initialStatus?: "active" | "review";
 };
 
 function getPhotoUrl(storagePath?: string | null) {
@@ -210,6 +212,9 @@ export async function getSellerListings(sellerId: string): Promise<SellerListing
 export async function createListingForReview(input: ListingInput) {
   if (!supabase) throw new Error("Supabase is not configured.");
 
+  const status = input.initialStatus ?? "review";
+  const isActive = status === "active";
+
   const { data, error } = await supabase
     .from("listings")
     .insert({
@@ -227,7 +232,9 @@ export async function createListingForReview(input: ListingInput) {
       ai_provider: input.aiProvider || null,
       ai_confidence: input.aiConfidence ?? null,
       ai_result: input.aiResult ?? {},
-      status: "review",
+      status,
+      // Auto-set published_at when going live immediately
+      published_at: isActive ? new Date().toISOString() : null,
     })
     .select("id")
     .single();
