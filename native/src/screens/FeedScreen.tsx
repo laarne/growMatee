@@ -5,7 +5,7 @@ import { Card } from "../components/Card";
 import { Screen } from "../components/Screen";
 import { useAuth } from "../context/AuthContext";
 import { createFeedPost, getFeedPosts, getPostComments, addPostComment, togglePostReaction, deletePost, type FeedPost, type PostComment } from "../services/feed";
-import { pickImageFromLibrary, uploadPublicImage, type PickedImage } from "../services/storage";
+import { pickImageFromLibrary, takePhotoWithCamera, uploadPublicImage, type PickedImage } from "../services/storage";
 import { createReport } from "../services/reports";
 import { supabase } from "../services/supabase";
 import { colors, radius, shadow } from "../theme/colors";
@@ -191,6 +191,19 @@ export function FeedScreen() {
     }
   }
 
+  async function handleTakePhoto() {
+    setError(null);
+    try {
+      const takenPhoto = await takePhotoWithCamera();
+      if (takenPhoto) {
+        setPhoto(takenPhoto);
+      }
+    } catch (photoError) {
+      const message = photoError instanceof Error ? photoError.message : "Unable to take photo.";
+      setError(message);
+    }
+  }
+
   async function handleToggleLike(postId: string) {
     if (!user) return;
 
@@ -329,6 +342,19 @@ export function FeedScreen() {
               color={photo ? colors.green : colors.textTertiary}
             />
             <Text style={[styles.composerActionText, photo && { color: colors.green }]}>Photo</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={handleTakePhoto}
+            style={({ pressed }) => [styles.composerIconBtn, pressed && styles.iconBtnPressed]}
+            hitSlop={8}
+          >
+            <MaterialCommunityIcons
+              name="camera-outline"
+              size={22}
+              color={colors.textTertiary}
+            />
+            <Text style={styles.composerActionText}>Camera</Text>
           </Pressable>
 
           <View style={styles.composerBarSpacer} />
@@ -852,21 +878,12 @@ const styles = StyleSheet.create({
   postTime: { fontSize: 10, color: colors.textTertiary, fontWeight: "600", marginTop: 1 },
   postAction: { paddingHorizontal: 4 },
 
-  postBody: {
-    fontSize: 14,
-    color: colors.textPrimary,
-    fontWeight: "500",
-    lineHeight: 20,
-    paddingHorizontal: 14,
-    paddingBottom: 10,
-  },
   postImage: {
     width: "100%",
     aspectRatio: 1,
     backgroundColor: colors.surface1,
     marginBottom: 0,
   },
-  postDivider: { height: 1, backgroundColor: colors.line, marginTop: 8 },
 
   postActions: {
     flexDirection: "row",
@@ -1077,28 +1094,7 @@ const styles = StyleSheet.create({
   loadingText: { color: colors.textPrimary, fontSize: 14, fontWeight: "700", marginTop: 10 },
 
   // Legacy — kept for plant detail modal references
-  linkedPlantBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.green,
-    borderRadius: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  linkedPlantText: { color: colors.white, fontSize: 11, fontWeight: "800" },
-  deleteText: {
-    color: "#ef4444",
-    fontSize: 11,
-    fontWeight: "900",
-  },
-  reportText: {
-    color: colors.greenMuted,
-    fontSize: 11,
-    fontWeight: "900",
-  },
+
   bottomModalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",

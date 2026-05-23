@@ -12,6 +12,23 @@ type MessagesScreenProps = {
   onOpenChat: (conversationId: string, title: string) => void;
 };
 
+function formatConvoTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) {
+    return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  } else if (diffDays === 1) {
+    return "Yesterday";
+  } else if (diffDays < 7) {
+    return date.toLocaleDateString(undefined, { weekday: "short" });
+  } else {
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+}
+
 export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -86,9 +103,11 @@ export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
           const chatTitle = convo.title || convo.otherMember?.displayName || "GrowMate Chat";
           const subtitle = isLeafy
             ? "Instant Plant Care & Gardening Tips"
+            : (convo as any).lastMessage
+            ? String((convo as any).lastMessage).slice(0, 48)
             : convo.type === "market"
-            ? "Marketplace Inquiry"
-            : "Direct Message";
+            ? "Marketplace inquiry"
+            : "Tap to open chat";
 
           return (
             <Pressable key={convo.id} onPress={() => onOpenChat(convo.id, chatTitle)}>
@@ -108,8 +127,8 @@ export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
                     </View>
                   )}
                   <View style={styles.content}>
-                    <Text style={styles.chatTitle}>{chatTitle}</Text>
-                    <Text style={styles.subtitle}>{subtitle}</Text>
+                    <Text style={styles.chatTitle} numberOfLines={1}>{chatTitle}</Text>
+                    <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
                   </View>
                   {isLeafy ? (
                     <View style={styles.aiStatusBadge}>
@@ -117,10 +136,7 @@ export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
                     </View>
                   ) : (
                     <Text style={styles.time}>
-                      {new Date(convo.updatedAt).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                      })}
+                      {formatConvoTime(convo.updatedAt)}
                     </Text>
                   )}
                 </View>

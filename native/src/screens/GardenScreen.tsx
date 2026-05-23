@@ -28,6 +28,7 @@ import { scanPlantWithLeafy, type LeafyScanResult } from "../services/leafyScan"
 import { pickImageFromLibrary, takePhotoWithCamera, uploadPublicImage, type PickedImage } from "../services/storage";
 import { colors, radius, shadow, fontSize } from "../theme/colors";
 import { DiscoverGardensScreen } from "./DiscoverGardensScreen";
+import { supabase } from "../services/supabase";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const COVER_HEIGHT = 220;
@@ -67,6 +68,11 @@ export function GardenScreen() {
   const [isScanningScanner, setIsScanningScanner] = useState(false);
   const [scannerResult, setScannerResult] = useState<LeafyScanResult | null>(null);
   const [scannerError, setScannerError] = useState<string | null>(null);
+
+  // Plant options sheet
+  const [plantOptionsTarget, setPlantOptionsTarget] = useState<GardenPlant | null>(null);
+  const [showPlantOptions, setShowPlantOptions] = useState(false);
+  const [isDeletingPlant, setIsDeletingPlant] = useState(false);
 
   async function loadGarden() {
     if (!user) return;
@@ -154,6 +160,21 @@ export function GardenScreen() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to add plant.");
     } finally { setIsSaving(false); }
+  }
+
+  async function handleDeletePlant(plantId: string) {
+    if (!supabase) return;
+    setIsDeletingPlant(true);
+    try {
+      await supabase.from("garden_plants").delete().eq("id", plantId);
+      setShowPlantOptions(false);
+      setPlantOptionsTarget(null);
+      await loadGarden();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to delete plant.");
+    } finally {
+      setIsDeletingPlant(false);
+    }
   }
 
   // Cover carousel images — use plant photos if available, else default covers
@@ -352,7 +373,16 @@ export function GardenScreen() {
                       </View>
                     )}
                     <View style={styles.plantCardInfo}>
-                      <Text style={styles.plantCardName} numberOfLines={1}>{plant.name}</Text>
+                      <View style={styles.plantCardRow}>
+                        <Text style={styles.plantCardName} numberOfLines={1}>{plant.name}</Text>
+                        <Pressable
+                          onPress={() => { setPlantOptionsTarget(plant); setShowPlantOptions(true); }}
+                          hitSlop={6}
+                          style={styles.plantCardMenuBtn}
+                        >
+                          <MaterialCommunityIcons name="dots-vertical" size={16} color={colors.textTertiary} />
+                        </Pressable>
+                      </View>
                       {plant.category ? (
                         <Text style={styles.plantCardCat} numberOfLines={1}>{plant.category}</Text>
                       ) : null}
@@ -366,6 +396,63 @@ export function GardenScreen() {
           </View>
         </ScrollView>
       )}
+
+      {/* ══════════════════════════════════════════════════
+          PLANT OPTIONS BOTTOM SHEET
+      ══════════════════════════════════════════════════ */}
+      <Modal
+        visible={showPlantOptions}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowPlantOptions(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={{ flex: 1 }} onPress={() => setShowPlantOptions(false)} />
+          <View style={styles.optionsSheet}>
+            <View style={styles.optionsHandle} />
+            {plantOptionsTarget && (
+              <Text style={styles.optionsPlantName} numberOfLines={1}>
+                {plantOptionsTarget.name}
+              </Text>
+            )}
+            <Pressable
+              onPress={() => {
+                setShowPlantOptions(false);
+                if (plantOptionsTarget) {
+                  setPlantName(plantOptionsTarget.name);
+                  setScientificName(plantOptionsTarget.scientificName ?? "");
+                  setCategory(plantOptionsTarget.category ?? "");
+                  setCondition(plantOptionsTarget.condition ?? "Healthy");
+                  setCareNotes(plantOptionsTarget.careNotes ?? "");
+                  setPlantPhoto(null);
+                  setScanResult(null);
+                  setScanMessage(null);
+                  setShowAddModal(true);
+                }
+              }}
+              style={styles.optionBtn}
+            >
+              <MaterialCommunityIcons name="pencil-outline" size={20} color={colors.textPrimary} />
+              <Text style={styles.optionBtnText}>Edit Plant</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => plantOptionsTarget && handleDeletePlant(plantOptionsTarget.id)}
+              style={styles.optionBtn}
+              disabled={isDeletingPlant}
+            >
+              {isDeletingPlant ? (
+                <ActivityIndicator size={16} color="#ef4444" />
+              ) : (
+                <MaterialCommunityIcons name="delete-outline" size={20} color="#ef4444" />
+              )}
+              <Text style={styles.optionBtnTextDanger}>Delete Plant</Text>
+            </Pressable>
+            <Pressable onPress={() => setShowPlantOptions(false)} style={[styles.optionBtn, styles.optionCancelBtn]}>
+              <Text style={styles.optionCancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {/* ══════════════════════════════════════════════════
           ADD PLANT MODAL
@@ -1076,5 +1163,73 @@ const styles = StyleSheet.create({
     color: colors.green,
     fontSize: 14,
     fontWeight: "800",
+  },
+
+  // Plant card 3-dots
+  plantCardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  plantCardMenuBtn: { padding: 2 },
+
+  // Plant options bottom sheet
+  optionsSheet: {
+    backgroundColor: colors.surface0,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: 20,
+    width: "100%",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  optionsHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: colors.line,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 8,
+  },
+  optionsPlantName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.textSecondary,
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  optionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: radius.md,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  optionBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  optionBtnTextDanger: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#ef4444",
+  },
+  optionCancelBtn: {
+    justifyContent: "center",
+    backgroundColor: colors.surface1,
+    borderColor: "transparent",
+    marginTop: 4,
+  },
+  optionCancelText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.textSecondary,
+    textAlign: "center",
   },
 });

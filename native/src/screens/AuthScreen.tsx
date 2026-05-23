@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import * as Linking from "expo-linking";
 import { BrandMark } from "../components/BrandMark";
 import { Button } from "../components/Button";
@@ -57,6 +57,26 @@ export function AuthScreen() {
     }
 
     setMessage(isSignUp ? "Account created. Welcome to GrowMate." : "Signed in.");
+  }
+
+  async function handleForgotPassword() {
+    if (!supabase) return;
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail) {
+      setError("Enter your email address first, then tap Forgot password.");
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+      redirectTo: authRedirectUrl,
+    });
+    setIsSubmitting(false);
+    if (resetError) {
+      setError(resetError.message);
+    } else {
+      setMessage("Password reset link sent. Check your email.");
+    }
   }
 
   async function handleIncomingLink(url: string | null) {
@@ -131,6 +151,12 @@ export function AuthScreen() {
           <Button disabled={!canSubmit || isSubmitting || !isSupabaseConfigured} onPress={handleSubmit}>
             {isSubmitting ? "Please wait..." : isSignUp ? "Create buyer account" : "Sign in"}
           </Button>
+
+          {!isSignUp && (
+            <Pressable onPress={handleForgotPassword} style={styles.forgotLink}>
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            </Pressable>
+          )}
 
           {isSubmitting && <ActivityIndicator color={colors.green} style={styles.loader} />}
           {message && <Text style={styles.success}>{message}</Text>}
@@ -228,5 +254,15 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 20,
     marginTop: 8,
+  },
+  forgotLink: {
+    alignSelf: "center",
+    marginTop: 8,
+    paddingVertical: 4,
+  },
+  forgotText: {
+    color: colors.green,
+    fontSize: 13,
+    fontWeight: "700",
   },
 });

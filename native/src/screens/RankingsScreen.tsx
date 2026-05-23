@@ -18,9 +18,9 @@ import { getUserOrders, type Order } from "../services/listings";
 import { colors, radius, shadow, fontSize, spacing } from "../theme/colors";
 import { Screen } from "../components/Screen";
 
-const MEDALS = ["🥇", "🥈", "🥉"];
 const MEDAL_COLORS = ["#f59e0b", "#94a3b8", "#cd7f32"];
 const MEDAL_BG = ["#fef3c7", "#f1f5f9", "#fdf4e7"];
+const MEDAL_ICONS: ("medal" | "medal-outline" | "podium-bronze")[] = ["medal", "medal-outline", "podium-bronze"];
 
 export function RankingsScreen() {
   const { user } = useAuth();
@@ -547,7 +547,7 @@ export function RankingsScreen() {
                     )}
                   </View>
                   <View style={[styles.podiumMedalBadge, { backgroundColor: MEDAL_BG[1] }]}>
-                    <Text style={styles.podiumMedalText}>{MEDALS[1]}</Text>
+                    <MaterialCommunityIcons name={MEDAL_ICONS[1]} size={18} color={MEDAL_COLORS[1]} />
                   </View>
                   <Text style={styles.podiumName} numberOfLines={1}>{top3[1].displayName}</Text>
                   <Text style={styles.podiumPoints}>{top3[1].points} pts</Text>
@@ -559,7 +559,7 @@ export function RankingsScreen() {
               {top3[0] && (
                 <View style={styles.podiumItem}>
                   <View style={styles.crownWrap}>
-                    <Text style={styles.crownIcon}>👑</Text>
+                    <MaterialCommunityIcons name="crown" size={22} color="#f59e0b" />
                   </View>
                   <View style={[styles.podiumAvatar, styles.podiumAvatarLg, { borderColor: MEDAL_COLORS[0] }]}>
                     {top3[0].avatarUrl ? (
@@ -569,7 +569,7 @@ export function RankingsScreen() {
                     )}
                   </View>
                   <View style={[styles.podiumMedalBadge, { backgroundColor: MEDAL_BG[0] }]}>
-                    <Text style={styles.podiumMedalText}>{MEDALS[0]}</Text>
+                    <MaterialCommunityIcons name={MEDAL_ICONS[0]} size={18} color={MEDAL_COLORS[0]} />
                   </View>
                   <Text style={[styles.podiumName, styles.podiumNameLg]} numberOfLines={1}>{top3[0].displayName}</Text>
                   <Text style={[styles.podiumPoints, styles.podiumPointsLg]}>{top3[0].points} pts</Text>
@@ -588,7 +588,7 @@ export function RankingsScreen() {
                     )}
                   </View>
                   <View style={[styles.podiumMedalBadge, { backgroundColor: MEDAL_BG[2] }]}>
-                    <Text style={styles.podiumMedalText}>{MEDALS[2]}</Text>
+                    <MaterialCommunityIcons name={MEDAL_ICONS[2]} size={18} color={MEDAL_COLORS[2]} />
                   </View>
                   <Text style={styles.podiumName} numberOfLines={1}>{top3[2].displayName}</Text>
                   <Text style={styles.podiumPoints}>{top3[2].points} pts</Text>
