@@ -259,13 +259,6 @@ export function FeedScreen() {
     }
   }
 
-  const typeColor: Record<string, { bg: string; text: string }> = {
-    update:   { bg: "#e0f2fe", text: "#0369a1" },
-    question: { bg: "#fef3c7", text: "#92650a" },
-    harvest:  { bg: "#dcfce7", text: "#15803d" },
-    tip:      { bg: "#fdf4ff", text: "#7e22ce" },
-  };
-
   function getRelativeTime(dateStr: string) {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
@@ -401,11 +394,6 @@ export function FeedScreen() {
                 </View>
               </View>
               <View style={styles.postHeaderRight}>
-                <View style={[styles.typeBadge, { backgroundColor: (typeColor[post.type] ?? typeColor.update).bg }]}>
-                  <Text style={[styles.typeBadgeText, { color: (typeColor[post.type] ?? typeColor.update).text }]}>
-                    {post.type}
-                  </Text>
-                </View>
                 <Pressable
                   onPress={() => {
                     setSelectedPost(post);
@@ -862,12 +850,6 @@ const styles = StyleSheet.create({
   postMeta: { },
   postAuthor: { fontSize: 13, fontWeight: "800", color: colors.textPrimary },
   postTime: { fontSize: 10, color: colors.textTertiary, fontWeight: "600", marginTop: 1 },
-  typeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.sm,
-  },
-  typeBadgeText: { fontSize: 10, fontWeight: "900", textTransform: "capitalize" },
   postAction: { paddingHorizontal: 4 },
 
   postBody: {
