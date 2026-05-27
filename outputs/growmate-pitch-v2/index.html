@@ -10,6 +10,87 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Lora:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet" />
   <style>
+    /* ─── Nature Animations ─────────────────────────────── */
+    @keyframes leafFall {
+      0%   { transform: translateY(-80px) translateX(0) rotate(0deg); opacity: 0; }
+      10%  { opacity: 0.8; }
+      90%  { opacity: 0.6; }
+      100% { transform: translateY(110vh) translateX(80px) rotate(720deg); opacity: 0; }
+    }
+    @keyframes leafSway {
+      0%,100% { transform: rotate(-12deg) translateX(0); }
+      50%      { transform: rotate(12deg) translateX(8px); }
+    }
+    @keyframes pollenFloat {
+      0%   { transform: translateY(0) translateX(0) scale(1); opacity: 0; }
+      20%  { opacity: 0.7; }
+      80%  { opacity: 0.5; }
+      100% { transform: translateY(-120px) translateX(40px) scale(0.5); opacity: 0; }
+    }
+    @keyframes grassSway {
+      0%,100% { transform-origin: bottom center; transform: rotate(-4deg); }
+      50%      { transform-origin: bottom center; transform: rotate(4deg); }
+    }
+    @keyframes vineGrow {
+      0%   { stroke-dashoffset: 800; opacity: 0; }
+      20%  { opacity: 0.25; }
+      100% { stroke-dashoffset: 0; opacity: 0.15; }
+    }
+    @keyframes sprout {
+      0%   { transform: scaleY(0); opacity: 0; transform-origin: bottom; }
+      60%  { opacity: 1; }
+      100% { transform: scaleY(1); opacity: 0.8; transform-origin: bottom; }
+    }
+    @keyframes ripple {
+      0%   { transform: scale(0.8); opacity: 0.6; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
+    @keyframes dewDrop {
+      0%,100% { transform: translateY(0) scale(1); }
+      50%      { transform: translateY(6px) scale(0.8); }
+    }
+
+    /* Nature particle canvas layer */
+    #nature-canvas {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 0; overflow: hidden;
+    }
+    .leaf-particle {
+      position: fixed; pointer-events: none; z-index: 1;
+      font-size: 18px; will-change: transform;
+      animation: leafFall linear infinite;
+    }
+    /* Grass blades decoration */
+    .grass-scene {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 80px; pointer-events: none; overflow: hidden;
+      display: flex; align-items: flex-end; gap: 3px;
+      padding: 0 20px;
+    }
+    .grass-blade {
+      width: 3px; background: linear-gradient(to top, var(--green), var(--green-leaf));
+      border-radius: 3px 3px 0 0; transform-origin: bottom center;
+      animation: grassSway ease-in-out infinite;
+    }
+    /* Floating pollen dots */
+    .pollen {
+      position: absolute; border-radius: 50%;
+      background: radial-gradient(circle, #fde68a, #fbbf24);
+      pointer-events: none; animation: pollenFloat ease-in-out infinite;
+    }
+    /* Ripple rings */
+    .nature-ripple {
+      position: absolute; border-radius: 50%;
+      border: 2px solid rgba(76,175,80,0.3);
+      pointer-events: none; animation: ripple 3s ease-out infinite;
+    }
+    /* Dew drops */
+    .dew-drop {
+      position: absolute; border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(76,175,80,0.3));
+      box-shadow: 0 2px 8px rgba(76,175,80,0.2);
+      pointer-events: none; animation: dewDrop ease-in-out infinite;
+    }
     /* ─── Reset ────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
@@ -383,23 +464,28 @@
     .pt-text span { font-size: 13px; color: var(--text-2); line-height: 1.6; }
 
     /* ─── SDG Impact ───────────────────────────────────── */
-    #impact { background: var(--cream); }
+    #impact { background: var(--cream); position: relative; overflow: hidden; }
     .sdg-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
     .sdg-card {
       background: #fff; border-radius: var(--r-md); padding: 36px 28px;
       box-shadow: var(--shadow-sm); border: 1px solid rgba(26,58,34,0.06);
-      text-align: center; transition: all 0.28s;
+      text-align: center; transition: all 0.28s; position: relative; overflow: hidden;
+    }
+    .sdg-card::before {
+      content: ''; position: absolute; inset: 0; opacity: 0;
+      transition: opacity 0.3s;
+      background: radial-gradient(ellipse at 50% 0%, rgba(76,175,80,0.06), transparent 70%);
     }
     .sdg-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-md); }
-    .sdg-num {
-      width: 64px; height: 64px; border-radius: var(--r-sm);
-      display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 18px;
-      font-size: 22px; font-weight: 900; color: #fff;
+    .sdg-card:hover::before { opacity: 1; }
+    .sdg-logo {
+      width: 96px; height: 96px; object-fit: contain;
+      margin: 0 auto 18px; display: block;
+      border-radius: 12px;
+      transition: transform 0.3s ease;
+      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.12));
     }
-    .s11 { background: linear-gradient(135deg, #f59e0b, #d97706); }
-    .s12 { background: linear-gradient(135deg, #22c55e, #16a34a); }
-    .s15 { background: linear-gradient(135deg, #0ea5e9, #0284c7); }
+    .sdg-card:hover .sdg-logo { transform: scale(1.06) rotate(-2deg); }
     .sdg-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
     .sdg-title { font-size: 17px; font-weight: 700; color: var(--green); margin-bottom: 10px; }
     .sdg-desc { font-size: 13px; color: var(--text-2); line-height: 1.68; }
@@ -494,6 +580,18 @@
     .d2 { transition-delay: 0.20s; }
     .d3 { transition-delay: 0.30s; }
     .d4 { transition-delay: 0.40s; }
+
+    /* ─── Nature background overlays ───────────────────── */
+    #hero { position: relative; overflow: visible; }
+    #hero .hero-nature { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    #ai { position: relative; overflow: hidden; }
+    #ai .ai-nature { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+    #impact .impact-nature { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+    .floating-leaf {
+      position: absolute; font-size: 22px; pointer-events: none;
+      animation: leafSway ease-in-out infinite;
+      opacity: 0.35;
+    }
 
     /* ─── Responsive ───────────────────────────────────── */
     @media (max-width: 1024px) {
@@ -594,10 +692,30 @@
 </nav>
 
 <!-- HERO ─────────────────────────────────────────────────── -->
+<!-- Floating leaf particles (injected by JS) -->
+<div id="leaf-container" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999;overflow:hidden;"></div>
+
 <section id="hero">
   <div class="hero-blob hb1"></div>
   <div class="hero-blob hb2"></div>
   <div class="hero-blob hb3"></div>
+  <!-- Nature decorations -->
+  <div class="hero-nature">
+    <div class="floating-leaf" style="top:15%;left:5%;font-size:28px;animation-duration:6s;animation-delay:-1s;">🌿</div>
+    <div class="floating-leaf" style="top:60%;right:4%;font-size:20px;animation-duration:8s;animation-delay:-3s;">🍃</div>
+    <div class="floating-leaf" style="top:80%;left:8%;font-size:16px;animation-duration:7s;animation-delay:-2s;">🌱</div>
+    <div class="floating-leaf" style="top:30%;right:8%;font-size:24px;animation-duration:9s;animation-delay:-4s;">🌿</div>
+    <!-- Pollen dots -->
+    <div class="pollen" style="width:8px;height:8px;top:25%;left:15%;animation-duration:5s;animation-delay:-1s;"></div>
+    <div class="pollen" style="width:5px;height:5px;top:50%;left:80%;animation-duration:7s;animation-delay:-3s;"></div>
+    <div class="pollen" style="width:6px;height:6px;top:70%;left:40%;animation-duration:6s;animation-delay:-2s;"></div>
+    <!-- Ripple -->
+    <div class="nature-ripple" style="width:60px;height:60px;bottom:20%;right:12%;animation-delay:-1.5s;"></div>
+    <div class="nature-ripple" style="width:40px;height:40px;top:35%;left:12%;animation-delay:-0.5s;animation-duration:4s;"></div>
+    <!-- Dew drops -->
+    <div class="dew-drop" style="width:10px;height:10px;top:20%;left:30%;animation-duration:4s;animation-delay:-2s;"></div>
+    <div class="dew-drop" style="width:7px;height:7px;top:65%;right:25%;animation-duration:5s;animation-delay:-1s;"></div>
+  </div>
   <div class="container">
     <div class="hero-grid">
 
@@ -888,7 +1006,17 @@
 
 <!-- IMPACT ───────────────────────────────────────────────── -->
 <section id="impact">
-  <div class="container">
+  <!-- Nature bg decorations -->
+  <div class="impact-nature">
+    <div class="floating-leaf" style="top:10%;left:2%;font-size:32px;animation-duration:7s;animation-delay:-2s;opacity:0.2;">🌿</div>
+    <div class="floating-leaf" style="top:60%;right:2%;font-size:26px;animation-duration:9s;animation-delay:-4s;opacity:0.18;">🍀</div>
+    <div class="floating-leaf" style="bottom:5%;left:20%;font-size:20px;animation-duration:6s;animation-delay:-1s;opacity:0.15;">🌱</div>
+    <div class="pollen" style="width:10px;height:10px;top:30%;left:10%;animation-duration:6s;"></div>
+    <div class="pollen" style="width:6px;height:6px;top:70%;right:15%;animation-duration:8s;animation-delay:-2s;"></div>
+    <div class="nature-ripple" style="width:80px;height:80px;top:20%;right:10%;animation-delay:-2s;"></div>
+    <div class="dew-drop" style="width:12px;height:12px;top:50%;left:5%;animation-duration:6s;"></div>
+  </div>
+  <div class="container" style="position:relative;z-index:1;">
     <div class="sec-head reveal">
       <span class="tag tag-yellow">Social Good</span>
       <h2 class="sec-title">Making a Real Difference</h2>
@@ -896,19 +1024,34 @@
     </div>
     <div class="sdg-grid">
       <div class="sdg-card reveal" id="sdg11">
-        <div class="sdg-num s11">11</div>
+        <img
+          src="https://www.un.org/sustainabledevelopment/wp-content/uploads/2019/08/E_SDG_Icons-11.jpg"
+          alt="SDG 11 — Sustainable Cities and Communities"
+          class="sdg-logo"
+          loading="lazy"
+        />
         <div class="sdg-badge" style="color:#92650a;">SDG 11 — Sustainable Cities</div>
         <h3 class="sdg-title">Safer Urban Greening</h3>
         <p class="sdg-desc">GrowMate supports urban gardening and food-plant adoption, helping city dwellers build plant-filled, resilient communities through accessible local plant trade.</p>
       </div>
       <div class="sdg-card reveal d1" id="sdg12">
-        <div class="sdg-num s12">12</div>
+        <img
+          src="https://www.un.org/sustainabledevelopment/wp-content/uploads/2019/08/E_SDG_Icons-12.jpg"
+          alt="SDG 12 — Responsible Consumption and Production"
+          class="sdg-logo"
+          loading="lazy"
+        />
         <div class="sdg-badge" style="color:#166534;">SDG 12 — Responsible Consumption</div>
         <h3 class="sdg-title">Ethical Plant Trade</h3>
         <p class="sdg-desc">Leafy AI helps buyers make informed choices. Sellers get clear plant data and safety checks so the plant trade stays legal, ethical, and sustainable for everyone.</p>
       </div>
       <div class="sdg-card reveal d2" id="sdg15">
-        <div class="sdg-num s15">15</div>
+        <img
+          src="https://www.un.org/sustainabledevelopment/wp-content/uploads/2019/08/E_SDG_Icons-15.jpg"
+          alt="SDG 15 — Life on Land"
+          class="sdg-logo"
+          loading="lazy"
+        />
         <div class="sdg-badge" style="color:#0c5460;">SDG 15 — Life on Land</div>
         <h3 class="sdg-title">Protecting Biodiversity</h3>
         <p class="sdg-desc">Automatic detection of rare or endangered species prevents illegal wildlife plant trade and actively protects Philippine biodiversity at the community level.</p>
@@ -1089,6 +1232,50 @@
 </footer>
 
 <script>
+  /* ── Nature leaf particles ─────────────────────────── */
+  (function() {
+    const LEAVES = ['🍃','🌿','🌱','🍀','🌾','🌼','🌻','🌸'];
+    const container = document.getElementById('leaf-container');
+    function spawnLeaf() {
+      const el = document.createElement('div');
+      el.className = 'leaf-particle';
+      el.textContent = LEAVES[Math.floor(Math.random() * LEAVES.length)];
+      const size = 14 + Math.random() * 18;
+      el.style.fontSize = size + 'px';
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.top = '-80px';
+      const dur = 8 + Math.random() * 12;
+      el.style.animationDuration = dur + 's';
+      el.style.animationDelay = (Math.random() * -dur) + 's';
+      el.style.opacity = (0.3 + Math.random() * 0.4).toString();
+      container.appendChild(el);
+      setTimeout(() => el.remove(), (dur + 2) * 1000);
+    }
+    // Initial burst
+    for (let i = 0; i < 12; i++) setTimeout(spawnLeaf, i * 400);
+    // Continuous spawn
+    setInterval(spawnLeaf, 1800);
+
+    /* Grass blades in hero */
+    const hero = document.querySelector('#hero');
+    if (hero) {
+      const grassScene = document.createElement('div');
+      grassScene.className = 'grass-scene';
+      const count = Math.floor(window.innerWidth / 12);
+      for (let i = 0; i < count; i++) {
+        const b = document.createElement('div');
+        b.className = 'grass-blade';
+        const h = 30 + Math.random() * 50;
+        b.style.height = h + 'px';
+        b.style.animationDuration = (2 + Math.random() * 3) + 's';
+        b.style.animationDelay = (Math.random() * -4) + 's';
+        b.style.opacity = (0.4 + Math.random() * 0.4).toString();
+        grassScene.appendChild(b);
+      }
+      hero.appendChild(grassScene);
+    }
+  })();
+
   // Scroll reveal
   const revels = document.querySelectorAll('.reveal');
   const ro = new IntersectionObserver((entries) => {
