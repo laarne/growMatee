@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GrowMate — The Smart Plant Marketplace & Community</title>
+  <meta name="description" content="GrowMate is the Philippines' safest, smartest plant marketplace and community app for plant lovers, collectors, and local sellers. Powered by Leafy AI." />
+  <link rel="icon" type="image/png" href="app-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Lora:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Reset ────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: #faf8f4;
+      color: #1a3a22;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ─── Tokens ───────────────────────────────────────── */
+    :root {
+      --green:         #1a3a22;
+      --green-mid:     #2d5a3d;
+      --green-leaf:    #4caf50;
+      --green-light:   #81c784;
+      --green-pale:    #e4f0d8;
+      --cream:         #faf8f4;
+      --cream-warm:    #f5f0e8;
+      --beige:         #ede6d9;
+      --terracotta:    #b85c42;
+      --terra-pale:    #faeae5;
+      --yellow:        #c9963a;
+      --yellow-pale:   #fdf3df;
+      --surface:       #ffffff;
+      --text-1:        #1a3a22;
+      --text-2:        #4b6051;
+      --text-3:        #7a9080;
+      --line:          #dce8d2;
+      --shadow-sm:     0 2px 14px rgba(26,58,34,0.07);
+      --shadow-md:     0 6px 32px rgba(26,58,34,0.10);
+      --shadow-lg:     0 20px 64px rgba(26,58,34,0.13);
+      --r-sm: 12px;
+      --r-md: 18px;
+      --r-lg: 28px;
+      --r-xl: 40px;
+    }
+
+    /* ─── Util ─────────────────────────────────────────── */
+    .container { max-width: 1160px; margin: 0 auto; padding: 0 28px; }
+    .tag {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 5px 14px; border-radius: 999px; font-size: 11px;
+      font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+    }
+    .tag-green  { background: var(--green-pale); color: var(--green-mid); }
+    .tag-terra  { background: var(--terra-pale); color: var(--terracotta); }
+    .tag-yellow { background: var(--yellow-pale); color: #8a6120; }
+
+    /* ─── Buttons ──────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 11px 24px; border-radius: 999px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 14px; font-weight: 600; text-decoration: none;
+      cursor: pointer; border: none; transition: all 0.22s ease;
+    }
+    .btn-lg { padding: 15px 32px; font-size: 15px; }
+    .btn-dark {
+      background: var(--green); color: #fff;
+      box-shadow: 0 4px 18px rgba(26,58,34,0.24);
+    }
+    .btn-dark:hover { background: var(--green-mid); transform: translateY(-2px); box-shadow: 0 8px 28px rgba(26,58,34,0.28); }
+    .btn-outline {
+      background: transparent; color: var(--green);
+      border: 1.5px solid rgba(26,58,34,0.22);
+    }
+    .btn-outline:hover { background: var(--green-pale); }
+    .btn-terra {
+      background: var(--terracotta); color: #fff;
+      box-shadow: 0 4px 18px rgba(184,92,66,0.28);
+    }
+    .btn-terra:hover { background: #9e4b34; transform: translateY(-2px); box-shadow: 0 8px 28px rgba(184,92,66,0.32); }
+    .btn-white { background: #fff; color: var(--terracotta); font-weight: 700; box-shadow: 0 4px 20px rgba(0,0,0,0.16); }
+    .btn-white:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.22); }
+    .btn-ghost-white { background: rgba(255,255,255,0.14); color: #fff; border: 1.5px solid rgba(255,255,255,0.35); }
+    .btn-ghost-white:hover { background: rgba(255,255,255,0.24); }
+
+    /* ─── Nav ──────────────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      padding: 14px 0;
+      background: rgba(250,248,244,0.90);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(26,58,34,0.06);
+      transition: box-shadow 0.3s;
+    }
+    .nav-inner { display: flex; align-items: center; justify-content: space-between; }
+    .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .logo-img { width: 34px; height: 34px; object-fit: contain; border-radius: 8px; }
+    .logo-text { font-size: 20px; font-weight: 800; color: var(--green); letter-spacing: -0.3px; }
+    .nav-links { display: flex; align-items: center; gap: 30px; }
+    .nav-links a { font-size: 14px; font-weight: 500; color: var(--text-2); text-decoration: none; transition: color 0.18s; }
+    .nav-links a:hover { color: var(--green); }
+
+    /* ─── Section base ─────────────────────────────────── */
+    section { padding: 100px 0; }
+    .sec-head { text-align: center; margin-bottom: 60px; }
+    .sec-title {
+      font-size: clamp(30px, 3.5vw, 46px); font-weight: 800;
+      color: var(--green); line-height: 1.18;
+      margin-top: 14px; margin-bottom: 16px;
+    }
+    .sec-sub {
+      font-size: 16px; color: var(--text-2);
+      max-width: 540px; margin: 0 auto; line-height: 1.75;
+    }
+
+    /* ─── Hero ─────────────────────────────────────────── */
+    #hero {
+      min-height: 100vh; display: flex; align-items: center;
+      padding: 130px 0 90px; position: relative;
+      /* no overflow:hidden — lets chips breathe */
+    }
+    .hero-blob {
+      position: absolute; border-radius: 50%;
+      filter: blur(90px); opacity: 0.38; pointer-events: none; z-index: 0;
+    }
+    .hb1 { width: 640px; height: 640px; background: radial-gradient(circle, #bde0b0, transparent); top: -120px; right: -180px; }
+    .hb2 { width: 420px; height: 420px; background: radial-gradient(circle, #f5ddd1, transparent); bottom: -60px; left: -80px; }
+    .hb3 { width: 280px; height: 280px; background: radial-gradient(circle, #fdeec7, transparent); top: 50%; left: 32%; }
+    .hero-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 56px; align-items: center; position: relative; z-index: 1;
+    }
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--green-pale); color: var(--green-mid);
+      padding: 6px 14px; border-radius: 999px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+      margin-bottom: 22px;
+    }
+    .hero-title {
+      font-size: clamp(40px, 5vw, 62px); font-weight: 900;
+      color: var(--green); line-height: 1.08; margin-bottom: 22px;
+    }
+    .hero-title em {
+      font-family: 'Lora', serif; font-style: italic;
+      color: var(--terracotta); font-weight: 500;
+    }
+    .hero-sub {
+      font-size: 17px; color: var(--text-2); line-height: 1.72;
+      max-width: 460px; margin-bottom: 36px;
+    }
+    .hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+    .hero-social-proof {
+      display: flex; align-items: center; gap: 12px;
+      margin-top: 36px; font-size: 13px; color: var(--text-3); font-weight: 500;
+    }
+    .proof-avatars { display: flex; }
+    .proof-av {
+      width: 30px; height: 30px; border-radius: 50%;
+      border: 2px solid #fff; background: var(--green-pale);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: var(--green-mid);
+      margin-left: -8px;
+    }
+    .proof-av:first-child { margin-left: 0; }
+    .proof-av.av2 { background: var(--terra-pale); color: var(--terracotta); }
+    .proof-av.av3 { background: var(--yellow-pale); color: #8a6120; }
+    .proof-av.av4 { background: var(--green-pale); color: var(--green); }
+
+    /* Hero visual — crops slide-02 to show only the phones */
+    .hero-visual {
+      position: relative;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .hero-img-frame {
+      /* clip to right 62% of the slide where the phones are */
+      width: 100%; border-radius: var(--r-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+      animation: floatImg 7s ease-in-out infinite;
+      aspect-ratio: 16/10;
+      position: relative;
+    }
+    @keyframes floatImg {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(-14px); }
+    }
+    .hero-app-img {
+      /* shift left to hide the text-on-slide, reveal only the phone mockups */
+      position: absolute;
+      top: 0; right: 0;
+      height: 100%;
+      width: auto;
+      max-width: none;
+      object-fit: cover;
+      object-position: right center;
+    }
+
+    /* floating info chips — inside the frame overlay */
+    .hero-chip {
+      position: absolute; background: #fff;
+      border-radius: var(--r-sm); padding: 10px 16px;
+      box-shadow: var(--shadow-md);
+      display: flex; align-items: center; gap: 10px;
+      font-size: 12px; font-weight: 600; color: var(--text-1);
+      z-index: 4; white-space: nowrap;
+    }
+    .hero-chip-1 {
+      bottom: 20px; left: 16px;
+      animation: floatChip 5s ease-in-out infinite;
+      animation-delay: -1s;
+    }
+    .hero-chip-2 {
+      top: 20px; right: 16px;
+      animation: floatChip 5s ease-in-out infinite;
+      animation-delay: -2.5s;
+    }
+    @keyframes floatChip {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(-6px); }
+    }
+    .chip-icon { width: 28px; height: 28px; border-radius: 8px; object-fit: cover; }
+    .chip-lbl { font-size: 10px; color: var(--text-3); font-weight: 400; }
+    .chip-val { font-size: 14px; font-weight: 800; color: var(--green); }
+    .chip-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
+
+    /* ─── Stats strip ──────────────────────────────────── */
+    .stats-strip { background: var(--green); padding: 36px 0; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 24px; text-align: center; }
+    .stat-num { font-size: 38px; font-weight: 900; color: #fff; line-height: 1; }
+    .stat-lbl { font-size: 12px; color: rgba(255,255,255,0.58); margin-top: 5px; font-weight: 500; letter-spacing: 0.03em; }
+
+    /* ─── App screens showcase ─────────────────────────── */
+    #screens { background: var(--surface); }
+    .screens-subtitle { text-align:center; margin-bottom: 48px; }
+    .screens-img {
+      width: 100%; border-radius: var(--r-lg);
+      box-shadow: var(--shadow-lg);
+      display: block;
+    }
+    .screens-caption {
+      display: grid; grid-template-columns: repeat(4,1fr); gap: 16px;
+      margin-top: 28px;
+    }
+    .cap-item { text-align: center; }
+    .cap-name { font-size: 14px; font-weight: 700; color: var(--green); margin-top: 8px; }
+    .cap-desc { font-size: 12px; color: var(--text-3); margin-top: 3px; }
+
+    /* ─── Features ─────────────────────────────────────── */
+    #features { background: var(--cream); }
+    .feat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
+    .feat-card {
+      background: #fff; border-radius: var(--r-md); padding: 32px 28px;
+      border: 1px solid rgba(26,58,34,0.06);
+      position: relative; overflow: hidden;
+      transition: all 0.28s ease;
+    }
+    .feat-card::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--green-leaf), var(--green-mid));
+      transform: scaleX(0); transform-origin: left; transition: transform 0.28s ease;
+    }
+    .feat-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); }
+    .feat-card:hover::after { transform: scaleX(1); }
+    .feat-icon-wrap {
+      width: 52px; height: 52px; border-radius: var(--r-sm);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 20px;
+    }
+    .fi-green  { background: var(--green-pale); }
+    .fi-terra  { background: var(--terra-pale); }
+    .fi-yellow { background: var(--yellow-pale); }
+    .feat-icon-wrap svg { width: 24px; height: 24px; }
+    .feat-title { font-size: 17px; font-weight: 700; color: var(--green); margin-bottom: 10px; }
+    .feat-desc { font-size: 13px; color: var(--text-2); line-height: 1.72; }
+
+    /* ─── Leafy AI section ─────────────────────────────── */
+    #ai {
+      background: linear-gradient(140deg, #0f2214 0%, #1a3a22 100%);
+      position: relative; overflow: hidden;
+    }
+    #ai::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 80% 0%, rgba(76,175,80,0.12), transparent 55%),
+                  radial-gradient(ellipse at 0% 100%, rgba(129,199,132,0.08), transparent 50%);
+    }
+    .ai-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; position: relative; }
+    .ai-tag {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.88);
+      padding: 6px 14px; border-radius: 999px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+      margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.15);
+    }
+    .ai-title {
+      font-size: clamp(30px,3.5vw,46px); font-weight: 900;
+      color: #fff; line-height: 1.18; margin-bottom: 18px;
+    }
+    .ai-title span { color: var(--green-light); }
+    .ai-desc { font-size: 15px; color: rgba(255,255,255,0.70); line-height: 1.75; margin-bottom: 32px; }
+    .ai-checks { display: flex; flex-direction: column; gap: 14px; margin-bottom: 36px; }
+    .ai-check-row { display: flex; align-items: flex-start; gap: 12px; }
+    .ai-tick {
+      width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+      background: rgba(76,175,80,0.25); border: 1px solid rgba(76,175,80,0.45);
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 1px;
+    }
+    .ai-tick svg { width: 10px; height: 10px; stroke: var(--green-light); stroke-width: 2.5; fill: none; }
+    .ai-check-text { font-size: 13px; color: rgba(255,255,255,0.75); line-height: 1.6; }
+    .ai-check-text strong { color: #fff; }
+    .ai-visual { position: relative; }
+    .leafy-mascot {
+      width: 180px; position: absolute;
+      bottom: -20px; right: 0; z-index: 2;
+      filter: drop-shadow(0 16px 32px rgba(0,0,0,0.35));
+    }
+    .chat-box {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: var(--r-md); padding: 24px;
+      backdrop-filter: blur(12px);
+    }
+    .chat-header {
+      display: flex; align-items: center; gap: 10px;
+      padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.10);
+      margin-bottom: 18px;
+    }
+    .chat-avatar {
+      width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
+    }
+    .chat-hname { font-size: 14px; font-weight: 700; color: #fff; }
+    .chat-hsub  { font-size: 11px; color: rgba(255,255,255,0.50); }
+    .chat-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; margin-left: auto; flex-shrink: 0; }
+    .bubble {
+      border-radius: 14px; padding: 11px 15px;
+      font-size: 13px; line-height: 1.55; margin-bottom: 10px;
+      max-width: 88%;
+    }
+    .bubble.bot { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.88); border-radius: 4px 14px 14px 14px; }
+    .bubble.user { background: rgba(76,175,80,0.22); color: rgba(255,255,255,0.88); border-radius: 14px 4px 14px 14px; align-self: flex-end; margin-left: auto; }
+    .bubble strong { color: #fff; }
+    .chat-msgs { display: flex; flex-direction: column; gap: 2px; }
+
+    /* ─── How it works ─────────────────────────────────── */
+    #how { background: var(--cream-warm); }
+    .how-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 24px; position: relative; }
+    .how-grid::before {
+      content: ''; position: absolute; top: 38px; left: 8%; right: 8%; height: 2px;
+      background: repeating-linear-gradient(90deg, var(--line) 0, var(--line) 8px, transparent 8px, transparent 18px);
+    }
+    .step-card {
+      background: #fff; border-radius: var(--r-md); padding: 32px 22px;
+      text-align: center; position: relative; z-index: 1;
+      box-shadow: var(--shadow-sm); transition: all 0.28s;
+    }
+    .step-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-md); }
+    .step-n {
+      width: 50px; height: 50px; border-radius: 50%; margin: 0 auto 18px;
+      background: linear-gradient(135deg, var(--green-mid), var(--green-leaf));
+      color: #fff; font-size: 18px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 16px rgba(76,175,80,0.32);
+    }
+    .step-title { font-size: 15px; font-weight: 700; color: var(--green); margin-bottom: 8px; }
+    .step-desc { font-size: 13px; color: var(--text-2); line-height: 1.65; }
+
+    /* ─── App screenshot section 2 ─────────────────────── */
+    #showcase2 { background: var(--surface); }
+    .showcase2-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+    .showcase2-img { border-radius: var(--r-lg); box-shadow: var(--shadow-lg); width: 100%; display: block; }
+    .showcase2-text .sec-title { text-align: left; }
+    .showcase2-pts { display: flex; flex-direction: column; gap: 18px; margin: 28px 0 36px; }
+    .pt-row { display: flex; align-items: flex-start; gap: 14px; }
+    .pt-line { width: 3px; border-radius: 2px; background: var(--green-light); flex-shrink: 0; margin-top: 3px; height: 44px; }
+    .pt-text strong { font-size: 14px; color: var(--green); display: block; margin-bottom: 3px; }
+    .pt-text span { font-size: 13px; color: var(--text-2); line-height: 1.6; }
+
+    /* ─── SDG Impact ───────────────────────────────────── */
+    #impact { background: var(--cream); }
+    .sdg-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
+    .sdg-card {
+      background: #fff; border-radius: var(--r-md); padding: 36px 28px;
+      box-shadow: var(--shadow-sm); border: 1px solid rgba(26,58,34,0.06);
+      text-align: center; transition: all 0.28s;
+    }
+    .sdg-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-md); }
+    .sdg-num {
+      width: 64px; height: 64px; border-radius: var(--r-sm);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 18px;
+      font-size: 22px; font-weight: 900; color: #fff;
+    }
+    .s11 { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .s12 { background: linear-gradient(135deg, #22c55e, #16a34a); }
+    .s15 { background: linear-gradient(135deg, #0ea5e9, #0284c7); }
+    .sdg-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+    .sdg-title { font-size: 17px; font-weight: 700; color: var(--green); margin-bottom: 10px; }
+    .sdg-desc { font-size: 13px; color: var(--text-2); line-height: 1.68; }
+
+    /* ─── Testimonials ─────────────────────────────────── */
+    #testimonials { background: var(--cream-warm); }
+    .testi-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 22px; }
+    .testi-card {
+      background: #fff; border-radius: var(--r-md); padding: 28px;
+      border: 1px solid rgba(26,58,34,0.06);
+      box-shadow: var(--shadow-sm); transition: all 0.28s;
+    }
+    .testi-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-md); }
+    .testi-stars { display: flex; gap: 3px; margin-bottom: 14px; }
+    .star { width: 16px; height: 16px; }
+    .testi-quote { font-size: 14px; color: var(--text-2); line-height: 1.72; font-style: italic; margin-bottom: 22px; }
+    .testi-meta { display: flex; align-items: center; gap: 12px; }
+    .testi-av {
+      width: 40px; height: 40px; border-radius: 50%;
+      font-size: 15px; font-weight: 800; color: #fff;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .ta1 { background: linear-gradient(135deg, #2d5a3d, #4caf50); }
+    .ta2 { background: linear-gradient(135deg, #b85c42, #d97b5e); }
+    .ta3 { background: linear-gradient(135deg, #c9963a, #e8b450); }
+    .testi-name { font-size: 14px; font-weight: 700; color: var(--green); }
+    .testi-role { font-size: 12px; color: var(--text-3); }
+
+    /* ─── Business model ───────────────────────────────── */
+    #model { background: var(--surface); }
+    .model-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+    .model-card {
+      background: var(--cream); border-radius: var(--r-lg); padding: 48px 40px;
+      border: 1.5px solid rgba(26,58,34,0.08); box-shadow: var(--shadow-sm);
+      transition: all 0.28s;
+    }
+    .model-card.primary { background: var(--green); border-color: var(--green); box-shadow: var(--shadow-lg); }
+    .model-card:not(.primary):hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+    .model-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 10px; }
+    .model-card.primary .model-lbl { color: rgba(255,255,255,0.55); }
+    .model-price { font-size: 54px; font-weight: 900; color: var(--green); line-height: 1; }
+    .model-card.primary .model-price { color: #fff; }
+    .model-price-sub { font-size: 16px; font-weight: 400; color: var(--text-2); }
+    .model-card.primary .model-price-sub { color: rgba(255,255,255,0.65); }
+    .model-desc { font-size: 13px; color: var(--text-2); line-height: 1.7; margin: 18px 0 28px; }
+    .model-card.primary .model-desc { color: rgba(255,255,255,0.70); }
+    .model-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+    .model-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-2); }
+    .model-card.primary .model-item { color: rgba(255,255,255,0.80); }
+    .mi-check { flex-shrink: 0; }
+    .mi-check svg { width: 16px; height: 16px; stroke: var(--green-leaf); stroke-width: 2.5; fill: none; }
+    .model-card.primary .mi-check svg { stroke: var(--green-light); }
+
+    /* ─── CTA section ──────────────────────────────────── */
+    #cta {
+      background: linear-gradient(135deg, var(--terracotta) 0%, #9e4b34 100%);
+      padding: 110px 0; position: relative; overflow: hidden;
+    }
+    #cta::before {
+      content: ''; position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse at 100% 0%, rgba(255,255,255,0.08), transparent 50%),
+        radial-gradient(ellipse at 0% 100%, rgba(0,0,0,0.08), transparent 50%);
+    }
+    .cta-inner { text-align: center; position: relative; }
+    .cta-logo { width: 64px; margin: 0 auto 24px; display: block; border-radius: 14px; }
+    .cta-title { font-size: clamp(34px,4.5vw,54px); font-weight: 900; color: #fff; line-height: 1.18; margin-bottom: 18px; }
+    .cta-sub { font-size: 17px; color: rgba(255,255,255,0.75); margin-bottom: 40px; max-width: 500px; margin-left: auto; margin-right: auto; }
+    .cta-btns { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
+    .cta-note { font-size: 12px; color: rgba(255,255,255,0.45); margin-top: 20px; }
+
+    /* ─── Footer ───────────────────────────────────────── */
+    footer { background: var(--green); padding: 64px 0 32px; }
+    .footer-grid { display: grid; grid-template-columns: 2.2fr 1fr 1fr 1fr; gap: 48px; margin-bottom: 48px; }
+    .footer-logo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .footer-logo-img { width: 32px; border-radius: 7px; }
+    .footer-logo-text { font-size: 18px; font-weight: 800; color: #fff; }
+    .footer-tagline { font-size: 13px; color: rgba(255,255,255,0.52); line-height: 1.7; max-width: 240px; }
+    .footer-col h5 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.85); margin-bottom: 16px; }
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .footer-col ul li a { font-size: 13px; color: rgba(255,255,255,0.50); text-decoration: none; transition: color 0.18s; }
+    .footer-col ul li a:hover { color: rgba(255,255,255,0.90); }
+    .footer-bottom { border-top: 1px solid rgba(255,255,255,0.10); padding-top: 24px; display: flex; align-items: center; justify-content: space-between; }
+    .footer-copy { font-size: 12px; color: rgba(255,255,255,0.35); }
+    .sdg-pills { display: flex; gap: 8px; }
+    .sdg-pill { padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.55); }
+
+    /* ─── Scroll reveal ────────────────────────────────── */
+    .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.65s ease, transform 0.65s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .d1 { transition-delay: 0.10s; }
+    .d2 { transition-delay: 0.20s; }
+    .d3 { transition-delay: 0.30s; }
+    .d4 { transition-delay: 0.40s; }
+
+    /* ─── Responsive ───────────────────────────────────── */
+    @media (max-width: 1024px) {
+      .feat-grid, .sdg-grid, .testi-grid { grid-template-columns: 1fr 1fr; }
+      .how-grid { grid-template-columns: 1fr 1fr; }
+      .how-grid::before { display: none; }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+      .screens-caption { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .hero-grid, .ai-grid, .showcase2-grid, .model-grid { grid-template-columns: 1fr; gap: 44px; }
+      .hero-visual { order: -1; }
+      .feat-grid, .sdg-grid, .testi-grid, .how-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .footer-grid { grid-template-columns: 1fr; }
+      .footer-bottom { flex-direction: column; gap: 12px; text-align: center; }
+      .screens-caption { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV ─────────────────────────────────────────────────── -->
+<nav id="nav">
+  <div class="container">
+    <div class="nav-inner">
+      <a href="#" class="logo" id="nav-logo">
+        <img src="growmate-logo.png" alt="GrowMate logo" class="logo-img" />
+        <span class="logo-text">GrowMate</span>
+      </a>
+      <div class="nav-links">
+        <a href="#screens">App</a>
+        <a href="#features">Features</a>
+        <a href="#ai">Leafy AI</a>
+        <a href="#impact">Impact</a>
+        <a href="#model">Pricing</a>
+      </div>
+      <a href="#cta" class="btn btn-dark" id="nav-cta">Download App</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO ─────────────────────────────────────────────────── -->
+<section id="hero">
+  <div class="hero-blob hb1"></div>
+  <div class="hero-blob hb2"></div>
+  <div class="hero-blob hb3"></div>
+  <div class="container">
+    <div class="hero-grid">
+
+      <div class="hero-content reveal">
+        <div class="hero-eyebrow">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 8v4l3 3"/></svg>
+          Now Live — Plants Near You
+        </div>
+        <h1 class="hero-title">
+          Buy &amp; Sell Plants<br/>
+          with <em>Confidence</em>
+        </h1>
+        <p class="hero-sub">
+          GrowMate is the Philippines' safest, smartest plant marketplace and community app. Powered by Leafy AI — your personal plant expert for identification, care, and safe trading.
+        </p>
+        <div class="hero-ctas">
+          <a href="#cta" class="btn btn-dark btn-lg" id="hero-primary-cta">Get Started Free</a>
+          <a href="#screens" class="btn btn-outline btn-lg" id="hero-secondary-cta">See the App</a>
+        </div>
+        <div class="hero-social-proof">
+          <div class="proof-avatars">
+            <div class="proof-av">M</div>
+            <div class="proof-av av2">J</div>
+            <div class="proof-av av3">A</div>
+            <div class="proof-av av4">L</div>
+          </div>
+          <span>Trusted by <strong>1,200+ plant lovers</strong> across Mindanao</span>
+        </div>
+      </div>
+
+      <div class="hero-visual reveal d2">
+        <!-- Frame that crops the pitch slide to show only phones -->
+        <div class="hero-img-frame">
+          <!-- Chips overlaid inside the cropped frame -->
+          <div class="hero-chip hero-chip-1" id="chip-verified">
+            <div class="chip-dot"></div>
+            <div>
+              <div class="chip-lbl">Leafy AI verified</div>
+              <div class="chip-val">Monstera deliciosa</div>
+            </div>
+          </div>
+          <div class="hero-chip hero-chip-2" id="chip-rating">
+            <img src="growmate-logo.png" alt="" class="chip-icon" />
+            <div>
+              <div class="chip-lbl">Seller trust score</div>
+              <div class="chip-val">4.7 trust</div>
+            </div>
+          </div>
+          <!-- slide-05 used: clean 4-phone showcase, no slide title text -->
+          <img src="app-slide-05.png" alt="GrowMate app — Market, Feed, Garden, Rankings screens" class="hero-app-img" id="hero-app-img" />
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- STATS ────────────────────────────────────────────────── -->
+<div class="stats-strip">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="reveal">
+        <div class="stat-num" data-target="1200" data-suffix="+">1,200+</div>
+        <div class="stat-lbl">Active Plant Lovers</div>
+      </div>
+      <div class="reveal d1">
+        <div class="stat-num" data-target="350" data-suffix="+">350+</div>
+        <div class="stat-lbl">Plant Species Listed</div>
+      </div>
+      <div class="reveal d2">
+        <div class="stat-num" data-target="98" data-suffix="%">98%</div>
+        <div class="stat-lbl">Satisfied Buyers</div>
+      </div>
+      <div class="reveal d3">
+        <div class="stat-num" data-target="5000" data-suffix="+">5,000+</div>
+        <div class="stat-lbl">Plants Sold Safely</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCREENS ──────────────────────────────────────────────── -->
+<section id="screens">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="tag tag-green">Real App Screenshots</span>
+      <h2 class="sec-title">Four Screens. One Complete Experience.</h2>
+      <p class="sec-sub">GrowMate bundles a marketplace, community feed, garden manager, and leaderboard into one clean, fast mobile app.</p>
+    </div>
+    <img src="app-slide-05.png" alt="GrowMate prototype demo — Market, Feed, Garden, Rankings screens" class="screens-img reveal" id="screens-main-img" style="background:#f0f7ea;" />
+    <div class="screens-caption">
+      <div class="cap-item reveal">
+        <div class="cap-name">Market</div>
+        <div class="cap-desc">Browse verified plants from local sellers</div>
+      </div>
+      <div class="cap-item reveal d1">
+        <div class="cap-name">Feed</div>
+        <div class="cap-desc">Share and discover plant updates</div>
+      </div>
+      <div class="cap-item reveal d2">
+        <div class="cap-name">Garden</div>
+        <div class="cap-desc">Manage your personal plant collection</div>
+      </div>
+      <div class="cap-item reveal d3">
+        <div class="cap-name">Rankings</div>
+        <div class="cap-desc">Compete on the community leaderboard</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES ─────────────────────────────────────────────── -->
+<section id="features">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="tag tag-green">Everything You Need</span>
+      <h2 class="sec-title">A Complete Plant Ecosystem</h2>
+      <p class="sec-sub">From discovering rare species to managing your collection — GrowMate covers every step of your plant journey.</p>
+    </div>
+    <div class="feat-grid">
+      <div class="feat-card reveal" id="f-market">
+        <div class="feat-icon-wrap fi-green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2d5a3d" stroke-width="1.8"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        </div>
+        <h3 class="feat-title">Smart Marketplace</h3>
+        <p class="feat-desc">Browse and buy verified plants from trusted local sellers. AI-checked listings, safe checkout, and real-time order tracking built in.</p>
+      </div>
+      <div class="feat-card reveal d1" id="f-garden">
+        <div class="feat-icon-wrap fi-green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2d5a3d" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <h3 class="feat-title">My Garden Collection</h3>
+        <p class="feat-desc">Build your personal digital garden. Track care notes, condition, and plant progress. Explore other gardeners' collections publicly.</p>
+      </div>
+      <div class="feat-card reveal d2" id="f-ai">
+        <div class="feat-icon-wrap fi-terra">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#b85c42" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+        </div>
+        <h3 class="feat-title">Leafy AI Assistant</h3>
+        <p class="feat-desc">Snap a photo — Leafy identifies your plant, suggests care routines, checks marketplace safety, and answers any plant question 24/7.</p>
+      </div>
+      <div class="feat-card reveal d1" id="f-feed">
+        <div class="feat-icon-wrap fi-green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2d5a3d" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        </div>
+        <h3 class="feat-title">Community Feed</h3>
+        <p class="feat-desc">Share plant progress photos, ask questions, follow other gardens, and connect with fellow plant lovers in a rich social feed.</p>
+      </div>
+      <div class="feat-card reveal d2" id="f-orders">
+        <div class="feat-icon-wrap fi-yellow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#c9963a" stroke-width="1.8"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        </div>
+        <h3 class="feat-title">Safe Order Pipeline</h3>
+        <p class="feat-desc">End-to-end order tracking: request, acceptance, payment, delivery — with buyer protection, messaging, and dispute resolution.</p>
+      </div>
+      <div class="feat-card reveal d3" id="f-xp">
+        <div class="feat-icon-wrap fi-terra">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#b85c42" stroke-width="1.8"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <h3 class="feat-title">XP and Achievements</h3>
+        <p class="feat-desc">Earn badges for care streaks, rare collections, and market activity. Level up your Plant Lover profile and climb the community leaderboard.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LEAFY AI ─────────────────────────────────────────────── -->
+<section id="ai">
+  <div class="container">
+    <div class="ai-grid">
+      <div class="reveal">
+        <div class="ai-tag">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+          Powered by AI
+        </div>
+        <h2 class="ai-title">Meet <span>Leafy AI</span> — Your Plant Expert</h2>
+        <p class="ai-desc">Leafy AI is woven into every part of GrowMate — from identifying species by photo to flagging protected plants before they hit the market, keeping every user safer and smarter.</p>
+        <div class="ai-checks">
+          <div class="ai-check-row">
+            <div class="ai-tick"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></div>
+            <div class="ai-check-text"><strong>Instant Plant Identification</strong> — Upload any photo and get the scientific name, classification, and full care profile in seconds.</div>
+          </div>
+          <div class="ai-check-row">
+            <div class="ai-tick"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></div>
+            <div class="ai-check-text"><strong>Marketplace Safety Checker</strong> — Flags plants that may be protected, endangered, or legally restricted before listing.</div>
+          </div>
+          <div class="ai-check-row">
+            <div class="ai-tick"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></div>
+            <div class="ai-check-text"><strong>Smart Listing Assistant</strong> — Auto-generates plant names, care summaries, and descriptions for sellers.</div>
+          </div>
+          <div class="ai-check-row">
+            <div class="ai-tick"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></div>
+            <div class="ai-check-text"><strong>24/7 Care Chat</strong> — Ask Leafy anything: watering schedules, soil types, yellow leaves, propagation — anytime.</div>
+          </div>
+        </div>
+        <a href="#cta" class="btn btn-outline d2" style="border-color:rgba(255,255,255,0.30);color:#fff;" id="ai-cta">Try Leafy AI Free</a>
+      </div>
+
+      <div class="ai-visual reveal d2">
+        <div class="chat-box">
+          <div class="chat-header">
+            <img src="leafy-ai.png" alt="Leafy AI mascot" class="chat-avatar" id="leafy-avatar" />
+            <div>
+              <div class="chat-hname">Leafy AI</div>
+              <div class="chat-hsub">Plant Intelligence Assistant</div>
+            </div>
+            <div class="chat-status-dot"></div>
+          </div>
+          <div class="chat-msgs">
+            <div class="bubble bot">I identified your plant as <strong>Monstera deliciosa</strong> — 94% confidence. Safe to sell. Bright indirect light, water weekly. Want me to auto-fill your listing?</div>
+            <div class="bubble user">Yes! List it at PHP 450 with delivery available.</div>
+            <div class="bubble bot">Done — your Monstera listing is live. I will notify you the moment a buyer sends an order request.</div>
+            <div class="bubble user">Can you check if my pitcher plant is okay to sell?</div>
+            <div class="bubble bot"><strong>Heads up</strong> — Nepenthes pitcher plants may be protected under RA 9147. I have added a safety warning to your draft and recommend verifying the plant's origin before listing.</div>
+          </div>
+        </div>
+        <img src="leafy-ai.png" alt="Leafy AI mascot character" class="leafy-mascot" id="leafy-mascot" />
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS ─────────────────────────────────────────── -->
+<section id="how">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="tag tag-terra">Simple Steps</span>
+      <h2 class="sec-title">Up and Growing in Minutes</h2>
+      <p class="sec-sub">Whether you are buying your first plant or listing your hundredth, GrowMate makes every step intuitive and safe.</p>
+    </div>
+    <div class="how-grid">
+      <div class="step-card reveal" id="step1">
+        <div class="step-n">1</div>
+        <h4 class="step-title">Create Your Profile</h4>
+        <p class="step-desc">Sign up for free, set your location, and build your plant lover identity with a garden bio and cover photo.</p>
+      </div>
+      <div class="step-card reveal d1" id="step2">
+        <div class="step-n">2</div>
+        <h4 class="step-title">Discover Plants</h4>
+        <p class="step-desc">Browse local listings filtered by category, condition, and price. Explore other gardeners' collections in your area.</p>
+      </div>
+      <div class="step-card reveal d2" id="step3">
+        <div class="step-n">3</div>
+        <h4 class="step-title">Connect and Order</h4>
+        <p class="step-desc">Message sellers, ask about care and delivery, then place an order through the secure checkout flow.</p>
+      </div>
+      <div class="step-card reveal d3" id="step4">
+        <div class="step-n">4</div>
+        <h4 class="step-title">Grow Together</h4>
+        <p class="step-desc">Post your updates, earn XP, collect badges, join the community feed, and help others grow better.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SHOWCASE 2 ── Leafy AI / Market screen real screenshot ── -->
+<section id="showcase2">
+  <div class="container">
+    <div class="showcase2-grid">
+      <img src="app-slide-03.png" alt="GrowMate Leafy AI identification and Market screen" class="showcase2-img reveal" id="showcase2-img" />
+      <div class="showcase2-text reveal d2">
+        <span class="tag tag-terra">AI-Powered Safety</span>
+        <h2 class="sec-title" style="text-align:left">Identify. Verify. Guide.</h2>
+        <p class="sec-sub" style="text-align:left; max-width:100%">Leafy AI turns any plant photo into a verified, safe, market-ready listing in three steps — removing the guesswork for sellers and risk for buyers.</p>
+        <div class="showcase2-pts">
+          <div class="pt-row">
+            <div class="pt-line"></div>
+            <div class="pt-text"><strong>Upload a plant photo</strong><span>Snap or upload any image from your camera or gallery. Leafy analyzes it instantly.</span></div>
+          </div>
+          <div class="pt-row">
+            <div class="pt-line"></div>
+            <div class="pt-text"><strong>AI checks identity and safety</strong><span>Species name, care profile, and protected plant status — verified before listing.</span></div>
+          </div>
+          <div class="pt-row">
+            <div class="pt-line"></div>
+            <div class="pt-text"><strong>Post a trusted listing</strong><span>Auto-filled details go live on the marketplace instantly, with an AI-verified badge.</span></div>
+          </div>
+        </div>
+        <a href="#cta" class="btn btn-dark btn-lg" id="showcase2-cta">Start Selling with Leafy AI</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- IMPACT ───────────────────────────────────────────────── -->
+<section id="impact">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="tag tag-yellow">Social Good</span>
+      <h2 class="sec-title">Making a Real Difference</h2>
+      <p class="sec-sub">GrowMate aligns with the United Nations Sustainable Development Goals — because responsible plant trading changes communities and ecosystems.</p>
+    </div>
+    <div class="sdg-grid">
+      <div class="sdg-card reveal" id="sdg11">
+        <div class="sdg-num s11">11</div>
+        <div class="sdg-badge" style="color:#92650a;">SDG 11 — Sustainable Cities</div>
+        <h3 class="sdg-title">Safer Urban Greening</h3>
+        <p class="sdg-desc">GrowMate supports urban gardening and food-plant adoption, helping city dwellers build plant-filled, resilient communities through accessible local plant trade.</p>
+      </div>
+      <div class="sdg-card reveal d1" id="sdg12">
+        <div class="sdg-num s12">12</div>
+        <div class="sdg-badge" style="color:#166534;">SDG 12 — Responsible Consumption</div>
+        <h3 class="sdg-title">Ethical Plant Trade</h3>
+        <p class="sdg-desc">Leafy AI helps buyers make informed choices. Sellers get clear plant data and safety checks so the plant trade stays legal, ethical, and sustainable for everyone.</p>
+      </div>
+      <div class="sdg-card reveal d2" id="sdg15">
+        <div class="sdg-num s15">15</div>
+        <div class="sdg-badge" style="color:#0c5460;">SDG 15 — Life on Land</div>
+        <h3 class="sdg-title">Protecting Biodiversity</h3>
+        <p class="sdg-desc">Automatic detection of rare or endangered species prevents illegal wildlife plant trade and actively protects Philippine biodiversity at the community level.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS ─────────────────────────────────────────── -->
+<section id="testimonials">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="tag tag-green">Real Users</span>
+      <h2 class="sec-title">Plant Lovers Are Talking</h2>
+      <p class="sec-sub">From beginner collectors to seasoned local sellers across the Philippines.</p>
+    </div>
+    <div class="testi-grid">
+      <div class="testi-card reveal" id="t1">
+        <div class="testi-stars">
+          <svg class="star" viewBox="0 0 24 24" fill="#c9963a"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24" fill="#c9963a"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24" fill="#c9963a"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24" fill="#c9963a"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24" fill="#c9963a"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <p class="testi-quote">"Leafy AI identified my Alocasia in seconds. I used to spend hours Googling plant names. Now I just snap a photo and get the name, care tips, and a price estimate instantly. Complete game changer."</p>
+        <div class="testi-meta">
+          <div class="testi-av ta1">M</div>
+          <div>
+            <div class="testi-name">Maria Santos</div>
+            <div class="testi-role">Plant Collector · Cagayan de Oro</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-card reveal d1" id="t2">
+        <div class="testi-stars">
+          <svg class="star" viewBox="0 0 24 24" fill="#c9963a"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24" fill="#c9963a"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24" fill="#c9963a"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24" fill="#c9963a"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24" fill="#c9963a"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <p class="testi-quote">"As a seller, the checkout system is so clean. My buyers feel safe because everything is tracked — payment, delivery, confirmation. I get fewer uncertain messages and more completed orders."</p>
+        <div class="testi-meta">
+          <div class="testi-av ta2">J</div>
+          <div>
+            <div class="testi-name">JM Beringuel</div>
+            <div class="testi-role">Plant Seller · Butuan City · 4.7 Trust</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi-card reveal d2" id="t3">
+        <div class="testi-stars">
+          <svg class="star" viewBox="0 0 24 24" fill="#c9963a"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24" fill="#c9963a"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24" fill="#c9963a"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24" fill="#c9963a"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="star" viewBox="0 0 24 24" fill="#c9963a"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <p class="testi-quote">"The community feed is my favorite part. I post my garden updates, people comment, and I have made so many new plant friends. It feels like a social network built specifically for plant people."</p>
+        <div class="testi-meta">
+          <div class="testi-av ta3">A</div>
+          <div>
+            <div class="testi-name">Ana dela Cruz</div>
+            <div class="testi-role">Urban Gardener · Davao City</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MODEL ────────────────────────────────────────────────── -->
+<section id="model">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="tag tag-yellow">Business Model</span>
+      <h2 class="sec-title">Simple, Fair Pricing</h2>
+      <p class="sec-sub">No upfront costs for sellers. GrowMate only earns when you earn — a sustainable model built around your success.</p>
+    </div>
+    <div class="model-grid">
+      <div class="model-card reveal" id="plan-free">
+        <div class="model-lbl">For Buyers and Community Members</div>
+        <div class="model-price">Free <span class="model-price-sub">forever</span></div>
+        <p class="model-desc">Browse, buy, discover gardens, chat with Leafy AI, and post on the community feed — completely free with no credit card required.</p>
+        <div class="model-list">
+          <div class="model-item"><span class="mi-check"><svg viewBox="0 0 16 16"><polyline points="2,8 6,12 14,4"/></svg></span>Browse unlimited plant listings</div>
+          <div class="model-item"><span class="mi-check"><svg viewBox="0 0 16 16"><polyline points="2,8 6,12 14,4"/></svg></span>Leafy AI plant identification (5 per day)</div>
+          <div class="model-item"><span class="mi-check"><svg viewBox="0 0 16 16"><polyline points="2,8 6,12 14,4"/></svg></span>Community feed and garden discovery</div>
+          <div class="model-item"><span class="mi-check"><svg viewBox="0 0 16 16"><polyline points="2,8 6,12 14,4"/></svg></span>XP, achievements, and rankings</div>
+          <div class="model-item"><span class="mi-check"><svg viewBox="0 0 16 16"><polyline points="2,8 6,12 14,4"/></svg></span>Direct message any seller</div>
+        </div>
+        <a href="#cta" class="btn btn-outline btn-lg" style="width:100%;" id="plan-free-cta">Start for Free</a>
+      </div>
+      <div class="model-card primary reveal d2" id="plan-seller">
+        <div class="model-lbl">For Plant Sellers</div>
+        <div class="model-price">10% <span class="model-price-sub">platform fee</span></div>
+        <p class="model-desc">Only charged on a successful completed sale. No subscription, no listing fees, no upfront costs. GrowMate earns only when you do.</p>
+        <div class="model-list">
+          <div class="model-item"><span class="mi-check"><svg viewBox="0 0 16 16"><polyline points="2,8 6,12 14,4"/></svg></span>List unlimited plants at no cost</div>
+          <div class="model-item"><span class="mi-check"><svg viewBox="0 0 16 16"><polyline points="2,8 6,12 14,4"/></svg></span>AI-assisted listing creation</div>
+          <div class="model-item"><span class="mi-check"><svg viewBox="0 0 16 16"><polyline points="2,8 6,12 14,4"/></svg></span>Leafy AI safety checker — unlimited</div>
+          <div class="model-item"><span class="mi-check"><svg viewBox="0 0 16 16"><polyline points="2,8 6,12 14,4"/></svg></span>Full seller dashboard and analytics</div>
+          <div class="model-item"><span class="mi-check"><svg viewBox="0 0 16 16"><polyline points="2,8 6,12 14,4"/></svg></span>Verified seller badge (coming soon)</div>
+          <div class="model-item"><span class="mi-check"><svg viewBox="0 0 16 16"><polyline points="2,8 6,12 14,4"/></svg></span>Promoted listings and premium tools</div>
+        </div>
+        <a href="#cta" class="btn btn-white btn-lg" style="width:100%;" id="plan-seller-cta">Start Selling</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA ──────────────────────────────────────────────────── -->
+<section id="cta">
+  <div class="container">
+    <div class="cta-inner reveal">
+      <img src="growmate-logo.png" alt="GrowMate" class="cta-logo" id="cta-logo" />
+      <h2 class="cta-title">Ready to Grow Something Beautiful?</h2>
+      <p class="cta-sub">Join over 1,200 plant lovers already on GrowMate. It is free to start and always will be for buyers.</p>
+      <div class="cta-btns">
+        <a href="#" class="btn btn-white btn-lg" id="cta-download">Download GrowMate</a>
+        <a href="#screens" class="btn btn-ghost-white btn-lg" id="cta-learn">See the App</a>
+      </div>
+      <p class="cta-note">No credit card required · Available on iOS and Android · Free forever for buyers</p>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER ───────────────────────────────────────────────── -->
+<footer id="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-logo-row">
+          <img src="growmate-logo.png" alt="GrowMate" class="footer-logo-img" />
+          <span class="footer-logo-text">GrowMate</span>
+        </div>
+        <p class="footer-tagline">The Philippines' safest and smartest plant marketplace and community. Grow smart, grow safe, grow great.</p>
+      </div>
+      <div class="footer-col">
+        <h5>Product</h5>
+        <ul>
+          <li><a href="#screens">App Screens</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#ai">Leafy AI</a></li>
+          <li><a href="#how">How It Works</a></li>
+          <li><a href="#model">Pricing</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Community</h5>
+        <ul>
+          <li><a href="#screens">Feed</a></li>
+          <li><a href="#screens">Garden Discovery</a></li>
+          <li><a href="#testimonials">Success Stories</a></li>
+          <li><a href="#impact">Our Impact</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Company</h5>
+        <ul>
+          <li><a href="#">About GrowMate</a></li>
+          <li><a href="#">Contact Us</a></li>
+          <li><a href="#">Privacy Policy</a></li>
+          <li><a href="#">Terms of Service</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-copy">© 2026 GrowMate. All rights reserved. Made in the Philippines.</div>
+      <div class="sdg-pills">
+        <span class="sdg-pill">SDG 11</span>
+        <span class="sdg-pill">SDG 12</span>
+        <span class="sdg-pill">SDG 15</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Scroll reveal
+  const revels = document.querySelectorAll('.reveal');
+  const ro = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); ro.unobserve(e.target); } });
+  }, { threshold: 0.1, rootMargin: '0px 0px -32px 0px' });
+  revels.forEach(el => ro.observe(el));
+
+  // Nav shadow
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    nav.style.boxShadow = window.scrollY > 30 ? '0 4px 24px rgba(26,58,34,0.09)' : 'none';
+  });
+
+  // Smooth scroll
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const t = document.querySelector(a.getAttribute('href'));
+      if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    });
+  });
+
+  // Counter animation
+  function animCounter(el, target, suffix, dur = 1800) {
+    let start;
+    const tick = ts => {
+      if (!start) start = ts;
+      const p = Math.min((ts - start) / dur, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.floor(ease * target).toLocaleString() + suffix;
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+  const statEls = document.querySelectorAll('.stat-num[data-target]');
+  const so = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const el = e.target;
+        animCounter(el, parseInt(el.dataset.target), el.dataset.suffix || '');
+        so.unobserve(el);
+      }
+    });
+  }, { threshold: 0.5 });
+  statEls.forEach(el => so.observe(el));
+</script>
+</body>
+</html>
