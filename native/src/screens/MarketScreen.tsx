@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, Platform, Alert } from "react-native";
+import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, Platform, Alert } from "react-native";
 import { Button } from "../components/Button";
 import { Screen } from "../components/Screen";
 import { useAuth } from "../context/AuthContext";
@@ -236,6 +236,19 @@ export function MarketScreen({
     );
   }, [listings, activeCategory]);
 
+  const sortedListings = useMemo(() => {
+    const next = [...filteredListings];
+    const getPublishedMs = (publishedAt?: string | null) => (publishedAt ? new Date(publishedAt).getTime() : 0);
+    if (sortIndex === 1) {
+      next.sort((a, b) => getPublishedMs(b.publishedAt) - getPublishedMs(a.publishedAt));
+    } else if (sortIndex === 2) {
+      next.sort((a, b) => a.price - b.price);
+    } else if (sortIndex === 3) {
+      next.sort((a, b) => b.price - a.price);
+    }
+    return next;
+  }, [filteredListings, sortIndex]);
+
   return (
     <Screen
       sectionLabel="Marketplace"
@@ -288,7 +301,12 @@ export function MarketScreen({
       {/* ── Sort row ── */}
       <View style={styles.sortRow}>
         <Text style={styles.sortLabel}>Sort by</Text>
-        <Pressable onPress={() => setShowSortMenu((v) => !v)} style={styles.sortPill}>
+        <Pressable
+          onPress={() => setShowSortMenu((v) => !v)}
+          style={styles.sortPill}
+          accessibilityRole="button"
+          accessibilityLabel={`Sort listings: ${SORT_OPTIONS[sortIndex]}`}
+        >
           <Text style={styles.sortPillText}>{SORT_OPTIONS[sortIndex]}</Text>
           <MaterialCommunityIcons
             color={colors.green}
@@ -304,6 +322,8 @@ export function MarketScreen({
               key={opt}
               onPress={() => { setSortIndex(idx); setShowSortMenu(false); }}
               style={[styles.sortMenuItem, idx === sortIndex && styles.sortMenuItemActive]}
+              accessibilityRole="button"
+              accessibilityLabel={`Sort by ${opt}`}
             >
               <Text style={[styles.sortMenuItemText, idx === sortIndex && styles.sortMenuItemTextActive]}>
                 {opt}
@@ -318,7 +338,12 @@ export function MarketScreen({
       {/* ── Listings header ── */}
       <View style={styles.sectionRow}>
         <Text style={styles.section}>Listings</Text>
-        <Pressable onPress={() => loadListings(search)} style={styles.refreshBtn}>
+        <Pressable
+          onPress={() => loadListings(search)}
+          style={styles.refreshBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Refresh listings"
+        >
           <MaterialCommunityIcons color={colors.greenMuted} name="refresh" size={18} />
         </Pressable>
       </View>
@@ -336,7 +361,7 @@ export function MarketScreen({
           <Text style={styles.stateText}>{listingError}</Text>
         </View>
       )}
-      {!isLoadingListings && !listingError && filteredListings.length === 0 && (
+      {!isLoadingListings && !listingError && sortedListings.length === 0 && (
         <EmptyState
           icon="store-search-outline"
           title="No listings yet"
@@ -345,13 +370,15 @@ export function MarketScreen({
       )}
 
       {/* ── Listing grid (2 per row) ── */}
-      {!isLoadingListings && !listingError && filteredListings.length > 0 && (
+      {!isLoadingListings && !listingError && sortedListings.length > 0 && (
         <View style={styles.grid}>
-          {filteredListings.map((listing) => (
+          {sortedListings.map((listing) => (
             <Pressable
               key={listing.id}
               onPress={() => onOpenListingDetail && onOpenListingDetail(listing.id)}
               style={({ pressed }) => [styles.listingCard, pressed && styles.listingCardPressed]}
+              accessibilityRole="button"
+              accessibilityLabel={`Open listing ${listing.name}`}
             >
               {/* Photo */}
               {listing.photoUrl ? (
@@ -376,6 +403,8 @@ export function MarketScreen({
                 onPress={(e) => { e.stopPropagation?.(); handleToggleFavorite(listing.id); }}
                 style={styles.heartOverlay}
                 hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={favoriteListings[listing.id] ? "Remove from favorites" : "Add to favorites"}
               >
                 <MaterialCommunityIcons
                   name={favoriteListings[listing.id] ? "heart" : "heart-outline"}
@@ -403,6 +432,8 @@ export function MarketScreen({
                   }}
                   style={styles.sellerRow}
                   hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open seller profile for ${listing.sellerName}`}
                 >
                   <MaterialCommunityIcons color={colors.greenMuted} name="account-outline" size={10} />
                   <Text style={[styles.metaSmall, listing.sellerId !== user?.id && { textDecorationLine: "underline", color: colors.greenMid }]} numberOfLines={1}>
@@ -427,6 +458,8 @@ export function MarketScreen({
                       onPress={(e) => { e.stopPropagation?.(); handleMessageSeller(listing); }}
                       style={({ pressed }) => [styles.gridChatBtn, pressed && styles.actionBtnPressed]}
                       hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Message seller for ${listing.name}`}
                     >
                       <MaterialCommunityIcons name="forum-outline" size={14} color={colors.greenMid || colors.green} />
                     </Pressable>
@@ -434,6 +467,8 @@ export function MarketScreen({
                   <Pressable
                     onPress={(e) => { e.stopPropagation?.(); handleAddToCart(listing); }}
                     style={({ pressed }) => [styles.gridCartBtn, pressed && styles.actionBtnPressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Add ${listing.name} to cart`}
                   >
                     <MaterialCommunityIcons color={colors.green} name="cart-plus" size={14} />
                     <Text style={styles.gridCartBtnText}>Add</Text>
@@ -441,6 +476,8 @@ export function MarketScreen({
                   <Pressable
                     onPress={(e) => { e.stopPropagation?.(); handleOrderPress(listing); }}
                     style={({ pressed }) => [styles.gridOrderBtn, pressed && styles.actionBtnPressed]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Buy ${listing.name} now`}
                   >
                     <Text style={styles.gridOrderBtnText}>Buy Now</Text>
                   </Pressable>
@@ -449,11 +486,11 @@ export function MarketScreen({
             </Pressable>
           ))}
           {/* Spacer so last row aligns left when odd count */}
-          {filteredListings.length % 2 !== 0 && <View style={styles.gridSpacer} />}
+          {sortedListings.length % 2 !== 0 && <View style={styles.gridSpacer} />}
         </View>
       )}
 
-      {!isLoadingListings && !listingError && hasMore && filteredListings.length > 0 && (
+      {!isLoadingListings && !listingError && hasMore && sortedListings.length > 0 && (
         <View style={styles.loadMoreWrap}>
           <Button variant="secondary" onPress={() => loadListings(search, true)}>
             Load more
@@ -534,6 +571,7 @@ export function MarketScreen({
       >
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetDismiss} onPress={() => !isOrdering && setShowCheckout(false)} />
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 16 : 0}>
           <View style={styles.sheet}>
             <View style={styles.sheetHandle} />
 
@@ -589,7 +627,11 @@ export function MarketScreen({
               </View>
             ) : checkoutListing ? (
               /* ── Checkout form ── */
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.sheetScrollContent}
+              >
                 {/* Header */}
                 <View style={styles.sheetHeader}>
                   <Text style={styles.sheetTitle}>Cart</Text>
@@ -746,6 +788,7 @@ export function MarketScreen({
               </ScrollView>
             ) : null}
           </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 
@@ -967,13 +1010,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   gridSpacer: {
-    flex: 1,
+    width: "48%",
   },
   // ── Listing card (grid cell) ──────────────────────────────
   listingCard: {
-    flex: 1,
-    minWidth: "47%",
-    maxWidth: "49%",
+    width: "48%",
     backgroundColor: colors.white,
     borderRadius: 18,
     borderWidth: 1,
@@ -1008,9 +1049,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 8,
     right: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "rgba(0,0,0,0.28)",
     alignItems: "center",
     justifyContent: "center",
@@ -1025,14 +1066,14 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     marginBottom: 2,
   },
-  categoryChipText: { color: colors.green, fontSize: 10, fontWeight: "900" },
+  categoryChipText: { color: colors.green, fontSize: 12, fontWeight: "900" },
   heartBtn: { padding: 4 },
   listingTitle: { color: colors.green, fontSize: 13, fontWeight: "900", lineHeight: 18 },
   localName: { color: colors.greenMuted, fontSize: 11, fontWeight: "700" },
   price: { color: colors.green, fontSize: 15, fontWeight: "900", marginTop: 2 },
   meta: { color: colors.greenMuted, fontSize: 11, fontWeight: "800" },
   sellerRow: { flexDirection: "row", alignItems: "center", gap: 2, marginTop: 1 },
-  metaSmall: { color: colors.greenMuted, fontSize: 10, fontWeight: "700", flex: 1 },
+  metaSmall: { color: colors.greenMuted, fontSize: 12, fontWeight: "700", flex: 1 },
   gridOrderBtn: {
     flex: 1,
     flexDirection: "row",
@@ -1041,9 +1082,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 5,
-    paddingVertical: 8,
+    minHeight: 44,
+    paddingVertical: 10,
   },
-  gridOrderBtnText: { color: colors.white, fontSize: 11, fontWeight: "900" },
+  gridOrderBtnText: { color: colors.white, fontSize: 12, fontWeight: "900" },
   gridCartBtn: {
     flex: 0.8,
     flexDirection: "row",
@@ -1054,9 +1096,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
-    paddingVertical: 8,
+    minHeight: 44,
+    paddingVertical: 10,
   },
-  gridCartBtnText: { color: colors.green, fontSize: 11, fontWeight: "900" },
+  gridCartBtnText: { color: colors.green, fontSize: 12, fontWeight: "900" },
   cartEmpty: {
     alignItems: "center",
     gap: 8,
@@ -1084,7 +1127,7 @@ const styles = StyleSheet.create({
   },
   cartItemInfo: { flex: 1, gap: 2 },
   cartItemName: { color: colors.green, fontSize: 13, fontWeight: "900" },
-  cartItemMeta: { color: colors.greenMuted, fontSize: 10, fontWeight: "700" },
+  cartItemMeta: { color: colors.greenMuted, fontSize: 12, fontWeight: "700" },
   cartItemPrice: { color: colors.green, fontSize: 13, fontWeight: "900" },
   cartItemActions: { alignItems: "center", gap: 8 },
   cartIconBtn: {
@@ -1093,9 +1136,9 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     borderRadius: 16,
     borderWidth: 1,
-    height: 32,
+    height: 40,
     justifyContent: "center",
-    width: 32,
+    width: 40,
   },
   cartCheckoutBtn: {
     backgroundColor: colors.green,
@@ -1131,9 +1174,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   gridChatBtn: {
-    width: 36,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.sage,
     alignItems: "center",
     justifyContent: "center",
@@ -1153,6 +1196,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: Platform.OS === "ios" ? 40 : 24,
     maxHeight: "92%",
+  },
+  sheetScrollContent: {
+    paddingBottom: 14,
   },
   sheetHandle: {
     width: 40,
@@ -1439,7 +1485,7 @@ const styles = StyleSheet.create({
   },
   aiCheckedImageOverlayText: {
     color: colors.white,
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: "900",
   },
   sellerTrustRow: {
@@ -1454,7 +1500,7 @@ const styles = StyleSheet.create({
   },
   sellerTrustText: {
     color: "#b45309",
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: "900",
   },
   warningContainer: {

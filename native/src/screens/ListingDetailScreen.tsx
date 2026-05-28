@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -224,19 +225,19 @@ export function ListingDetailScreen({ listingId, onClose, onOpenChat }: ListingD
     <View style={styles.root}>
       {/* ── Top header bar ── */}
       <View style={styles.header}>
-        <Pressable onPress={onClose} style={styles.backBtn} hitSlop={8}>
+        <Pressable onPress={onClose} style={styles.backBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Go back">
           <MaterialCommunityIcons name="arrow-left" size={22} color={colors.green} />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{listing.name}</Text>
         <View style={styles.headerRight}>
-          <Pressable onPress={handleToggleSave} style={styles.iconBtn} hitSlop={8}>
+          <Pressable onPress={handleToggleSave} style={styles.iconBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel={isSaved ? "Remove from favorites" : "Save listing"}>
             <MaterialCommunityIcons
               name={isSaved ? "heart" : "heart-outline"}
               size={22}
               color={isSaved ? "#d14b4b" : colors.green}
             />
           </Pressable>
-          <Pressable onPress={() => setShowReportModal(true)} style={styles.iconBtn} hitSlop={8}>
+          <Pressable onPress={() => setShowReportModal(true)} style={styles.iconBtn} hitSlop={8} accessibilityRole="button" accessibilityLabel="Report listing">
             <MaterialCommunityIcons name="alert-circle-outline" size={22} color={colors.green} />
           </Pressable>
         </View>
@@ -257,6 +258,8 @@ export function ListingDetailScreen({ listingId, onClose, onOpenChat }: ListingD
                 key={idx}
                 onPress={() => setZoomImageUrl(url)}
                 style={styles.photoPressable}
+                accessibilityRole="button"
+                accessibilityLabel="Open image preview"
               >
                 <Image source={{ uri: url }} style={styles.photo} resizeMode="cover" />
               </Pressable>
@@ -379,6 +382,8 @@ export function ListingDetailScreen({ listingId, onClose, onOpenChat }: ListingD
                   }
                 }}
                 style={styles.visitGardenButton}
+                accessibilityRole="button"
+                accessibilityLabel="Visit seller garden"
               >
                 <MaterialCommunityIcons name="flower-tulip" size={16} color={colors.green} />
                 <Text style={styles.visitGardenButtonText}>Visit Seller's Garden</Text>
@@ -446,6 +451,7 @@ export function ListingDetailScreen({ listingId, onClose, onOpenChat }: ListingD
       >
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetDismiss} onPress={() => !isOrdering && setShowCheckout(false)} />
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 16 : 0}>
           <View style={styles.sheet}>
             {/* Handle bar */}
             <View style={styles.sheetHandle} />
@@ -538,7 +544,7 @@ export function ListingDetailScreen({ listingId, onClose, onOpenChat }: ListingD
               </ScrollView>
             ) : (
               /* ── Checkout form ── */
-              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.sheetScrollContent}>
                 {/* Header */}
                 <View style={styles.sheetHeader}>
                   <Text style={styles.sheetTitle}>Cart</Text>
@@ -695,6 +701,7 @@ export function ListingDetailScreen({ listingId, onClose, onOpenChat }: ListingD
               </ScrollView>
             )}
           </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 
@@ -703,6 +710,7 @@ export function ListingDetailScreen({ listingId, onClose, onOpenChat }: ListingD
       ══════════════════════════════════════════════ */}
       <Modal visible={showReportModal} animationType="fade" transparent>
         <View style={styles.reportOverlay}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}>
           <View style={styles.reportSheet}>
             <Text style={styles.reportTitle}>Report Listing</Text>
             <Text style={styles.reportSubtitle}>Select reason:</Text>
@@ -739,6 +747,7 @@ export function ListingDetailScreen({ listingId, onClose, onOpenChat }: ListingD
               </View>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 
@@ -797,7 +806,12 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.line,
     backgroundColor: colors.cream,
   },
-  backBtn: { padding: 6 },
+  backBtn: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   headerTitle: {
     flex: 1,
     marginLeft: 10,
@@ -806,7 +820,12 @@ const styles = StyleSheet.create({
     color: colors.green,
   },
   headerRight: { flexDirection: "row", gap: 4 },
-  iconBtn: { padding: 6 },
+  iconBtn: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 
   // ── Scroll content ───────────────────────────────────────────
   scroll: { paddingBottom: 130 },
@@ -954,6 +973,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: Platform.OS === "ios" ? 40 : 24,
     maxHeight: "92%",
+  },
+  sheetScrollContent: {
+    paddingBottom: 14,
   },
   sheetHandle: {
     width: 40,

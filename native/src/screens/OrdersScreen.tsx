@@ -11,6 +11,8 @@ import {
   TextInput,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext";
@@ -388,6 +390,8 @@ export function OrdersScreen({
         <Pressable
           onPress={() => setActiveSegment("active")}
           style={[styles.segmentBtn, activeSegment === "active" && styles.segmentBtnActive]}
+          accessibilityRole="button"
+          accessibilityLabel="Show active orders"
         >
           <Text style={[styles.segmentText, activeSegment === "active" && styles.segmentTextActive]}>
             Active
@@ -396,6 +400,8 @@ export function OrdersScreen({
         <Pressable
           onPress={() => setActiveSegment("history")}
           style={[styles.segmentBtn, activeSegment === "history" && styles.segmentBtnActive]}
+          accessibilityRole="button"
+          accessibilityLabel="Show order history"
         >
           <Text style={[styles.segmentText, activeSegment === "history" && styles.segmentTextActive]}>
             History
@@ -438,6 +444,7 @@ export function OrdersScreen({
       {/* Review Modal */}
       <Modal visible={!!reviewModalTarget} transparent animationType="slide">
         <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Review Seller</Text>
             <Text style={styles.modalSubtitle}>
@@ -447,7 +454,7 @@ export function OrdersScreen({
             {/* Stars */}
             <View style={styles.starRow}>
               {[1, 2, 3, 4, 5].map((star) => (
-                <Pressable key={star} onPress={() => setReviewRating(star)}>
+                <Pressable key={star} onPress={() => setReviewRating(star)} accessibilityRole="button" accessibilityLabel={`Rate ${star} stars`}>
                   <MaterialCommunityIcons
                     name={star <= reviewRating ? "star" : "star-outline"}
                     size={36}
@@ -471,6 +478,8 @@ export function OrdersScreen({
               <Pressable
                 onPress={() => setReviewModalTarget(null)}
                 style={[styles.modalBtn, styles.modalBtnCancel]}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel review"
               >
                 <Text style={styles.modalBtnCancelText}>Cancel</Text>
               </Pressable>
@@ -478,6 +487,8 @@ export function OrdersScreen({
                 onPress={handleSubmitReview}
                 disabled={submittingReview}
                 style={[styles.modalBtn, styles.modalBtnSubmit]}
+                accessibilityRole="button"
+                accessibilityLabel="Submit review"
               >
                 {submittingReview ? (
                   <ActivityIndicator color={colors.white} size="small" />
@@ -487,6 +498,7 @@ export function OrdersScreen({
               </Pressable>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </View>
@@ -601,7 +613,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   detailLabel: {
-    fontSize: 10,
+    fontSize: 12,
     color: colors.textTertiary,
     textTransform: "uppercase",
     marginBottom: 2,
@@ -617,7 +629,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   dateText: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.textTertiary,
   },
   actionButtons: {
@@ -625,8 +637,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   btn: {
+    minHeight: 40,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
@@ -838,7 +851,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.line,
   },
   pipelineLabel: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "600",
     color: colors.textTertiary,
     marginTop: 4,

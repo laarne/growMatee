@@ -1344,7 +1344,7 @@ const styles = StyleSheet.create({
     color: colors.green,
   },
   storyName: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "800",
     color: colors.textSecondary,
     textAlign: "center",
@@ -1489,7 +1489,7 @@ const styles = StyleSheet.create({
   verifiedIcon: {
     marginTop: 1,
   },
-  postTime: { fontSize: 11, color: colors.textTertiary, fontWeight: "700", marginTop: 2 },
+  postTime: { fontSize: 12, color: colors.textTertiary, fontWeight: "700", marginTop: 2 },
   followBtn: {
     backgroundColor: "#f1f0ec",
     borderRadius: 16,
@@ -1542,7 +1542,7 @@ const styles = StyleSheet.create({
   },
   plantProgressBadgeText: {
     color: colors.white,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "800",
     letterSpacing: 0.5,
   },
@@ -1579,7 +1579,7 @@ const styles = StyleSheet.create({
   },
   careChipText: {
     color: colors.green,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "900",
   },
 
@@ -1621,7 +1621,7 @@ const styles = StyleSheet.create({
   },
   visitGardenBtnText: {
     color: "#1a4d2e",
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "900",
     letterSpacing: 0.5,
   },
@@ -1673,7 +1673,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  commentAvatarText: { fontSize: 11, fontWeight: "800", color: colors.green },
+  commentAvatarText: { fontSize: 12, fontWeight: "800", color: colors.green },
   commentBubble: {
     flex: 1,
     backgroundColor: colors.surface1,
@@ -1929,7 +1929,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   commentAuthorLoc: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "500",
     color: colors.textTertiary,
   },
@@ -1949,7 +1949,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   commentTime: {
-    fontSize: 10,
+    fontSize: 12,
     color: colors.textTertiary,
     fontWeight: "600",
     marginTop: 4,
@@ -2229,7 +2229,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   sellerStatLbl: {
-    fontSize: 10,
+    fontSize: 12,
     color: colors.textTertiary,
     textTransform: "uppercase",
     marginTop: 2,
@@ -2276,7 +2276,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   aiVerifiedBadgeText: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: "900",
     color: colors.green,
   },
@@ -2321,7 +2321,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   shopCardLocation: {
-    fontSize: 10,
+    fontSize: 12,
     color: colors.textTertiary,
     marginTop: 2,
   },

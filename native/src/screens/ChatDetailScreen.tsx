@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
     color: colors.green,
   },
   timeText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: "800",
     marginTop: 4,
     textAlign: "right",
@@ -708,7 +708,7 @@ const styles = StyleSheet.create({
   },
   attachmentSubtitle: {
     color: colors.greenMuted,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     marginTop: 2,
   },
@@ -776,7 +776,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.cream,
   },
   suggestionsTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "800",
     color: colors.greenMid,
     textTransform: "uppercase",

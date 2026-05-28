@@ -14,9 +14,7 @@ type AuthMode = "sign-in" | "sign-up";
 const USERNAME_MAX_LENGTH = 32;
 const EMAIL_MAX_LENGTH = 254;
 const PASSWORD_MAX_LENGTH = 72;
-
-const googleLogoUri =
-  "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2048%2048%22%3E%3Cpath%20fill%3D%22%234285F4%22%20d%3D%22M45.12%2024.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51%202.75-2.06%205.08-4.38%206.64v5.52h7.1c4.15-3.82%206.56-9.46%206.56-16.17z%22/%3E%3Cpath%20fill%3D%22%2334A853%22%20d%3D%22M24%2046c5.94%200%2010.92-1.97%2014.56-5.33l-7.1-5.52c-1.97%201.32-4.49%202.1-7.46%202.1-5.73%200-10.58-3.87-12.31-9.07H4.35v5.7C7.98%2041.09%2015.46%2046%2024%2046z%22/%3E%3Cpath%20fill%3D%22%23FBBC05%22%20d%3D%22M11.69%2028.18A13.2%2013.2%200%200%201%2011%2024c0-1.45.25-2.86.69-4.18v-5.7H4.35A21.96%2021.96%200%200%200%202%2024c0%203.55.85%206.91%202.35%209.88l7.34-5.7z%22/%3E%3Cpath%20fill%3D%22%23EA4335%22%20d%3D%22M24%2010.75c3.23%200%206.13%201.11%208.41%203.29l6.31-6.31C34.9%204.17%2029.93%202%2024%202%2015.46%202%207.98%206.91%204.35%2014.12l7.34%205.7c1.73-5.2%206.58-9.07%2012.31-9.07z%22/%3E%3C/svg%3E";
+const googleLogo = require("../../assets/google-g-logo.png");
 
 function normalizeUsernameInput(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9_.]/g, "").slice(0, USERNAME_MAX_LENGTH);
@@ -323,14 +321,18 @@ export function AuthScreen() {
 
           <TextInput
             autoCapitalize="none"
-            autoComplete="username"
+            autoComplete={isSignUp ? "username" : "email"}
+            keyboardType={isSignUp ? "default" : "email-address"}
             maxLength={USERNAME_MAX_LENGTH}
             onChangeText={(value) => setUsername(isSignUp ? normalizeUsernameInput(value) : value.slice(0, EMAIL_MAX_LENGTH))}
-            placeholder="Username"
+            placeholder={isSignUp ? "Username" : "Email"}
             placeholderTextColor="#8a9583"
             style={[styles.input, error && styles.inputError]}
             value={username}
           />
+          {!isSignUp && (
+            <Text style={styles.authHelperText}>Use your account email to sign in.</Text>
+          )}
           {isSignUp && (
             <TextInput
               autoCapitalize="none"
@@ -446,7 +448,7 @@ export function AuthScreen() {
               pressed && !isSubmitting && isSupabaseConfigured && styles.googleButtonPressed,
             ]}
           >
-            <Image source={{ uri: googleLogoUri }} style={styles.googleLogo} />
+            <Image source={googleLogo} style={styles.googleLogo} resizeMode="contain" />
             <Text style={styles.googleButtonText}>{googleButtonLabel}</Text>
           </Pressable>
 
@@ -829,6 +831,13 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     marginTop: 10,
     textAlign: "center",
+  },
+  authHelperText: {
+    color: colors.greenMuted,
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: -4,
+    marginBottom: 10,
   },
   termsLink: {
     color: colors.green,
