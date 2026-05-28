@@ -341,17 +341,23 @@ export function DiscoverGardensScreen({ currentGardenId, onOpenChat, onOpenListi
               </View>
 
               <View style={styles.signalRow}>
-                <Text style={styles.marketSignal}>
-                  {garden.plantCount} {garden.plantCount === 1 ? "plant" : "plants"}
-                </Text>
-                <Text style={styles.marketSignal}>
-                  {garden.activeListingsCount} {garden.activeListingsCount === 1 ? "listing" : "listings"}
-                </Text>
+                <View style={styles.marketSignal}>
+                  <Text style={styles.marketSignalText}>
+                    {garden.plantCount} {garden.plantCount === 1 ? "plant" : "plants"}
+                  </Text>
+                </View>
+                <View style={styles.marketSignal}>
+                  <Text style={styles.marketSignalText}>
+                    {garden.activeListingsCount} {garden.activeListingsCount === 1 ? "listing" : "listings"}
+                  </Text>
+                </View>
                 <View style={styles.iconSignal}>
-                  <MaterialCommunityIcons name="star" size={12} color="#d39b21" />
+                  <MaterialCommunityIcons name="star" size={12} color="#d39b21" style={{ marginTop: -1 }} />
                   <Text style={styles.iconSignalText}>{garden.trustScore?.toFixed(1) ?? "New"}</Text>
                 </View>
-                <Text style={styles.marketSignal}>{garden.completedSales} sales</Text>
+                <View style={styles.marketSignal}>
+                  <Text style={styles.marketSignalText}>{garden.completedSales} sales</Text>
+                </View>
               </View>
 
               <View style={styles.buttonRow}>
@@ -637,14 +643,21 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     borderRadius: 999,
     borderWidth: 1,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  marketSignalText: {
     color: colors.green,
     fontSize: 11,
     fontWeight: "900",
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
   iconSignal: {
     alignItems: "center",
+    justifyContent: "center",
     backgroundColor: colors.white,
     borderColor: colors.line,
     borderRadius: 999,
@@ -658,6 +671,8 @@ const styles = StyleSheet.create({
     color: colors.green,
     fontSize: 11,
     fontWeight: "900",
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
   buttonRow: {
     flexDirection: "row",

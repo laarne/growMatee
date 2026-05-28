@@ -2,6 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Appearance, Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import { NavigationProvider, useNavigationContext } from "./src/context/NavigationContext";
 import { AuthScreen } from "./src/screens/AuthScreen";
@@ -47,13 +48,15 @@ const tabIconsActive: Record<TabKey, keyof typeof MaterialCommunityIcons.glyphMa
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <NavigationProvider>
-          <AppContent />
-        </NavigationProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <NavigationProvider>
+            <AppContent />
+          </NavigationProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 
@@ -156,6 +159,7 @@ function AppContent() {
   const { isLoading, session } = useAuth();
   const { activeTheme } = useTheme();
   const [ordersBadgeCount, setOrdersBadgeCount] = useState(0);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     let isMounted = true;
@@ -262,7 +266,7 @@ function AppContent() {
       </View>
 
       {/* Bottom nav — NOT absolutely positioned; sits as a flex child */}
-      <View style={styles.nav}>
+      <View style={[styles.nav, { height: 58 + Math.max(insets.bottom, 12), paddingBottom: Math.max(insets.bottom, 8) }]}>
         {tabs.map((tab) => {
           const isActive = tab === activeTab;
           return (
@@ -279,8 +283,6 @@ function AppContent() {
     </View>
   );
 }
-
-const NAV_HEIGHT = Platform.OS === "ios" ? 86 : 76;
 
 const styles = StyleSheet.create({
   root: {
@@ -318,8 +320,6 @@ const styles = StyleSheet.create({
     borderTopColor: "rgba(26,58,34,0.08)",
     borderTopWidth: 1,
     backgroundColor: "rgba(255,255,255,0.96)",
-    height: NAV_HEIGHT,
-    paddingBottom: Platform.OS === "ios" ? 18 : 10,
     paddingTop: 9,
     paddingHorizontal: 10,
     shadowColor: colors.green,

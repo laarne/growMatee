@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   Image,
   ImageBackground,
@@ -13,6 +14,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import * as Location from "expo-location";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { AdminDashboard } from "../components/AdminDashboard";
 import { Button } from "../components/Button";
@@ -152,6 +154,7 @@ export function ProfileScreen({
   const [editBio, setEditBio] = useState("");
   const [editLocation, setEditLocation] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
 
   // Review modal
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -302,6 +305,51 @@ export function ProfileScreen({
     setEditBio(profile?.bio ?? "");
     setEditLocation(profile?.location ?? "");
     setShowEditModal(true);
+  }
+
+  async function handleGetGPSLocation() {
+    setIsDetectingLocation(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission Denied", "Permission to access location was denied. Please enter it manually.");
+        setIsDetectingLocation(false);
+        return;
+      }
+
+      const loc = await Location.getCurrentPositionAsync({});
+      const coords = {
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      };
+
+      const addressResponse = await Location.reverseGeocodeAsync(coords);
+      if (addressResponse && addressResponse.length > 0) {
+        const address = addressResponse[0];
+        // Build address string: e.g. "Butuan City, Caraga"
+        const city = address.city || address.district || address.subregion || "";
+        const region = address.region || address.country || "";
+
+        let formattedLocation = "";
+        if (city && region) {
+          formattedLocation = `${city}, ${region}`;
+        } else if (city) {
+          formattedLocation = city;
+        } else if (region) {
+          formattedLocation = region;
+        } else {
+          formattedLocation = "Unknown Location";
+        }
+        setEditLocation(formattedLocation);
+      } else {
+        Alert.alert("Location Error", "Could not resolve your location name. Please enter it manually.");
+      }
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Location Error", "Failed to detect location. Please make sure GPS is enabled and try again.");
+    } finally {
+      setIsDetectingLocation(false);
+    }
   }
 
   async function handleSaveProfile() {
@@ -982,7 +1030,6 @@ export function ProfileScreen({
               {[
                 { label: "Display Name", value: editDisplayName, setter: setEditDisplayName, placeholder: "Your name" },
                 { label: "Username",     value: editUsername,    setter: setEditUsername,    placeholder: "@username" },
-                { label: "Location",     value: editLocation,    setter: setEditLocation,    placeholder: "City, Country" },
               ].map(({ label, value, setter, placeholder }) => (
                 <View key={label} style={styles.fieldGroup}>
                   <Text style={styles.fieldLabel}>{label}</Text>
@@ -995,6 +1042,30 @@ export function ProfileScreen({
                   />
                 </View>
               ))}
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Location</Text>
+                <View style={styles.locationInputContainer}>
+                  <TextInput
+                    style={[styles.fieldInput, { flex: 1 }]}
+                    value={editLocation}
+                    onChangeText={setEditLocation}
+                    placeholder="City, Country"
+                    placeholderTextColor={colors.textTertiary}
+                  />
+                  <Pressable
+                    onPress={handleGetGPSLocation}
+                    style={({ pressed }) => [styles.gpsBtn, pressed && { opacity: 0.7 }]}
+                    disabled={isDetectingLocation}
+                  >
+                    {isDetectingLocation ? (
+                      <ActivityIndicator color={colors.green} size="small" />
+                    ) : (
+                      <MaterialCommunityIcons name="crosshairs-gps" size={20} color={colors.green} />
+                    )}
+                  </Pressable>
+                </View>
+              </View>
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Bio</Text>
                 <TextInput
@@ -1499,6 +1570,22 @@ const styles = StyleSheet.create({
   },
 
   fieldGroup: { marginBottom: 14 },
+  locationInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  gpsBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface1,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 46,
+  },
   fieldLabel: {
     fontSize: 12,
     fontWeight: "700",

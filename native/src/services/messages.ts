@@ -141,12 +141,10 @@ export async function sendMessage(conversationId: string, senderId: string, body
   if (!sanitizedBody) throw new Error("Message cannot be empty.");
 
   const { data, error } = await supabase
-    .from("messages")
-    .insert({
-      conversation_id: conversationId,
-      sender_id: senderId,
-      body: sanitizedBody,
-      image_url: imageUrl || null,
+    .rpc("send_message_secure", {
+      p_conversation_id: conversationId,
+      p_body: sanitizedBody,
+      p_image_url: imageUrl || null,
     })
     .select("id, conversation_id, sender_id, body, image_url, created_at")
     .single();
@@ -155,16 +153,10 @@ export async function sendMessage(conversationId: string, senderId: string, body
     throw error;
   }
 
-  // Touch the conversation's updated_at timestamp
-  await supabase
-    .from("conversations")
-    .update({ updated_at: new Date().toISOString() })
-    .eq("id", conversationId);
-
   return {
     id: data.id,
     conversationId: data.conversation_id,
-    senderId: data.sender_id,
+    senderId: data.sender_id ?? senderId,
     body: data.body,
     imageUrl: data.image_url,
     createdAt: data.created_at,

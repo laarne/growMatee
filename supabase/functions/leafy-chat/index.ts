@@ -29,6 +29,8 @@ const corsHeaders = {
 
 const maxMessageLength = 2000;
 const maxHistoryMessages = 10;
+const chatLimit = 30;
+const chatWindowMs = 60 * 60 * 1000;
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -115,6 +117,36 @@ Deno.serve(async (request) => {
 
   if (!message) {
     return jsonResponse({ error: "Message is required." }, 400);
+  }
+
+  const windowStart = new Date(Date.now() - chatWindowMs).toISOString();
+  const { count, error: countError } = await supabase
+    .from("leafy_chat_events")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .gte("messaged_at", windowStart);
+
+  if (countError) {
+    return jsonResponse({ error: "Unable to check chat limit." }, 500);
+  }
+
+  if ((count ?? 0) >= chatLimit) {
+    return jsonResponse(
+      {
+        error: "Leafy chat limit reached. Try again later.",
+        limit: chatLimit,
+        windowMinutes: Math.round(chatWindowMs / 60000),
+      },
+      429,
+    );
+  }
+
+  const { error: insertError } = await supabase.from("leafy_chat_events").insert({
+    user_id: user.id,
+  });
+
+  if (insertError) {
+    return jsonResponse({ error: "Unable to record chat attempt." }, 500);
   }
 
   const history = (payload.history ?? [])

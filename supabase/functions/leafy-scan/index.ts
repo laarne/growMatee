@@ -32,6 +32,8 @@ const corsHeaders = {
 };
 
 const allowedOrgans = new Set(["leaf", "flower", "fruit", "bark", "habit", "other"]);
+const allowedMimeTypes = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+const maxImageBase64Length = 8_000_000;
 const scanLimit = 5;
 const scanWindowMs = 60 * 60 * 1000;
 
@@ -59,6 +61,10 @@ function jsonResponse(body: unknown, status = 200) {
 
 function base64ToBlob(base64: string, mimeType: string) {
   const cleanBase64 = base64.includes(",") ? base64.split(",").pop() ?? "" : base64;
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(cleanBase64)) {
+    throw new Error("Image data is not valid base64.");
+  }
+
   const binary = atob(cleanBase64);
   const bytes = new Uint8Array(binary.length);
 
@@ -176,6 +182,15 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: "imageBase64 is required." }, 400);
   }
 
+  if (payload.imageBase64.length > maxImageBase64Length) {
+    return jsonResponse({ error: "Image is too large. Choose a smaller photo." }, 413);
+  }
+
+  const mimeType = (payload.mimeType ?? "image/jpeg").toLowerCase();
+  if (!allowedMimeTypes.has(mimeType)) {
+    return jsonResponse({ error: "Unsupported image type. Use JPG, PNG, or WEBP." }, 415);
+  }
+
   const windowStart = new Date(Date.now() - scanWindowMs).toISOString();
   const { count, error: countError } = await supabase
     .from("leafy_scan_events")
@@ -206,13 +221,16 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: "Unable to record scan attempt." }, 500);
   }
 
-  const mimeType = payload.mimeType ?? "image/jpeg";
   const organ = allowedOrgans.has(payload.organ ?? "") ? payload.organ! : "leaf";
   const formData = new FormData();
 
   // User-provided image bytes and organ labels are forwarded only as data fields,
   // never as privileged instructions or prompt/system text.
-  formData.append("images", base64ToBlob(payload.imageBase64, mimeType), `scan.${mimeType.includes("png") ? "png" : "jpg"}`);
+  try {
+    formData.append("images", base64ToBlob(payload.imageBase64, mimeType), `scan.${mimeType.includes("png") ? "png" : mimeType.includes("webp") ? "webp" : "jpg"}`);
+  } catch {
+    return jsonResponse({ error: "Image data is not valid base64." }, 400);
+  }
   formData.append("organs", organ);
 
   const endpoint = new URL("https://my-api.plantnet.org/v2/identify/all");

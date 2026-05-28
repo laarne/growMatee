@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
-import { Platform, RefreshControl, RefreshControlProps, SafeAreaView, ScrollView, StyleSheet, View } from "react-native";
+import { Platform, RefreshControl, RefreshControlProps, ScrollView, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppHeader } from "./AppHeader";
 import { colors } from "../theme/colors";
 
@@ -28,6 +29,8 @@ export function Screen({
   onCartPress,
   refreshControl,
 }: ScreenProps) {
+  const insets = useSafeAreaInsets();
+
   const content = (
     <View
       style={[
@@ -41,7 +44,7 @@ export function Screen({
   );
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={[styles.safe, showHeader && { paddingTop: insets.top }]}>
       {showHeader && <AppHeader sectionLabel={sectionLabel} title={title} onCartPress={onCartPress} />}
       {scroll ? (
         <ScrollView
@@ -55,7 +58,7 @@ export function Screen({
       ) : (
         <View style={styles.fill}>{content}</View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

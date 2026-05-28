@@ -212,3 +212,38 @@ export async function deleteGardenPlant(plantId: string): Promise<void> {
   const { error } = await supabase.from("garden_plants").delete().eq("id", plantId);
   if (error) throw error;
 }
+
+export async function updateGarden(
+  gardenId: string,
+  userId: string,
+  updates: {
+    name?: string;
+    bio?: string | null;
+    coverPhotoUrl?: string | null;
+    isPublic?: boolean;
+  }
+): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const dbUpdates: any = {};
+  if (updates.name !== undefined) {
+    dbUpdates.name = sanitizeUserInput(updates.name, { maxLength: 80 });
+  }
+  if (updates.bio !== undefined) {
+    dbUpdates.bio = sanitizeNullableUserInput(updates.bio, { maxLength: 1000 });
+  }
+  if (updates.coverPhotoUrl !== undefined) {
+    dbUpdates.cover_photo_url = updates.coverPhotoUrl;
+  }
+  if (updates.isPublic !== undefined) {
+    dbUpdates.is_public = updates.isPublic;
+  }
+
+  const { error } = await supabase
+    .from("gardens")
+    .update(dbUpdates)
+    .eq("id", gardenId)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}

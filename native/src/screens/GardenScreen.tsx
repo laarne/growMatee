@@ -19,6 +19,7 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Screen } from "../components/Screen";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
 import { EmptyState } from "../components/EmptyState";
 import {
@@ -26,6 +27,7 @@ import {
   updateGardenPlant,
   getGardenPlants,
   getOrCreateMyGarden,
+  updateGarden,
   type Garden,
   type GardenPlant,
 } from "../services/gardens";
@@ -50,6 +52,7 @@ type GardenScreenProps = {
 
 export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenProps) {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<"discover" | "my_garden">("my_garden");
   const [garden, setGarden] = useState<Garden | null>(null);
   const [plants, setPlants] = useState<GardenPlant[]>([]);
@@ -90,6 +93,14 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
 
   // Plant detail modal
   const [detailModalPlant, setDetailModalPlant] = useState<GardenPlant | null>(null);
+
+  // Edit garden modal state
+  const [showEditGardenModal, setShowEditGardenModal] = useState(false);
+  const [editGardenName, setEditGardenName] = useState("");
+  const [editGardenBio, setEditGardenBio] = useState("");
+  const [editGardenIsPublic, setEditGardenIsPublic] = useState(true);
+  const [isSavingGarden, setIsSavingGarden] = useState(false);
+  const [isUploadingGardenCover, setIsUploadingGardenCover] = useState(false);
 
   // Pull-to-refresh
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -217,6 +228,50 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
     }
   }
 
+  function handleOpenEditGarden() {
+    if (!garden) return;
+    setEditGardenName(garden.name ?? "My Plant Collection");
+    setEditGardenBio(garden.bio ?? "");
+    setEditGardenIsPublic(garden.isPublic ?? true);
+    setShowEditGardenModal(true);
+  }
+
+  async function handleSaveGarden() {
+    if (!user || !garden) return;
+    setIsSavingGarden(true);
+    try {
+      await updateGarden(garden.id, user.id, {
+        name: editGardenName.trim(),
+        bio: editGardenBio.trim() || null,
+        isPublic: editGardenIsPublic,
+      });
+      await loadGarden();
+      setShowEditGardenModal(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to save garden settings.");
+    } finally {
+      setIsSavingGarden(false);
+    }
+  }
+
+  async function handleUpdateGardenCover() {
+    if (!user || !garden) return;
+    try {
+      const picked = await pickImageFromLibrary();
+      if (!picked) return;
+      setIsUploadingGardenCover(true);
+      const uploaded = await uploadPublicImage("garden-photos", user.id, "covers", picked);
+      await updateGarden(garden.id, user.id, {
+        coverPhotoUrl: uploaded.publicUrl,
+      });
+      await loadGarden();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to update cover photo.");
+    } finally {
+      setIsUploadingGardenCover(false);
+    }
+  }
+
   // Cover carousel images — use plant photos if available, else default covers
   const DEFAULT_COVERS = [
     "https://images.unsplash.com/photo-1545241047-6083a3684587?q=80&w=600&auto=format&fit=crop", // Beautiful plant shelf
@@ -282,7 +337,7 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
   return (
     <Screen showHeader={false} scroll={false} noPadding={true}>
       {/* ── Tab switcher (top) ── */}
-      <View style={styles.topTabs}>
+      <View style={[styles.topTabs, { paddingTop: 12 + insets.top }]}>
         {(["discover", "my_garden"] as const).map((tab) => (
           <Pressable
             key={tab}
@@ -359,8 +414,16 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
             </View>
 
             {/* Camera button */}
-            <Pressable style={styles.coverCameraBtn}>
-              <MaterialCommunityIcons name="camera-outline" size={17} color={colors.white} />
+            <Pressable
+              onPress={handleUpdateGardenCover}
+              disabled={isUploadingGardenCover}
+              style={[styles.coverCameraBtn, isUploadingGardenCover && { opacity: 0.5 }]}
+            >
+              {isUploadingGardenCover ? (
+                <ActivityIndicator color={colors.white} size="small" />
+              ) : (
+                <MaterialCommunityIcons name="camera-outline" size={17} color={colors.white} />
+              )}
             </Pressable>
 
             {/* Prev arrow */}
@@ -392,7 +455,7 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
                   />
                   <Text style={styles.publicPillText}>{garden?.isPublic ? "Public garden" : "Private garden"}</Text>
                 </View>
-                <Pressable style={styles.editGardenPill}>
+                <Pressable onPress={handleOpenEditGarden} style={styles.editGardenPill}>
                   <MaterialCommunityIcons name="pencil-outline" size={12} color={colors.white} />
                   <Text style={styles.editGardenPillText}>Edit garden</Text>
                 </Pressable>
@@ -1014,6 +1077,77 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
           </ScrollView>
         </View>
       </Modal>
+
+      {/* ══ Edit Garden Modal ════════════════════════════ */}
+      <Modal visible={showEditGardenModal} animationType="slide" transparent onRequestClose={() => setShowEditGardenModal(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={{ flex: 1 }} onPress={() => setShowEditGardenModal(false)} />
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Garden</Text>
+              <Pressable onPress={() => setShowEditGardenModal(false)} hitSlop={8}>
+                <MaterialCommunityIcons name="close" size={22} color={colors.greenMuted} />
+              </Pressable>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>Garden Name *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={editGardenName}
+                  onChangeText={setEditGardenName}
+                  placeholder="e.g. My Plant Collection"
+                  placeholderTextColor={colors.textTertiary}
+                />
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>Garden Bio / Description</Text>
+                <TextInput
+                  style={[styles.input, { minHeight: 80 }]}
+                  value={editGardenBio}
+                  onChangeText={setEditGardenBio}
+                  placeholder="Tell visitors about your garden collection..."
+                  placeholderTextColor={colors.textTertiary}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>Privacy Settings</Text>
+                <Pressable
+                  onPress={() => setEditGardenIsPublic((prev) => !prev)}
+                  style={({ pressed }) => [
+                    styles.privacyToggleBtn,
+                    editGardenIsPublic ? styles.privacyBtnActive : styles.privacyBtnPrivate,
+                    pressed && { opacity: 0.85 }
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name={editGardenIsPublic ? "earth" : "lock-outline"}
+                    size={18}
+                    color={editGardenIsPublic ? colors.white : colors.green}
+                  />
+                  <Text style={editGardenIsPublic ? styles.privacyBtnActiveText : styles.privacyBtnPrivateText}>
+                    {editGardenIsPublic ? "Public Garden (Anyone can view)" : "Private Garden (Only you can view)"}
+                  </Text>
+                </Pressable>
+              </View>
+
+              <Pressable
+                onPress={handleSaveGarden}
+                disabled={isSavingGarden || !editGardenName.trim()}
+                style={[styles.saveBtn, (isSavingGarden || !editGardenName.trim()) && { opacity: 0.4 }]}
+              >
+                <Text style={styles.saveBtnText}>{isSavingGarden ? "Saving..." : "Save changes"}</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </Screen>
 
   );
@@ -1024,7 +1158,6 @@ const styles = StyleSheet.create({
   topTabs: {
     flexDirection: "row",
     backgroundColor: colors.cream,
-    paddingTop: 52,
     paddingHorizontal: 20,
     gap: 20,
     borderBottomWidth: 1,
@@ -1064,6 +1197,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     paddingHorizontal: 10,
     paddingVertical: 4,
+    zIndex: 10,
+    elevation: 10,
   },
   paginationText: { color: colors.white, fontSize: 12, fontWeight: "700" },
   coverCameraBtn: {
@@ -1076,6 +1211,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.4)",
     alignItems: "center",
     justifyContent: "center",
+    zIndex: 10,
+    elevation: 10,
   },
   coverArrow: {
     position: "absolute",
@@ -1087,6 +1224,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: -16,
+    zIndex: 10,
+    elevation: 10,
   },
   coverArrowLeft: { left: 10 },
   coverArrowRight: { right: 10 },
@@ -1095,6 +1234,8 @@ const styles = StyleSheet.create({
     bottom: 16,
     left: 16,
     right: 60,
+    zIndex: 10,
+    elevation: 10,
   },
   coverTitleText: {
     color: colors.white,
@@ -1817,5 +1958,34 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 15,
     fontWeight: "900",
+  },
+  privacyToggleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    marginTop: 6,
+    marginBottom: 16,
+  },
+  privacyBtnActive: {
+    backgroundColor: colors.green,
+    borderColor: colors.green,
+  },
+  privacyBtnPrivate: {
+    backgroundColor: colors.surface1,
+    borderColor: colors.line,
+  },
+  privacyBtnActiveText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  privacyBtnPrivateText: {
+    color: colors.green,
+    fontSize: 13,
+    fontWeight: "700",
   },
 });

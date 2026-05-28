@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Dimensions,
   Image,
@@ -20,6 +21,7 @@ import { getActiveListings, type MarketListing } from "../services/listings";
 import { getOrCreateDirectConversation } from "../services/messages";
 import { colors } from "../theme/colors";
 import { EmptyState } from "./EmptyState";
+import { isFollowingGarden, toggleFollowGarden } from "../services/gardenFollows";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const CARD_GAP = 12;
@@ -61,6 +63,8 @@ export function SellerGardenModal({
   const [coverIndex, setCoverIndex] = useState(0);
   const [activeCategory, setActiveCategory] = useState("All");
   const [detailPlant, setDetailPlant] = useState<GardenPlant | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [friendStatus, setFriendStatus] = useState<"none" | "request_sent" | "friends">("none");
 
   const coverScrollRef = useRef<ScrollView>(null);
 
@@ -104,6 +108,15 @@ export function SellerGardenModal({
       const activeList = await getActiveListings("", 100);
       const sellerList = activeList.filter((l) => l.sellerId === sellerId);
       setListings(sellerList);
+
+      // Check following status from Supabase
+      const { data: userSession } = await supabase.auth.getSession();
+      const currentUserId = userSession?.session?.user?.id;
+      if (currentUserId && currentUserId !== sellerId) {
+        const following = await isFollowingGarden(g.id, currentUserId);
+        setIsFollowing(following);
+      }
+      setFriendStatus("none");
     } catch (err) {
       console.error("Failed to load seller public garden data:", err);
     } finally {
@@ -171,6 +184,20 @@ export function SellerGardenModal({
   function handleViewListings() {
     // Tapping view listings filters the plants directly to "For Sale" category chip
     setActiveCategory("For Sale");
+  }
+
+  async function handleToggleFollow() {
+    if (!supabase || !garden || !sellerId) return;
+    try {
+      const { data: userSession } = await supabase.auth.getSession();
+      const currentUserId = userSession?.session?.user?.id;
+      if (!currentUserId) return;
+
+      const followingNow = await toggleFollowGarden(garden.id, currentUserId);
+      setIsFollowing(followingNow);
+    } catch (err) {
+      console.error("Failed to toggle follow garden:", err);
+    }
   }
 
   return (
@@ -250,21 +277,34 @@ export function SellerGardenModal({
 
               {/* Title overlay */}
               <View style={styles.coverTitle}>
-                <Text style={styles.coverTitleText}>{garden?.name || `${sellerName}'s Indoor Jungle`}</Text>
-                <Text style={styles.coverSubText}>
-                  {plants.length} plants - {listings.length} active listings - {profile?.location || "Butuan City"}
-                </Text>
-                <View style={styles.coverMetaRow}>
-                  <View style={styles.publicPill}>
-                    <MaterialCommunityIcons name="earth" size={12} color={colors.white} />
-                    <Text style={styles.publicPillText}>Public garden</Text>
-                  </View>
-                  {profile?.seller_status === "verified" && (
-                    <View style={styles.verifiedPill}>
-                      <MaterialCommunityIcons name="check-decagram" size={12} color={colors.white} />
-                      <Text style={styles.publicPillText}>Verified Seller</Text>
+                <View style={styles.sellerHeaderRow}>
+                  {profile?.avatar_url ? (
+                    <Image source={{ uri: profile.avatar_url }} style={styles.sellerAvatar} />
+                  ) : (
+                    <View style={styles.sellerAvatarFallback}>
+                      <Text style={styles.sellerAvatarInitial}>
+                        {sellerName[0]?.toUpperCase() ?? "G"}
+                      </Text>
                     </View>
                   )}
+                  <View style={styles.sellerNameCol}>
+                    <Text style={styles.coverTitleText}>{garden?.name || `${sellerName}'s Indoor Jungle`}</Text>
+                    <Text style={styles.coverSubText}>
+                      {plants.length} plants · {listings.length} active listings · {profile?.location || "Butuan City"}
+                    </Text>
+                    <View style={styles.coverMetaRow}>
+                      <View style={styles.publicPill}>
+                        <MaterialCommunityIcons name="earth" size={12} color={colors.white} />
+                        <Text style={styles.publicPillText}>Public garden</Text>
+                      </View>
+                      {profile?.seller_status === "verified" && (
+                        <View style={styles.verifiedPill}>
+                          <MaterialCommunityIcons name="check-decagram" size={12} color={colors.white} />
+                          <Text style={styles.publicPillText}>Verified Seller</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
                 </View>
               </View>
             </View>
@@ -287,14 +327,60 @@ export function SellerGardenModal({
 
             {/* ══ Action row ═══════════════════════════════════ */}
             <View style={styles.actionBtnRow}>
-              <Pressable onPress={handleMessageSeller} style={[styles.actionBtn, styles.actionBtnOutline]}>
-                <MaterialCommunityIcons name="chat-outline" size={18} color={colors.green} />
-                <Text style={styles.actionBtnOutlineText}>Message Seller</Text>
-              </Pressable>
-              <Pressable onPress={handleViewListings} style={[styles.actionBtn, styles.actionBtnPrimary]}>
-                <MaterialCommunityIcons name="storefront" size={18} color={colors.white} />
-                <Text style={styles.actionBtnPrimaryText}>View Listings</Text>
-              </Pressable>
+              {profile?.seller_status === "verified" ? (
+                <>
+                  <Pressable onPress={handleMessageSeller} style={[styles.actionBtn, styles.actionBtnOutline]}>
+                    <MaterialCommunityIcons name="chat-outline" size={18} color={colors.green} />
+                    <Text style={styles.actionBtnOutlineText}>Message Seller</Text>
+                  </Pressable>
+                  <Pressable onPress={handleViewListings} style={[styles.actionBtn, styles.actionBtnPrimary]}>
+                    <MaterialCommunityIcons name="storefront" size={18} color={colors.white} />
+                    <Text style={styles.actionBtnPrimaryText}>View Listings</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Pressable
+                    onPress={() => {
+                      if (friendStatus === "none") {
+                        Alert.alert("Friend Request Sent", `Friend request sent to ${sellerName}!`);
+                        setFriendStatus("request_sent");
+                      }
+                    }}
+                    style={[
+                      styles.actionBtn,
+                      friendStatus === "none" ? styles.actionBtnOutline : styles.actionBtnDisabled
+                    ]}
+                    disabled={friendStatus !== "none"}
+                  >
+                    <MaterialCommunityIcons
+                      name={friendStatus === "none" ? "account-plus-outline" : "account-clock-outline"}
+                      size={18}
+                      color={friendStatus === "none" ? colors.green : colors.greenMuted}
+                    />
+                    <Text style={friendStatus === "none" ? styles.actionBtnOutlineText : styles.actionBtnDisabledText}>
+                      {friendStatus === "none" ? "Add Friend" : "Request Sent"}
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={handleToggleFollow}
+                    style={[
+                      styles.actionBtn,
+                      isFollowing ? styles.actionBtnOutline : styles.actionBtnPrimary
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name={isFollowing ? "bookmark" : "bookmark-outline"}
+                      size={18}
+                      color={isFollowing ? colors.green : colors.white}
+                    />
+                    <Text style={isFollowing ? styles.actionBtnOutlineText : styles.actionBtnPrimaryText}>
+                      {isFollowing ? "Following" : "Follow"}
+                    </Text>
+                  </Pressable>
+                </>
+              )}
             </View>
 
             {/* ══ Plant Collection section ═════════════════════ */}
@@ -555,6 +641,38 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
   },
+  sellerHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  sellerAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: colors.white,
+    backgroundColor: colors.sage,
+  },
+  sellerAvatarFallback: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: colors.white,
+    backgroundColor: colors.green,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sellerAvatarInitial: {
+    color: colors.white,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  sellerNameCol: {
+    flex: 1,
+    gap: 2,
+  },
   coverTitleText: {
     color: colors.white,
     fontSize: 22,
@@ -654,6 +772,16 @@ const styles = StyleSheet.create({
   },
   actionBtnOutlineText: {
     color: colors.green,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  actionBtnDisabled: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface1,
+  },
+  actionBtnDisabledText: {
+    color: colors.greenMuted,
     fontSize: 13,
     fontWeight: "900",
   },

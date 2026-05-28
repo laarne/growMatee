@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
   <title>GrowMate — Admin Control Center</title>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <!-- Include Supabase JS SDK -->
@@ -726,6 +727,7 @@
     }
 
     let activeUser = null;
+    let activeAdminProfile = null;
     let profilesList = [];
     let listingsList = [];
     let realtimeChannels = null;
@@ -754,10 +756,12 @@
       let badgeClass = 'lb-info';
       if (type === 'Warning') badgeClass = 'lb-warn';
       if (type === 'AI Scan' || type === 'Audit' || type === 'Order' || type === 'Security') badgeClass = 'lb-alert';
+      const safeType = escapeHTML(type);
+      const safeMessage = escapeHTML(message);
       
       log.innerHTML = `
         <span class="log-time">${time}</span>
-        <span class="log-msg"><span class="log-badge ${badgeClass}">${type}</span>${message}</span>
+        <span class="log-msg"><span class="log-badge ${badgeClass}">${safeType}</span>${safeMessage}</span>
       `;
       
       container.insertBefore(log, container.firstChild);
@@ -766,6 +770,24 @@
       while (container.children.length > 20) {
         container.removeChild(container.lastChild);
       }
+    }
+
+    function escapeHTML(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[char]));
+    }
+
+    function assertAdmin() {
+      if (!activeAdminProfile?.is_admin) {
+        showLoginError("This account is not authorized for GrowMate Admin.");
+        return false;
+      }
+      return true;
     }
 
     // Setup Supabase Realtime Channels
@@ -905,6 +927,61 @@
       }
     }
 
+    function showLoginError(message) {
+      const err = document.getElementById('login-err-msg');
+      if (err) {
+        err.textContent = message;
+        err.style.display = 'block';
+      }
+      document.getElementById('login-overlay').style.display = 'flex';
+    }
+
+    async function clearAdminSession() {
+      activeUser = null;
+      activeAdminProfile = null;
+      localStorage.removeItem('supabase_session');
+      if (supabaseClient) {
+        if (realtimeChannels) {
+          supabaseClient.removeChannel(realtimeChannels);
+          realtimeChannels = null;
+        }
+        await supabaseClient.auth.signOut();
+      }
+    }
+
+    async function requireAdminSession(user) {
+      if (!user || !supabaseClient) return null;
+
+      const { data, error } = await supabaseClient
+        .from('profiles')
+        .select('id, display_name, username, avatar_url, is_admin')
+        .eq('id', user.id)
+        .single();
+
+      if (error || !data?.is_admin) {
+        await clearAdminSession();
+        return null;
+      }
+
+      activeUser = user;
+      activeAdminProfile = data;
+      return data;
+    }
+
+    async function openAdminDashboard(user) {
+      const adminProfile = await requireAdminSession(user);
+
+      if (!adminProfile) {
+        showLoginError("This account is not authorized for GrowMate Admin.");
+        return;
+      }
+
+      document.getElementById('login-overlay').style.display = 'none';
+      await loadAdminProfile();
+      await loadRealDatabaseData();
+      setupRealtimeSubscriptions();
+    }
+
     // On Load
     window.addEventListener('DOMContentLoaded', async () => {
       // Setup Enter key listeners for login inputs
@@ -922,20 +999,11 @@
         });
       }
 
-      // Check existing session
-      const session = localStorage.getItem('supabase_session');
-      if (session) {
-        try {
-          const parsed = JSON.parse(session);
-          activeUser = parsed;
-          document.getElementById('login-overlay').style.display = 'none';
-          await loadAdminProfile();
-          await loadRealDatabaseData();
-          setupRealtimeSubscriptions();
-        } catch (e) {
-          console.error("Error loading cached session:", e);
-          localStorage.removeItem('supabase_session');
-        }
+      if (!supabaseClient) return;
+
+      const { data, error } = await supabaseClient.auth.getSession();
+      if (!error && data?.session?.user) {
+        await openAdminDashboard(data.session.user);
       }
     });
 
@@ -973,12 +1041,7 @@
         err.textContent = error.message;
         err.style.display = 'block';
       } else {
-        activeUser = data.user;
-        localStorage.setItem('supabase_session', JSON.stringify(data.user));
-        document.getElementById('login-overlay').style.display = 'none';
-        await loadAdminProfile();
-        await loadRealDatabaseData();
-        setupRealtimeSubscriptions();
+        await openAdminDashboard(data.user);
       }
     }
 
@@ -991,8 +1054,8 @@
         }
         await supabaseClient.auth.signOut();
       }
-      localStorage.removeItem('supabase_session');
       activeUser = null;
+      activeAdminProfile = null;
       document.getElementById('login-overlay').style.display = 'flex';
       document.getElementById('login-pass').value = '';
     }
@@ -1015,23 +1078,17 @@
 
     // Load Admin Profile card info
     async function loadAdminProfile() {
-      if (!activeUser || !supabaseClient) return;
-      const { data, error } = await supabaseClient.from('profiles').select('*').eq('id', activeUser.id).single();
-      if (data) {
-        const displayName = data.display_name || activeUser.email || "Admin User";
-        document.getElementById('admin-name').textContent = displayName;
-        document.getElementById('admin-avatar').textContent = displayName.substring(0, 2).toUpperCase();
-        if (data.is_admin) {
-          document.getElementById('admin-role').textContent = "Administrator Node";
-        } else {
-          document.getElementById('admin-role').textContent = "Standard Account";
-        }
-      }
+      if (!activeUser || !activeAdminProfile) return;
+
+      const displayName = activeAdminProfile.display_name || activeUser.email || "Admin User";
+      document.getElementById('admin-name').textContent = displayName;
+      document.getElementById('admin-avatar').textContent = displayName.substring(0, 2).toUpperCase();
+      document.getElementById('admin-role').textContent = "Administrator Node";
     }
 
     // Fetch and populate stats, tables and listings
     async function loadRealDatabaseData() {
-      if (!supabaseClient) return;
+      if (!supabaseClient || !activeAdminProfile?.is_admin) return;
       
       // 1. Fetch profiles
       const { data: profiles, error: errProf } = await supabaseClient.from('profiles').select('*').order('created_at', { ascending: false });
@@ -1111,7 +1168,10 @@
         }
 
         const displayName = p.display_name || p.username || 'User';
-        const initials = displayName.substring(0, 2).toUpperCase();
+        const safeDisplayName = escapeHTML(displayName);
+        const safeUsername = p.username ? `@${escapeHTML(p.username)}` : 'buyer_node';
+        const safeSellerStatus = escapeHTML(p.seller_status || 'not_applied');
+        const initials = escapeHTML(displayName.substring(0, 2).toUpperCase());
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -1121,13 +1181,13 @@
                 ${initials}
               </div>
               <div>
-                <div style="font-weight:700; color:#fff;">${displayName}</div>
-                <div style="font-size:12px; color:var(--text-dim);">${p.username ? '@' + p.username : 'buyer_node'}</div>
+                <div style="font-weight:700; color:#fff;">${safeDisplayName}</div>
+                <div style="font-size:12px; color:var(--text-dim);">${safeUsername}</div>
               </div>
             </div>
           </td>
           <td>${statusPill}</td>
-          <td style="text-transform: capitalize; font-weight: 700;">${p.seller_status || 'not_applied'}</td>
+          <td style="text-transform: capitalize; font-weight: 700;">${safeSellerStatus}</td>
           <td>${date}</td>
           <td>${actionBtn}</td>
         `;
@@ -1167,6 +1227,14 @@
         const badgeText = isSafe ? `AI: ${conf}% Safe` : (status === 'blocked' ? `AI Flagged` : `Audit Pending`);
         const sellerId = l.seller_id ? l.seller_id.substring(0, 8) : 'unknown';
         const price = parseFloat(l.price || 0).toLocaleString();
+        const safeName = escapeHTML(l.name || 'Plant Listing');
+        const safeCategory = escapeHTML(l.category || 'Uncategorized');
+        const safeScientificName = escapeHTML(l.scientific_name || '');
+        const safeLocation = escapeHTML(l.location || 'Butuan City');
+        const safeDelivery = escapeHTML(l.delivery_option || 'Delivery');
+        const safeDescription = escapeHTML(l.description || 'No description provided.');
+        const safeStatus = escapeHTML(status);
+        const safeBadgeText = escapeHTML(badgeText);
         
         let actionButtons = '';
         if (status === 'review') {
@@ -1191,29 +1259,30 @@
         `;
 
         const sellerObj = Array.isArray(l.seller) ? l.seller[0] : l.seller;
-        const sellerName = sellerObj ? (sellerObj.display_name || 'Unknown Seller') : 'Verified Seller';
+        const sellerName = escapeHTML(sellerObj ? (sellerObj.display_name || 'Unknown Seller') : 'Verified Seller');
 
         const card = document.createElement('div');
         card.className = 'listing-card';
         
         // Use nice botanical description details if available
-        const detailsText = l.scientific_name ? `<i>${l.scientific_name}</i> · ${l.category}` : `${l.category}`;
-        const qtyText = l.quantity ? `${l.quantity} ${l.unit || 'pcs'}` : '1 pc';
+        const detailsText = l.scientific_name ? `<i>${safeScientificName}</i> · ${safeCategory}` : safeCategory;
+        const qtyText = l.quantity ? `${escapeHTML(l.quantity)} ${escapeHTML(l.unit || 'pcs')}` : '1 pc';
 
         // Resolve Photo URL
         let mediaContent = `<span style="font-size: 52px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.3));">🪴</span>`;
         if (l.listing_photos && l.listing_photos.length > 0 && l.listing_photos[0].storage_path) {
-          const photoUrl = `https://gndnmbdzfoamtgjkvnyr.supabase.co/storage/v1/object/public/listing-photos/${l.listing_photos[0].storage_path}`;
-          mediaContent = `<img src="${photoUrl}" alt="${l.name}" style="width:100%; height:100%; object-fit:cover;" onerror="this.outerHTML='<span style=&quot;font-size: 52px;&quot;>🪴</span>';" />`;
+          const photoPath = String(l.listing_photos[0].storage_path).split('/').map(encodeURIComponent).join('/');
+          const photoUrl = `https://gndnmbdzfoamtgjkvnyr.supabase.co/storage/v1/object/public/listing-photos/${photoPath}`;
+          mediaContent = `<img src="${photoUrl}" alt="${safeName}" style="width:100%; height:100%; object-fit:cover;" onerror="this.outerHTML='<span style=&quot;font-size: 52px;&quot;>🪴</span>';" />`;
         }
 
         card.innerHTML = `
           <div class="list-media">
             ${mediaContent}
-            <span class="list-badge-ai ${tagClass}">${badgeText}</span>
+            <span class="list-badge-ai ${tagClass}">${safeBadgeText}</span>
           </div>
           <div class="list-body">
-            <h3 class="list-title" style="margin-bottom: 2px;">${l.name || 'Plant Listing'}</h3>
+            <h3 class="list-title" style="margin-bottom: 2px;">${safeName}</h3>
             <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">
               ${detailsText}
             </p>
@@ -1224,14 +1293,14 @@
             <!-- Seller & Delivery Details -->
             <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: 12px; color: var(--text-muted); border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 10px;">
               <span style="display: flex; align-items: center; gap: 6px;">👤 <b style="color: var(--text-main);">${sellerName}</b></span>
-              <span style="display: flex; align-items: center; gap: 6px;">📍 ${l.location || 'Butuan City'} · 🚚 ${l.delivery_option || 'Delivery'}</span>
+              <span style="display: flex; align-items: center; gap: 6px;">📍 ${safeLocation} · 🚚 ${safeDelivery}</span>
             </div>
 
             <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px; min-height: 36px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-              ${l.description || 'No description provided.'}
+              ${safeDescription}
             </p>
             <div class="list-footer" style="padding-top: 12px;">
-              <span class="status-pill ${status === 'active' ? 'sp-active' : (status === 'blocked' ? 'sp-banned' : 'sp-pending')}" style="text-transform: uppercase; font-size: 9px; letter-spacing: 0.05em;">${status}</span>
+              <span class="status-pill ${status === 'active' ? 'sp-active' : (status === 'blocked' ? 'sp-banned' : 'sp-pending')}" style="text-transform: uppercase; font-size: 9px; letter-spacing: 0.05em;">${safeStatus}</span>
               <div style="display: flex; align-items: center; justify-content: flex-end; gap: 4px; flex-wrap: wrap;">
                 ${actionButtons}
               </div>
@@ -1261,7 +1330,7 @@
 
     // Delete Listing
     async function deleteListing(listingId) {
-      if (!supabaseClient) return;
+      if (!supabaseClient || !assertAdmin()) return;
       
       const listing = listingsList.find(l => l.id === listingId);
       const name = listing ? listing.name : 'this listing';
@@ -1293,7 +1362,7 @@
 
     // Update Seller Status (Verify)
     async function verifySeller(userId) {
-      if (!supabaseClient) return;
+      if (!supabaseClient || !assertAdmin()) return;
       const profile = profilesList.find(p => p.id === userId);
       const name = profile ? (profile.display_name || "this user") : "this user";
       
@@ -1310,7 +1379,7 @@
 
     // Suspend user
     async function suspendUser(userId) {
-      if (!supabaseClient) return;
+      if (!supabaseClient || !assertAdmin()) return;
       const profile = profilesList.find(p => p.id === userId);
       const name = profile ? (profile.display_name || "this user") : "this user";
 
@@ -1327,7 +1396,7 @@
 
     // Unsuspend user
     async function unsuspendUser(userId) {
-      if (!supabaseClient) return;
+      if (!supabaseClient || !assertAdmin()) return;
       const profile = profilesList.find(p => p.id === userId);
       const name = profile ? (profile.display_name || "this user") : "this user";
 
@@ -1342,7 +1411,7 @@
 
     // Update Listing Status
     async function updateListingStatus(listingId, newStatus) {
-      if (!supabaseClient) return;
+      if (!supabaseClient || !assertAdmin()) return;
       const { error } = await supabaseClient.from('listings').update({ status: newStatus }).eq('id', listingId);
       if (error) {
         alert(`Error modifying listing status: ${error.message}`);

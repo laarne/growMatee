@@ -418,6 +418,8 @@ export function MarketScreen({
                   📍 {listing.location} · Delivery
                 </Text>
 
+                <View style={styles.cardSpacer} />
+
                 {/* Actions row: Talk to Seller + Add to Cart + Buy Now */}
                 <View style={styles.cardActionsRow}>
                   {onOpenChat && (
@@ -1013,7 +1015,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  listingBody: { padding: 10, gap: 3 },
+  listingBody: { padding: 10, gap: 3, flex: 1 },
+  cardSpacer: { flex: 1 },
   categoryChip: {
     alignSelf: "flex-start",
     backgroundColor: colors.sage,
