@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View, Pressable } from "react-native";
+import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View, Pressable, Keyboard } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
@@ -15,6 +15,7 @@ import { unwrapDelimitedUserInput, wrapUserInputForPrompt } from "../utils/promp
 import { sanitizeUserInput } from "../utils/sanitize";
 import { STORAGE_KEYS } from "../utils/storageKeys";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const leafyAvatar = require("../../assets/leafy-ai.png");
 
@@ -162,6 +163,7 @@ function formatLeafyScanResponse(result: LeafyScanResult): string {
 
 export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailScreenProps) {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -169,6 +171,7 @@ export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailS
   const [error, setError] = useState<string | null>(null);
   const [isLeafyTyping, setIsLeafyTyping] = useState(false);
   const [attachedImage, setAttachedImage] = useState<PickedImage | null>(null);
+  const [visibleTimestampMessageId, setVisibleTimestampMessageId] = useState<string | null>(null);
 
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -337,6 +340,7 @@ export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailS
   }
 
   useEffect(() => {
+    setVisibleTimestampMessageId(null);
     loadMessages();
     if (user && conversationId !== "leafy-ai-assistant") {
       markConversationAsRead(conversationId, user.id).catch(console.error);
@@ -406,8 +410,24 @@ export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailS
     }, 100);
   }, [messages.length, isLeafyTyping]);
 
+  // Scroll to bottom when keyboard is shown
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 50);
+    });
+    return () => {
+      showSubscription.remove();
+    };
+  }, []);
+
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.root}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 120 + insets.top : 0}
+      style={styles.root}
+    >
       <Screen scroll={false}>
         <View style={styles.header}>
           <Pressable onPress={onClose} style={styles.backButton} hitSlop={8}>
@@ -431,7 +451,13 @@ export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailS
             <Text style={styles.loadingText}>Loading conversation...</Text>
           </View>
         ) : (
-          <ScrollView ref={scrollViewRef} contentContainerStyle={styles.messagesList} style={styles.scroll}>
+          <ScrollView
+            ref={scrollViewRef}
+            contentContainerStyle={styles.messagesList}
+            style={styles.scroll}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+          >
             {messages.length === 0 && !isLeafyTyping ? (
               <View style={styles.emptyWrap}>
                 <Text style={styles.emptyText}>No messages yet. Send a message to start conversing!</Text>
@@ -440,23 +466,29 @@ export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailS
               <>
                 {messages.map((msg) => {
                   const isMe = msg.senderId === user?.id;
+                  const isTimestampVisible = visibleTimestampMessageId === msg.id;
                   return (
                     <View key={msg.id} style={[styles.bubbleWrap, isMe ? styles.bubbleWrapMe : styles.bubbleWrapOther]}>
                       {!isMe && conversationId === "leafy-ai-assistant" && (
                         <Image source={leafyAvatar} style={styles.leafyAvatar} />
                       )}
-                      <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther]}>
+                      <Pressable
+                        onPress={() => setVisibleTimestampMessageId((current) => (current === msg.id ? null : msg.id))}
+                        style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther]}
+                      >
                         {msg.imageUrl && <Image source={{ uri: msg.imageUrl }} style={styles.messageImage} />}
                         <Text style={[styles.bubbleText, isMe ? styles.bubbleTextMe : styles.bubbleTextOther]}>
                           {msg.body}
                         </Text>
-                        <Text style={[styles.timeText, isMe ? styles.timeTextMe : styles.timeTextOther]}>
-                          {new Date(msg.createdAt).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </Text>
-                      </View>
+                        {isTimestampVisible && (
+                          <Text style={[styles.timeText, isMe ? styles.timeTextMe : styles.timeTextOther]}>
+                            {new Date(msg.createdAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </Text>
+                        )}
+                      </Pressable>
                     </View>
                   );
                 })}
@@ -515,7 +547,7 @@ export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailS
           </View>
         )}
 
-        <View style={styles.composerRow}>
+        <View style={[styles.composerRow, { paddingBottom: Math.max(insets.bottom + 6, 12) }]}>
           {conversationId === "leafy-ai-assistant" && (
             <Pressable
               accessibilityLabel="Upload plant photo"

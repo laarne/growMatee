@@ -19,6 +19,7 @@ import { supabase } from "../services/supabase";
 import { getOrCreateMyGarden, getGardenPlants, type GardenPlant } from "../services/gardens";
 import { getActiveListings, type MarketListing } from "../services/listings";
 import { getOrCreateDirectConversation } from "../services/messages";
+import { getFriendStatus, sendFriendRequest, type FriendStatus } from "../services/friends";
 import { colors } from "../theme/colors";
 import { EmptyState } from "./EmptyState";
 import { isFollowingGarden, toggleFollowGarden } from "../services/gardenFollows";
@@ -64,7 +65,8 @@ export function SellerGardenModal({
   const [activeCategory, setActiveCategory] = useState("All");
   const [detailPlant, setDetailPlant] = useState<GardenPlant | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [friendStatus, setFriendStatus] = useState<"none" | "request_sent" | "friends">("none");
+  const [friendStatus, setFriendStatus] = useState<FriendStatus>("none");
+  const [isSendingFriendRequest, setIsSendingFriendRequest] = useState(false);
 
   const coverScrollRef = useRef<ScrollView>(null);
 
@@ -115,8 +117,11 @@ export function SellerGardenModal({
       if (currentUserId && currentUserId !== sellerId) {
         const following = await isFollowingGarden(g.id, currentUserId);
         setIsFollowing(following);
+        const nextFriendStatus = await getFriendStatus(currentUserId, sellerId);
+        setFriendStatus(nextFriendStatus);
+      } else {
+        setFriendStatus("none");
       }
-      setFriendStatus("none");
     } catch (err) {
       console.error("Failed to load seller public garden data:", err);
     } finally {
@@ -198,6 +203,35 @@ export function SellerGardenModal({
     } catch (err) {
       console.error("Failed to toggle follow garden:", err);
     }
+  }
+
+  async function handleAddFriend() {
+    if (!supabase || !sellerId || isSendingFriendRequest) return;
+    setIsSendingFriendRequest(true);
+    try {
+      const { data: userSession } = await supabase.auth.getSession();
+      const currentUserId = userSession?.session?.user?.id;
+      if (!currentUserId || currentUserId === sellerId) return;
+
+      const nextStatus = await sendFriendRequest(currentUserId, sellerId);
+      setFriendStatus(nextStatus);
+      if (nextStatus === "request_sent") {
+        Alert.alert("Friend Request Sent", `Friend request sent to ${sellerName}!`);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to send friend request.";
+      Alert.alert("Add Friend Failed", message);
+    } finally {
+      setIsSendingFriendRequest(false);
+    }
+  }
+
+  function getFriendButtonCopy() {
+    if (isSendingFriendRequest) return "Sending...";
+    if (friendStatus === "request_sent") return "Request Sent";
+    if (friendStatus === "request_received") return "Respond";
+    if (friendStatus === "friends") return "Friends";
+    return "Add Friend";
   }
 
   return (
@@ -341,25 +375,20 @@ export function SellerGardenModal({
               ) : (
                 <>
                   <Pressable
-                    onPress={() => {
-                      if (friendStatus === "none") {
-                        Alert.alert("Friend Request Sent", `Friend request sent to ${sellerName}!`);
-                        setFriendStatus("request_sent");
-                      }
-                    }}
+                    onPress={handleAddFriend}
                     style={[
                       styles.actionBtn,
                       friendStatus === "none" ? styles.actionBtnOutline : styles.actionBtnDisabled
                     ]}
-                    disabled={friendStatus !== "none"}
+                    disabled={friendStatus !== "none" || isSendingFriendRequest}
                   >
                     <MaterialCommunityIcons
-                      name={friendStatus === "none" ? "account-plus-outline" : "account-clock-outline"}
+                      name={friendStatus === "friends" ? "account-check-outline" : friendStatus === "none" ? "account-plus-outline" : "account-clock-outline"}
                       size={18}
                       color={friendStatus === "none" ? colors.green : colors.greenMuted}
                     />
                     <Text style={friendStatus === "none" ? styles.actionBtnOutlineText : styles.actionBtnDisabledText}>
-                      {friendStatus === "none" ? "Add Friend" : "Request Sent"}
+                      {getFriendButtonCopy()}
                     </Text>
                   </Pressable>
 

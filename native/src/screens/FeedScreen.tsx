@@ -18,6 +18,7 @@ import { formatCurrency } from "../utils/currency";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { EmptyState } from "../components/EmptyState";
 import { ImageZoomModal } from "../components/ImageZoomModal";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const leafyAvatar = require("../../assets/leafy-ai.png");
 
@@ -28,6 +29,18 @@ const mockStories = [
   { id: "4", name: "Sofie T.", avatarLetter: "S", color: "#e05353", imageUrl: "https://images.unsplash.com/photo-1592150621744-aca64f48394a?w=120&h=120&fit=crop" },
   { id: "5", name: "Leo K.", avatarLetter: "L", color: "#22c55e", imageUrl: "https://images.unsplash.com/photo-1530968033775-2c9273f0865e?w=120&h=120&fit=crop" },
 ];
+
+type StoryItem = {
+  id: string;
+  userId: string;
+  name: string;
+  avatarLetter: string;
+  isSelf?: boolean;
+  color: string;
+  imageUrl: string | null;
+  hasStory: boolean;
+  createdAt?: string | null;
+};
 
 function getCareChips(post: FeedPost): { label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] {
   const chips: { label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [];
@@ -67,6 +80,7 @@ export function FeedScreen({
   onOpenChat?: (convoId: string, title: string) => void;
 }) {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const { setActiveTab, setSearchQuery, unreadCount } = useNavigationContext();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [body, setBody] = useState("");
@@ -76,8 +90,10 @@ export function FeedScreen({
   const [isPosting, setIsPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showComposer, setShowComposer] = useState(false);
-  const [stories, setStories] = useState<any[]>(mockStories);
+  const [stories, setStories] = useState<StoryItem[]>(mockStories.map((story) => ({ ...story, userId: story.id, hasStory: true })));
   const [loadingStories, setLoadingStories] = useState(true);
+  const [isAddingStory, setIsAddingStory] = useState(false);
+  const [activeStory, setActiveStory] = useState<StoryItem | null>(null);
 
   // Seller profile sheet states (Item 18)
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
@@ -231,6 +247,24 @@ export function FeedScreen({
 
       if (err) throw err;
 
+      const { data: storyPosts, error: storyErr } = await supabase
+        .from("feed_posts")
+        .select("user_id, image_url, created_at")
+        .not("image_url", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(120);
+
+      if (storyErr) throw storyErr;
+
+      const latestStoryByUser = new Map<string, { imageUrl: string; createdAt: string }>();
+      (storyPosts ?? []).forEach((post) => {
+        if (!post.user_id || !post.image_url || latestStoryByUser.has(post.user_id)) return;
+        latestStoryByUser.set(post.user_id, {
+          imageUrl: post.image_url,
+          createdAt: post.created_at,
+        });
+      });
+
       const ringColors = ["#f59e0b", "#22c55e", "#e05353", "#3b82f6"];
       const defaultGardenLandscapes = [
         "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=120&h=120&fit=crop",
@@ -241,13 +275,17 @@ export function FeedScreen({
       
       const mapped = (profiles ?? []).map((p, index) => {
         const isSelf = p.id === user?.id;
+        const latestStory = latestStoryByUser.get(p.id);
         return {
           id: p.id,
+          userId: p.id,
           name: isSelf ? "My Garden" : p.display_name,
           avatarLetter: (p.display_name?.[0] ?? "P").toUpperCase(),
-          imageUrl: p.cover_url || defaultGardenLandscapes[index % defaultGardenLandscapes.length],
+          imageUrl: latestStory?.imageUrl || p.cover_url || defaultGardenLandscapes[index % defaultGardenLandscapes.length],
           isSelf,
-          color: isSelf ? "#a1a1a1" : ringColors[index % ringColors.length]
+          color: isSelf ? "#e5e7eb" : ringColors[index % ringColors.length],
+          hasStory: Boolean(latestStory?.imageUrl || p.cover_url),
+          createdAt: latestStory?.createdAt ?? null,
         };
       });
 
@@ -261,7 +299,7 @@ export function FeedScreen({
       setStories(mapped);
     } catch (e) {
       console.error("Failed to load stories:", e);
-      setStories(mockStories);
+      setStories(mockStories.map((story) => ({ ...story, userId: story.id, hasStory: true })));
     } finally {
       setLoadingStories(false);
     }
@@ -472,13 +510,50 @@ export function FeedScreen({
     return post.gardenPlantName || post.title || post.body.split(/\s+/).slice(0, 4).join(" ");
   }
 
-  function handleOpenStory(story: { id: string; name: string; isSelf?: boolean }) {
-    if (story.isSelf) {
-      setActiveTab("Garden");
+  async function handleAddStory() {
+    if (!user || isAddingStory) return;
+
+    setIsAddingStory(true);
+    setError(null);
+    try {
+      const pickedPhoto = await pickImageFromLibrary();
+      if (!pickedPhoto) return;
+
+      const uploadedPhoto = await uploadPublicImage("feed-photos", user.id, "stories", pickedPhoto);
+      await createFeedPost(user.id, "Shared a garden story.", "update", uploadedPhoto.publicUrl, null);
+
+      const story: StoryItem = {
+        id: user.id,
+        userId: user.id,
+        name: "My Garden",
+        avatarLetter: (user.email?.[0] ?? "M").toUpperCase(),
+        imageUrl: uploadedPhoto.publicUrl,
+        isSelf: true,
+        color: "#e5e7eb",
+        hasStory: true,
+        createdAt: new Date().toISOString(),
+      };
+
+      setStories((current) => [story, ...current.filter((item) => !item.isSelf)]);
+      setActiveStory(story);
+      await loadPosts();
+    } catch (storyError) {
+      const message = storyError instanceof Error ? storyError.message : "Unable to add story.";
+      setError(message);
+    } finally {
+      setIsAddingStory(false);
+    }
+  }
+
+  function handleOpenStory(story: StoryItem) {
+    if (!story.hasStory || !story.imageUrl) {
+      if (story.isSelf) {
+        handleAddStory().catch(() => {});
+      }
       return;
     }
 
-    handleViewSellerGarden(story.id, story.name);
+    setActiveStory(story);
   }
 
   return (
@@ -503,7 +578,7 @@ export function FeedScreen({
           }
         >
       {/* ── Custom Header ── */}
-      <View style={styles.customHeader}>
+      <View style={[styles.customHeader, { paddingTop: Math.max(insets.top + 8, Platform.OS === "ios" ? 22 : 28) }]}>
         <Text style={styles.customHeaderTitle}>Community</Text>
         <View style={styles.customHeaderButtons}>
           <Pressable
@@ -535,40 +610,6 @@ export function FeedScreen({
         </View>
       </View>
 
-      {/* ── Stories Row ── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.storiesContainer}
-        style={styles.storiesScroll}
-      >
-        {stories.map((story) => (
-          <Pressable
-            key={story.id}
-            accessibilityLabel={`Open ${story.name} garden`}
-            onPress={() => handleOpenStory(story)}
-            style={({ pressed }) => [styles.storyItem, pressed && styles.storyItemPressed]}
-          >
-            <View style={[styles.storyRing, { borderColor: story.color }]}>
-              {story.imageUrl ? (
-                <Image source={{ uri: story.imageUrl }} style={styles.storyAvatarImage} />
-              ) : (
-                <View style={styles.storyAvatarFallback}>
-                  <Text style={styles.storyAvatarText}>{story.avatarLetter}</Text>
-                </View>
-              )}
-              {story.isSelf && (
-                <View style={styles.storyPlusBadge}>
-                  <MaterialCommunityIcons name="plus" size={10} color={colors.white} />
-                </View>
-              )}
-            </View>
-            <Text numberOfLines={1} style={styles.storyName}>
-              {story.name}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
 
       {/* ── Feed Container ── */}
       <View style={styles.feedContent}>
@@ -1093,6 +1134,77 @@ export function FeedScreen({
       {/* ══════════════════════════════════════════════════
           IMAGE ZOOM MODAL (Item 13)
       ══════════════════════════════════════════════════ */}
+      <Modal
+        visible={activeStory !== null}
+        animationType="fade"
+        transparent={false}
+        onRequestClose={() => setActiveStory(null)}
+      >
+        <View style={styles.storyViewer}>
+          <View style={styles.storyProgressTrack}>
+            <View style={styles.storyProgressFill} />
+          </View>
+          <View style={styles.storyViewerHeader}>
+            <View style={styles.storyViewerProfile}>
+              <View style={styles.storyViewerAvatar}>
+                {activeStory?.imageUrl ? (
+                  <Image source={{ uri: activeStory.imageUrl }} style={styles.storyViewerAvatarImage} />
+                ) : (
+                  <Text style={styles.storyViewerAvatarText}>{activeStory?.avatarLetter ?? "G"}</Text>
+                )}
+              </View>
+              <View>
+                <Text style={styles.storyViewerName}>{activeStory?.name}</Text>
+                {activeStory?.createdAt && (
+                  <Text style={styles.storyViewerTime}>{getRelativeTime(activeStory.createdAt)}</Text>
+                )}
+              </View>
+            </View>
+            <Pressable onPress={() => setActiveStory(null)} hitSlop={12} style={styles.storyViewerClose}>
+              <MaterialCommunityIcons name="close" size={24} color={colors.white} />
+            </Pressable>
+          </View>
+
+          {activeStory?.imageUrl && (
+            <Image source={{ uri: activeStory.imageUrl }} style={styles.storyViewerImage} resizeMode="cover" />
+          )}
+
+          {activeStory?.isSelf && (
+            <Pressable
+              disabled={isAddingStory}
+              onPress={() => {
+                setActiveStory(null);
+                handleAddStory().catch(() => {});
+              }}
+              style={styles.storyViewerAddBtn}
+            >
+              {isAddingStory ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <>
+                  <MaterialCommunityIcons name="camera-plus" size={18} color={colors.white} />
+                  <Text style={styles.storyViewerAddText}>Add to your story</Text>
+                </>
+              )}
+            </Pressable>
+          )}
+
+          {!activeStory?.isSelf && activeStory && (
+            <Pressable
+              onPress={() => {
+                const story = activeStory;
+                setActiveStory(null);
+                handleViewSellerGarden(story.userId, story.name);
+              }}
+              style={styles.storyViewerGardenBtn}
+            >
+              <MaterialCommunityIcons name="flower-outline" size={18} color={colors.white} />
+              <Text style={styles.storyViewerGardenText}>View garden</Text>
+            </Pressable>
+          )}
+        </View>
+      </Modal>
+
       <SellerGardenModal
         visible={showSellerGarden}
         onClose={() => setShowSellerGarden(false)}
@@ -1284,24 +1396,46 @@ const styles = StyleSheet.create({
   },
   storiesContainer: {
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 14,
-    gap: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
+    gap: 14,
     flexDirection: "row",
   },
   storyItem: {
     alignItems: "center",
-    width: 68,
+    width: 72,
   },
   storyItemPressed: {
     opacity: 0.75,
     transform: [{ scale: 0.96 }],
   },
+  storyGradientRing: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    padding: 3,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f97316",
+    borderColor: "#e11d48",
+    borderWidth: 2,
+    shadowColor: "#e11d48",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  storyEmptyRing: {
+    backgroundColor: colors.surface1,
+    borderColor: colors.lineMid,
+    borderStyle: "dashed",
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   storyRing: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 2.5,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.white,
@@ -1312,30 +1446,30 @@ const styles = StyleSheet.create({
     borderStyle: "dashed",
   },
   storyAvatarFallback: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: colors.surface2,
     alignItems: "center",
     justifyContent: "center",
   },
   storyAvatarImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: colors.surface2,
   },
   storyPlusBadge: {
     position: "absolute",
-    bottom: -1,
-    right: -1,
-    width: 17,
-    height: 17,
-    borderRadius: 8.5,
-    backgroundColor: "#1a4d2e",
+    bottom: -4,
+    right: -5,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#2563eb",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: colors.white,
   },
   storyAvatarText: {
@@ -1344,11 +1478,107 @@ const styles = StyleSheet.create({
     color: colors.green,
   },
   storyName: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "800",
     color: colors.textSecondary,
     textAlign: "center",
-    marginTop: 4,
+    marginTop: 6,
+  },
+  storyViewer: {
+    flex: 1,
+    backgroundColor: "#050505",
+    justifyContent: "center",
+  },
+  storyProgressTrack: {
+    position: "absolute",
+    top: 14,
+    left: 12,
+    right: 12,
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.28)",
+    zIndex: 3,
+  },
+  storyProgressFill: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: colors.white,
+  },
+  storyViewerHeader: {
+    position: "absolute",
+    top: 28,
+    left: 14,
+    right: 10,
+    zIndex: 3,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  storyViewerProfile: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  storyViewerAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 2,
+    borderColor: colors.white,
+    backgroundColor: colors.green,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  storyViewerAvatarImage: {
+    width: "100%",
+    height: "100%",
+  },
+  storyViewerAvatarText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  storyViewerName: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  storyViewerTime: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 1,
+  },
+  storyViewerClose: {
+    padding: 8,
+  },
+  storyViewerImage: {
+    width: "100%",
+    height: "100%",
+  },
+  storyViewerGardenBtn: {
+    position: "absolute",
+    left: 18,
+    right: 18,
+    bottom: 26,
+    zIndex: 3,
+    borderColor: "rgba(255,255,255,0.42)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 13,
+    backgroundColor: "rgba(0,0,0,0.38)",
+  },
+  storyViewerGardenText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: "900",
   },
 
   // ── Feed Layout & Custom Header ───────────────────────
@@ -2362,5 +2592,50 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 14,
     fontWeight: "700",
+  },
+  addStoryGradientRing: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.green,
+    shadowColor: colors.green,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  addStoryRingInner: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
+  storyViewerAddBtn: {
+    position: "absolute",
+    left: 18,
+    right: 18,
+    bottom: 26,
+    zIndex: 3,
+    backgroundColor: colors.green,
+    borderRadius: 999,
+    paddingVertical: 12,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+    shadowColor: colors.green,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  storyViewerAddText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: "900",
   },
 });

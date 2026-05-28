@@ -29,6 +29,9 @@ import { getUserFavorites } from "../services/favorites";
 import { createSellerApplication } from "../services/sellerApplications";
 import { createReview, getReviewForOrder } from "../services/reviews";
 import { getOrCreateMyGarden, getGardenPlants, type GardenPlant } from "../services/gardens";
+import { getUserXp, getXpLevel } from "../services/rankings";
+import { getFriendSections, updateFriendRequestStatus, type FriendListItem, type FriendSections } from "../services/friends";
+import { getOrCreateDirectConversation } from "../services/messages";
 import { colors, radius, shadow, fontSize } from "../theme/colors";
 import { formatCurrency } from "../utils/currency";
 
@@ -106,8 +109,10 @@ function ProfileSkeleton() {
 const LEVEL_XP_MAX = 1000;
 
 export function ProfileScreen({
+  onOpenChat,
   onOpenListingDetail,
 }: {
+  onOpenChat?: (conversationId: string, title: string) => void;
   onOpenListingDetail?: (listingId: string) => void;
 }) {
   const { profile, refreshProfile, signOut, user } = useAuth();
@@ -146,6 +151,11 @@ export function ProfileScreen({
   // Garden Plants (for Badges and trackers)
   const [gardenPlants, setGardenPlants] = useState<GardenPlant[]>([]);
   const [isLoadingGarden, setIsLoadingGarden] = useState(false);
+  const [rankXp, setRankXp] = useState(0);
+  const [friendSections, setFriendSections] = useState<FriendSections>({ friends: [], received: [], sent: [] });
+  const [activeFriendTab, setActiveFriendTab] = useState<"friends" | "received" | "sent">("friends");
+  const [updatingFriendRequestId, setUpdatingFriendRequestId] = useState<string | null>(null);
+  const [messagingFriendId, setMessagingFriendId] = useState<string | null>(null);
 
   // Edit modal
   const [showEditModal, setShowEditModal] = useState(false);
@@ -429,6 +439,62 @@ export function ProfileScreen({
     loadGardenData();
   }, [user?.id]);
 
+  useEffect(() => {
+    async function loadRankXp() {
+      if (!user) {
+        setRankXp(0);
+        return;
+      }
+      try {
+        setRankXp(await getUserXp(user.id));
+      } catch (e) {
+        console.error("Failed to load rank XP", e);
+        setRankXp(0);
+      }
+    }
+    loadRankXp();
+  }, [user?.id]);
+
+  async function loadFriends() {
+    if (!user) {
+      setFriendSections({ friends: [], received: [], sent: [] });
+      return;
+    }
+
+    setFriendSections(await getFriendSections(user.id));
+  }
+
+  useEffect(() => {
+    loadFriends().catch((e) => console.warn("Failed to load friends", e));
+  }, [user?.id]);
+
+  async function handleFriendRequestUpdate(request: FriendListItem, status: "accepted" | "declined" | "cancelled") {
+    setUpdatingFriendRequestId(request.requestId);
+    try {
+      await updateFriendRequestStatus(request.requestId, status);
+      await loadFriends();
+    } catch (e) {
+      console.warn("Failed to update friend request", e);
+    } finally {
+      setUpdatingFriendRequestId(null);
+    }
+  }
+
+  async function handleMessageFriend(friend: FriendListItem) {
+    if (!onOpenChat) return;
+
+    setMessagingFriendId(friend.userId);
+    try {
+      const conversationId = await getOrCreateDirectConversation(friend.userId);
+      onOpenChat(conversationId, friend.displayName);
+    } catch (e) {
+      console.warn("Failed to open friend conversation", e);
+      Alert.alert("Message unavailable", "We couldn't open this chat yet. Please try again.");
+    } finally {
+      setMessagingFriendId(null);
+    }
+  }
+
   // ── Computed ─────────────────────────────────────────
   const displayName = profile?.display_name ?? "GrowMate User";
   const username = profile?.username ? `@${profile.username}` : user?.email?.split("@")[0] ?? "";
@@ -498,64 +564,13 @@ export function ProfileScreen({
   const completedReviews = Object.keys(reviewedOrdersMap).length;
   calculatedXp += completedReviews * 15;
 
-  const score = calculatedXp;
+  const score = rankXp;
+  calculatedXp = score;
 
-  // Levels threshold calculations
-  let level = 1;
-  let levelTitle = "🌱 Seedling";
-  let nextLevelXp = 50;
-  let currentLevelXp = 0;
-
-  if (calculatedXp >= 6350) {
-    level = 10;
-    levelTitle = "👑 GrowMate Guardian";
-    nextLevelXp = 10000;
-    currentLevelXp = 6350;
-  } else if (calculatedXp >= 4350) {
-    level = 9;
-    levelTitle = "🏆 GrowMate Veteran";
-    nextLevelXp = 6350;
-    currentLevelXp = 4350;
-  } else if (calculatedXp >= 2850) {
-    level = 8;
-    levelTitle = "🌟 Community Grower";
-    nextLevelXp = 4350;
-    currentLevelXp = 2850;
-  } else if (calculatedXp >= 1850) {
-    level = 7;
-    levelTitle = "🌳 Garden Builder";
-    nextLevelXp = 2850;
-    currentLevelXp = 1850;
-  } else if (calculatedXp >= 1150) {
-    level = 6;
-    levelTitle = "⭐ Trusted Buyer";
-    nextLevelXp = 1850;
-    currentLevelXp = 1150;
-  } else if (calculatedXp >= 650) {
-    level = 5;
-    levelTitle = "🛒 Smart Buyer";
-    nextLevelXp = 1150;
-    currentLevelXp = 650;
-  } else if (calculatedXp >= 350) {
-    level = 4;
-    levelTitle = "🏡 Garden Friend";
-    nextLevelXp = 650;
-    currentLevelXp = 350;
-  } else if (calculatedXp >= 150) {
-    level = 3;
-    levelTitle = "🪴 Plant Explorer";
-    nextLevelXp = 350;
-    currentLevelXp = 150;
-  } else if (calculatedXp >= 50) {
-    level = 2;
-    levelTitle = "🌿 Sprout";
-    nextLevelXp = 150;
-    currentLevelXp = 50;
-  }
-
-  const xpProgress = calculatedXp - currentLevelXp;
-  const xpNeededForNext = nextLevelXp - currentLevelXp;
-  const xpPct = Math.min(1, Math.max(0, xpProgress / xpNeededForNext));
+  const xpLevelInfo = getXpLevel(calculatedXp);
+  const level = xpLevelInfo.level;
+  const levelTitle = xpLevelInfo.title;
+  const xpPct = xpLevelInfo.progress;
 
   // Badges list config (using MaterialCommunityIcons instead of emojis)
   const badges = [
@@ -585,6 +600,12 @@ export function ProfileScreen({
   ];
 
   const activeListings = orders.filter((o) => o.status !== "cancelled" && o.status !== "completed").length;
+  const friendTabs: { key: "friends" | "received" | "sent"; label: string; count: number }[] = [
+    { key: "friends", label: "Friends", count: friendSections.friends.length },
+    { key: "received", label: "Requests", count: friendSections.received.length },
+    { key: "sent", label: "Sent", count: friendSections.sent.length },
+  ];
+  const currentFriendItems = friendSections[activeFriendTab];
 
   const statusColor: Record<string, string> = {
     pending: "#d97706",
@@ -713,7 +734,7 @@ export function ProfileScreen({
             <View style={styles.xpTrack}>
               <View style={[styles.xpFill, { width: `${Math.round(xpPct * 100)}%` as any }]} />
             </View>
-            <Text style={styles.xpLabel}>{Math.round(xpPct * 100)}% XP</Text>
+            <Text style={styles.xpLabel}>Lvl {level} · {Math.round(xpPct * 100)}% XP</Text>
           </View>
 
           {/* Bio */}
@@ -748,6 +769,104 @@ export function ProfileScreen({
             >
               <Text style={styles.secondaryBtnText}>Edit profile</Text>
             </Pressable>
+          </View>
+
+          <View style={styles.friendsCard}>
+            <View style={styles.friendsHeader}>
+              <View>
+                <Text style={styles.friendsTitle}>Friends</Text>
+                <Text style={styles.friendsSubtitle}>
+                  {friendSections.friends.length} connected gardener{friendSections.friends.length === 1 ? "" : "s"}
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="account-group-outline" size={22} color={colors.greenMid} />
+            </View>
+
+            <View style={styles.friendTabs}>
+              {friendTabs.map((tab) => {
+                const isActive = activeFriendTab === tab.key;
+                return (
+                  <Pressable
+                    key={tab.key}
+                    onPress={() => setActiveFriendTab(tab.key)}
+                    style={[styles.friendTab, isActive && styles.friendTabActive]}
+                  >
+                    <Text style={[styles.friendTabText, isActive && styles.friendTabTextActive]}>
+                      {tab.label} {tab.count > 0 ? tab.count : ""}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {currentFriendItems.length === 0 ? (
+              <View style={styles.friendEmpty}>
+                <MaterialCommunityIcons name="account-heart-outline" size={24} color={colors.greenMuted} />
+                <Text style={styles.friendEmptyText}>
+                  {activeFriendTab === "friends"
+                    ? "Friends you accept will appear here."
+                    : activeFriendTab === "received"
+                    ? "Incoming friend requests will appear here."
+                    : "Sent friend requests will appear here."}
+                </Text>
+              </View>
+            ) : (
+              currentFriendItems.slice(0, 4).map((friend) => (
+                <View key={friend.requestId} style={styles.friendRow}>
+                  {friend.avatarUrl ? (
+                    <Image source={{ uri: friend.avatarUrl }} style={styles.friendAvatar} />
+                  ) : (
+                    <View style={styles.friendAvatarFallback}>
+                      <Text style={styles.friendAvatarText}>{friend.displayName[0]?.toUpperCase() ?? "G"}</Text>
+                    </View>
+                  )}
+                  <View style={styles.friendInfo}>
+                    <Text style={styles.friendName} numberOfLines={1}>{friend.displayName}</Text>
+                    <Text style={styles.friendMeta} numberOfLines={1}>
+                      {friend.location ?? (friend.status === "friends" ? "Friend" : "GrowMate gardener")}
+                    </Text>
+                  </View>
+
+                  {activeFriendTab === "received" ? (
+                    <View style={styles.friendActions}>
+                      <Pressable
+                        disabled={updatingFriendRequestId === friend.requestId}
+                        onPress={() => handleFriendRequestUpdate(friend, "accepted")}
+                        style={styles.friendAcceptBtn}
+                      >
+                        <MaterialCommunityIcons name="check" size={15} color={colors.white} />
+                      </Pressable>
+                      <Pressable
+                        disabled={updatingFriendRequestId === friend.requestId}
+                        onPress={() => handleFriendRequestUpdate(friend, "declined")}
+                        style={styles.friendDeclineBtn}
+                      >
+                        <MaterialCommunityIcons name="close" size={15} color={colors.greenMuted} />
+                      </Pressable>
+                    </View>
+                  ) : activeFriendTab === "sent" ? (
+                    <Text style={styles.friendPendingText}>Pending</Text>
+                  ) : (
+                    <Pressable
+                      accessibilityLabel={`Message ${friend.displayName}`}
+                      disabled={!onOpenChat || messagingFriendId === friend.userId}
+                      onPress={() => handleMessageFriend(friend)}
+                      style={({ pressed }) => [
+                        styles.friendMessageBtn,
+                        pressed && { opacity: 0.82 },
+                        (!onOpenChat || messagingFriendId === friend.userId) && { opacity: 0.6 },
+                      ]}
+                    >
+                      {messagingFriendId === friend.userId ? (
+                        <ActivityIndicator size="small" color={colors.white} />
+                      ) : (
+                        <MaterialCommunityIcons name="message-text-outline" size={15} color={colors.white} />
+                      )}
+                    </Pressable>
+                  )}
+                </View>
+              ))
+            )}
           </View>
         </View>
 
@@ -1390,6 +1509,100 @@ const styles = StyleSheet.create({
     borderColor: colors.lineMid,
   },
   secondaryBtnText: { color: colors.greenMid, fontSize: 14, fontWeight: "700" },
+  friendsCard: {
+    backgroundColor: colors.surface0,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    marginTop: 12,
+    padding: 14,
+    ...shadow.sm,
+  },
+  friendsHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  friendsTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: "900" },
+  friendsSubtitle: { color: colors.textSecondary, fontSize: 12, fontWeight: "700", marginTop: 2 },
+  friendTabs: {
+    backgroundColor: colors.surface1,
+    borderRadius: radius.full,
+    flexDirection: "row",
+    gap: 4,
+    marginBottom: 12,
+    padding: 4,
+  },
+  friendTab: {
+    alignItems: "center",
+    borderRadius: radius.full,
+    flex: 1,
+    paddingVertical: 8,
+  },
+  friendTabActive: {
+    backgroundColor: colors.white,
+    ...shadow.sm,
+  },
+  friendTabText: { color: colors.textSecondary, fontSize: 11, fontWeight: "900" },
+  friendTabTextActive: { color: colors.green },
+  friendEmpty: { alignItems: "center", gap: 8, paddingVertical: 18 },
+  friendEmptyText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17,
+    textAlign: "center",
+  },
+  friendRow: {
+    alignItems: "center",
+    borderTopColor: colors.line,
+    borderTopWidth: 1,
+    flexDirection: "row",
+    gap: 10,
+    paddingVertical: 10,
+  },
+  friendAvatar: { backgroundColor: colors.surface1, borderRadius: 19, height: 38, width: 38 },
+  friendAvatarFallback: {
+    alignItems: "center",
+    backgroundColor: colors.sage,
+    borderRadius: 19,
+    height: 38,
+    justifyContent: "center",
+    width: 38,
+  },
+  friendAvatarText: { color: colors.green, fontSize: 14, fontWeight: "900" },
+  friendInfo: { flex: 1 },
+  friendName: { color: colors.textPrimary, fontSize: 13, fontWeight: "900" },
+  friendMeta: { color: colors.textSecondary, fontSize: 11, fontWeight: "700", marginTop: 2 },
+  friendActions: { flexDirection: "row", gap: 6 },
+  friendAcceptBtn: {
+    alignItems: "center",
+    backgroundColor: colors.green,
+    borderRadius: radius.full,
+    height: 30,
+    justifyContent: "center",
+    width: 30,
+  },
+  friendDeclineBtn: {
+    alignItems: "center",
+    backgroundColor: colors.surface1,
+    borderColor: colors.lineMid,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    height: 30,
+    justifyContent: "center",
+    width: 30,
+  },
+  friendMessageBtn: {
+    alignItems: "center",
+    backgroundColor: colors.green,
+    borderRadius: radius.full,
+    height: 32,
+    justifyContent: "center",
+    width: 32,
+  },
+  friendPendingText: { color: colors.greenMuted, fontSize: 11, fontWeight: "900" },
 
   // ── Sections ──────────────────────────────────────────
   section: { paddingHorizontal: 20, marginTop: 20 },

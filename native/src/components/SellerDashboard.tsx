@@ -271,6 +271,7 @@ export function SellerDashboard() {
   }
 
   return (
+    <>
     <Card>
       <Text style={styles.title}>Seller Dashboard</Text>
       <Text style={styles.body}>Create listings for review. Public Market visibility starts only after admin approval.</Text>
@@ -500,8 +501,9 @@ export function SellerDashboard() {
             : "Submit for review"}
         </Button>
       </View>
+    </Card>
 
-      <View style={styles.divider} />
+    <Card>
       <View style={styles.sectionHeaderRow}>
         <View>
           <Text style={styles.subtitle}>My listings</Text>
@@ -620,8 +622,9 @@ export function SellerDashboard() {
             </View>
           );
         })}
+    </Card>
 
-      <View style={styles.divider} />
+    <Card>
       <Text style={styles.subtitle}>Incoming Sales Orders</Text>
       {isLoading && <ActivityIndicator color={colors.green} style={styles.loader} />}
       {!isLoading && salesOrders.length === 0 && <Text style={styles.body}>No incoming orders yet.</Text>}
@@ -720,6 +723,7 @@ export function SellerDashboard() {
           );
         })}
     </Card>
+    </>
   );
 }
 

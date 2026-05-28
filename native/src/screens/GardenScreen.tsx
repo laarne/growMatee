@@ -5,6 +5,7 @@ import {
   FlatList,
   Image,
   ImageBackground,
+  KeyboardAvoidingView,
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -35,6 +36,7 @@ import { scanPlantWithLeafy, type LeafyScanResult } from "../services/leafyScan"
 import { pickImageFromLibrary, takePhotoWithCamera, uploadPublicImage, type PickedImage } from "../services/storage";
 import { colors, radius, shadow, fontSize } from "../theme/colors";
 import { DiscoverGardensScreen } from "./DiscoverGardensScreen";
+import { RankingsScreen } from "./RankingsScreen";
 import { supabase } from "../services/supabase";
 
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -53,7 +55,7 @@ type GardenScreenProps = {
 export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenProps) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<"discover" | "my_garden">("my_garden");
+  const [activeTab, setActiveTab] = useState<"discover" | "my_garden" | "ranking">("my_garden");
   const [garden, setGarden] = useState<Garden | null>(null);
   const [plants, setPlants] = useState<GardenPlant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,6 +78,7 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
   const [scanMessage, setScanMessage] = useState<string | null>(null);
 
   // Identify / Leafy Scan Modal State
+  const [showIdentifySourcePicker, setShowIdentifySourcePicker] = useState(false);
   const [showScannerModal, setShowScannerModal] = useState(false);
   const [scannerPhoto, setScannerPhoto] = useState<PickedImage | null>(null);
   const [isScanningScanner, setIsScanningScanner] = useState(false);
@@ -160,10 +163,11 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
     } finally { setIsScanning(false); }
   }
 
-  async function handleIdentifyPlant() {
+  async function handleIdentifyPlant(source: "camera" | "library") {
     setError(null);
+    setShowIdentifySourcePicker(false);
     try {
-      const photo = await takePhotoWithCamera();
+      const photo = source === "camera" ? await takePhotoWithCamera() : await pickImageFromLibrary();
       if (!photo) return;
 
       setScannerPhoto(photo);
@@ -175,7 +179,9 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
       const result = await scanPlantWithLeafy(photo);
       setScannerResult(result);
     } catch (e) {
-      setScannerError(e instanceof Error ? e.message : "Leafy AI scan failed.");
+      const message = e instanceof Error ? e.message : "Leafy AI scan failed.";
+      setScannerError(message);
+      setShowScannerModal(true);
     } finally {
       setIsScanningScanner(false);
     }
@@ -337,15 +343,15 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
   return (
     <Screen showHeader={false} scroll={false} noPadding={true}>
       {/* ── Tab switcher (top) ── */}
-      <View style={[styles.topTabs, { paddingTop: 12 + insets.top }]}>
-        {(["discover", "my_garden"] as const).map((tab) => (
+      <View style={[styles.topTabs, { paddingTop: Math.max(22, 12 + insets.top) }]}>
+        {(["discover", "my_garden", "ranking"] as const).map((tab) => (
           <Pressable
             key={tab}
             onPress={() => setActiveTab(tab)}
             style={[styles.topTab, activeTab === tab && styles.topTabActive]}
           >
             <Text style={[styles.topTabText, activeTab === tab && styles.topTabTextActive]}>
-              {tab === "my_garden" ? "My Garden" : "Discover"}
+              {tab === "my_garden" ? "My Garden" : tab === "ranking" ? "Ranking" : "Discover"}
             </Text>
           </Pressable>
         ))}
@@ -357,6 +363,8 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
           onOpenChat={onOpenChat}
           onOpenListingDetail={onOpenListingDetail}
         />
+      ) : activeTab === "ranking" ? (
+        <RankingsScreen embedded onOpenChat={onOpenChat} onOpenListingDetail={onOpenListingDetail} />
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -507,7 +515,7 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
               </Pressable>
 
               <Pressable
-                onPress={handleIdentifyPlant}
+                onPress={() => setShowIdentifySourcePicker(true)}
                 style={({ pressed }) => [styles.actionHalfBtn, pressed && { opacity: 0.8 }]}
               >
                 <MaterialCommunityIcons name="leaf-circle-outline" size={18} color={colors.greenMid} />
@@ -550,7 +558,7 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
                   <MaterialCommunityIcons name="plus" size={18} color={colors.white} />
                   <Text style={styles.emptyPrimaryText}>Add first plant</Text>
                 </Pressable>
-                <Pressable onPress={handleIdentifyPlant} style={styles.emptySecondaryBtn}>
+                <Pressable onPress={() => setShowIdentifySourcePicker(true)} style={styles.emptySecondaryBtn}>
                   <MaterialCommunityIcons name="leaf-circle-outline" size={18} color={colors.green} />
                   <Text style={styles.emptySecondaryText}>Identify with Leafy AI</Text>
                 </Pressable>
@@ -680,18 +688,27 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
         transparent
         onRequestClose={() => !isSaving && setShowAddModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <Pressable style={{ flex: 1 }} onPress={() => !isSaving && setShowAddModal(false)} />
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHandle} />
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{isEditMode ? "Edit Plant" : "Add a Plant"}</Text>
-              <Pressable onPress={() => { if (!isSaving) { setShowAddModal(false); resetForm(); } }} hitSlop={8}>
-                <MaterialCommunityIcons name="close" size={22} color={colors.greenMuted} />
-              </Pressable>
-            </View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
+          style={styles.modalKeyboardAvoider}
+        >
+          <View style={styles.modalOverlay}>
+            <Pressable style={{ flex: 1 }} onPress={() => !isSaving && setShowAddModal(false)} />
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHandle} />
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{isEditMode ? "Edit Plant" : "Add a Plant"}</Text>
+                <Pressable onPress={() => { if (!isSaving) { setShowAddModal(false); resetForm(); } }} hitSlop={8}>
+                  <MaterialCommunityIcons name="close" size={22} color={colors.greenMuted} />
+                </Pressable>
+              </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.modalScrollContent}
+              >
               {/* Photo + Leafy AI */}
               <View style={styles.photoRow}>
                 <Pressable onPress={handlePickPlantPhoto} style={styles.photoBox}>
@@ -813,14 +830,65 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
                   </>
                 )}
               </Pressable>
-            </ScrollView>
+              </ScrollView>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ══════════════════════════════════════════════════
           IDENTIFY PLANT (LEAFY AI) MODAL
       ══════════════════════════════════════════════════ */}
+      <Modal
+        visible={showIdentifySourcePicker}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowIdentifySourcePicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={{ flex: 1 }} onPress={() => setShowIdentifySourcePicker(false)} />
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Identify Plant</Text>
+              <Pressable onPress={() => setShowIdentifySourcePicker(false)} hitSlop={8}>
+                <MaterialCommunityIcons name="close" size={22} color={colors.greenMuted} />
+              </Pressable>
+            </View>
+
+            <View style={styles.identifyChoiceGrid}>
+              <Pressable
+                onPress={() => handleIdentifyPlant("camera")}
+                style={({ pressed }) => [styles.identifyChoiceCard, pressed && styles.identifyChoiceCardPressed]}
+              >
+                <View style={styles.identifyChoiceIcon}>
+                  <MaterialCommunityIcons name="camera-outline" size={24} color={colors.green} />
+                </View>
+                <View style={styles.identifyChoiceCopy}>
+                  <Text style={styles.identifyChoiceTitle}>Use camera</Text>
+                  <Text style={styles.identifyChoiceText}>Take a fresh photo for Leafy AI.</Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={22} color={colors.greenMuted} />
+              </Pressable>
+
+              <Pressable
+                onPress={() => handleIdentifyPlant("library")}
+                style={({ pressed }) => [styles.identifyChoiceCard, pressed && styles.identifyChoiceCardPressed]}
+              >
+                <View style={styles.identifyChoiceIcon}>
+                  <MaterialCommunityIcons name="image-plus-outline" size={24} color={colors.green} />
+                </View>
+                <View style={styles.identifyChoiceCopy}>
+                  <Text style={styles.identifyChoiceTitle}>Upload photo</Text>
+                  <Text style={styles.identifyChoiceText}>Choose an existing plant photo.</Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={22} color={colors.greenMuted} />
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Modal
         visible={showScannerModal}
         animationType="slide"
@@ -982,12 +1050,12 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
                 )}
 
                 <Pressable
-                  onPress={handleIdentifyPlant}
+                  onPress={() => setShowIdentifySourcePicker(true)}
                   disabled={isScanningScanner}
                   style={styles.scannerRetryBtn}
                 >
                   <MaterialCommunityIcons name="camera-outline" size={18} color={colors.green} />
-                  <Text style={styles.scannerRetryBtnText}>Retake Photo</Text>
+                  <Text style={styles.scannerRetryBtnText}>Choose another photo</Text>
                 </Pressable>
               </View>
             </ScrollView>
@@ -1080,73 +1148,83 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
 
       {/* ══ Edit Garden Modal ════════════════════════════ */}
       <Modal visible={showEditGardenModal} animationType="slide" transparent onRequestClose={() => setShowEditGardenModal(false)}>
-        <View style={styles.modalOverlay}>
-          <Pressable style={{ flex: 1 }} onPress={() => setShowEditGardenModal(false)} />
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHandle} />
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Garden</Text>
-              <Pressable onPress={() => setShowEditGardenModal(false)} hitSlop={8}>
-                <MaterialCommunityIcons name="close" size={22} color={colors.greenMuted} />
-              </Pressable>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Garden Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={editGardenName}
-                  onChangeText={setEditGardenName}
-                  placeholder="e.g. My Plant Collection"
-                  placeholderTextColor={colors.textTertiary}
-                />
-              </View>
-
-              <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Garden Bio / Description</Text>
-                <TextInput
-                  style={[styles.input, { minHeight: 80 }]}
-                  value={editGardenBio}
-                  onChangeText={setEditGardenBio}
-                  placeholder="Tell visitors about your garden collection..."
-                  placeholderTextColor={colors.textTertiary}
-                  multiline
-                  numberOfLines={3}
-                  textAlignVertical="top"
-                />
-              </View>
-
-              <View style={styles.field}>
-                <Text style={styles.fieldLabel}>Privacy Settings</Text>
-                <Pressable
-                  onPress={() => setEditGardenIsPublic((prev) => !prev)}
-                  style={({ pressed }) => [
-                    styles.privacyToggleBtn,
-                    editGardenIsPublic ? styles.privacyBtnActive : styles.privacyBtnPrivate,
-                    pressed && { opacity: 0.85 }
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name={editGardenIsPublic ? "earth" : "lock-outline"}
-                    size={18}
-                    color={editGardenIsPublic ? colors.white : colors.green}
-                  />
-                  <Text style={editGardenIsPublic ? styles.privacyBtnActiveText : styles.privacyBtnPrivateText}>
-                    {editGardenIsPublic ? "Public Garden (Anyone can view)" : "Private Garden (Only you can view)"}
-                  </Text>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
+          style={styles.modalKeyboardAvoider}
+        >
+          <View style={styles.modalOverlay}>
+            <Pressable style={{ flex: 1 }} onPress={() => setShowEditGardenModal(false)} />
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHandle} />
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Edit Garden</Text>
+                <Pressable onPress={() => setShowEditGardenModal(false)} hitSlop={8}>
+                  <MaterialCommunityIcons name="close" size={22} color={colors.greenMuted} />
                 </Pressable>
               </View>
-
-              <Pressable
-                onPress={handleSaveGarden}
-                disabled={isSavingGarden || !editGardenName.trim()}
-                style={[styles.saveBtn, (isSavingGarden || !editGardenName.trim()) && { opacity: 0.4 }]}
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.modalScrollContent}
               >
-                <Text style={styles.saveBtnText}>{isSavingGarden ? "Saving..." : "Save changes"}</Text>
-              </Pressable>
-            </ScrollView>
+                <View style={styles.field}>
+                  <Text style={styles.fieldLabel}>Garden Name *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editGardenName}
+                    onChangeText={setEditGardenName}
+                    placeholder="e.g. My Plant Collection"
+                    placeholderTextColor={colors.textTertiary}
+                  />
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={styles.fieldLabel}>Garden Bio / Description</Text>
+                  <TextInput
+                    style={[styles.input, { minHeight: 80 }]}
+                    value={editGardenBio}
+                    onChangeText={setEditGardenBio}
+                    placeholder="Tell visitors about your garden collection..."
+                    placeholderTextColor={colors.textTertiary}
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                  />
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={styles.fieldLabel}>Privacy Settings</Text>
+                  <Pressable
+                    onPress={() => setEditGardenIsPublic((prev) => !prev)}
+                    style={({ pressed }) => [
+                      styles.privacyToggleBtn,
+                      editGardenIsPublic ? styles.privacyBtnActive : styles.privacyBtnPrivate,
+                      pressed && { opacity: 0.85 }
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name={editGardenIsPublic ? "earth" : "lock-outline"}
+                      size={18}
+                      color={editGardenIsPublic ? colors.white : colors.green}
+                    />
+                    <Text style={editGardenIsPublic ? styles.privacyBtnActiveText : styles.privacyBtnPrivateText}>
+                      {editGardenIsPublic ? "Public Garden (Anyone can view)" : "Private Garden (Only you can view)"}
+                    </Text>
+                  </Pressable>
+                </View>
+
+                <Pressable
+                  onPress={handleSaveGarden}
+                  disabled={isSavingGarden || !editGardenName.trim()}
+                  style={[styles.saveBtn, (isSavingGarden || !editGardenName.trim()) && { opacity: 0.4 }]}
+                >
+                  <Text style={styles.saveBtnText}>{isSavingGarden ? "Saving..." : "Save changes"}</Text>
+                </Pressable>
+              </ScrollView>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </Screen>
 
@@ -1159,12 +1237,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: colors.cream,
     paddingHorizontal: 20,
-    gap: 20,
+    gap: 18,
     borderBottomWidth: 1,
     borderBottomColor: colors.line,
   },
   topTab: {
     paddingBottom: 10,
+    flexShrink: 1,
     borderBottomWidth: 2,
     borderBottomColor: "transparent",
   },
@@ -1451,6 +1530,7 @@ const styles = StyleSheet.create({
   },
 
   // ── Modal ─────────────────────────────────────────────
+  modalKeyboardAvoider: { flex: 1 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
   modalSheet: {
     backgroundColor: colors.surface0,
@@ -1459,6 +1539,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 32,
     maxHeight: "92%",
+  },
+  modalScrollContent: {
+    paddingBottom: 24,
   },
   modalHandle: {
     width: 36, height: 4,
@@ -1477,6 +1560,45 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: { fontSize: 17, fontWeight: "800", color: colors.textPrimary },
+  identifyChoiceGrid: {
+    gap: 12,
+    paddingBottom: 12,
+  },
+  identifyChoiceCard: {
+    alignItems: "center",
+    backgroundColor: colors.surface1,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    padding: 14,
+  },
+  identifyChoiceCardPressed: {
+    opacity: 0.75,
+  },
+  identifyChoiceIcon: {
+    alignItems: "center",
+    backgroundColor: colors.sage,
+    borderRadius: radius.full,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  identifyChoiceCopy: {
+    flex: 1,
+  },
+  identifyChoiceTitle: {
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  identifyChoiceText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 2,
+  },
 
   // Photo section
   photoRow: { flexDirection: "row", gap: 10, alignItems: "stretch", marginBottom: 14 },

@@ -16,6 +16,14 @@ import { ImageZoomModal } from "../components/ImageZoomModal";
 
 const CATEGORIES = ["All", "Indoor", "Outdoor", "Vegetables", "Root Crops", "Fruit Trees", "Rare", "Flowering", "Medicinal", "Succulents", "Herbs", "Ornamental"];
 const SORT_OPTIONS = ["Nearest", "Newest", "Price: Low", "Price: High"];
+const stylesConst = {
+  forest: "#1a3325",
+  gold: "#c79a3b",
+};
+const marketFonts = {
+  display: Platform.OS === "ios" ? "Georgia" : "serif",
+  body: Platform.OS === "ios" ? "Avenir Next" : "sans-serif",
+};
 
 export function MarketScreen({
   onOpenChat,
@@ -248,6 +256,7 @@ export function MarketScreen({
     }
     return next;
   }, [filteredListings, sortIndex]);
+  const featuredListing = sortedListings[0];
 
   return (
     <Screen
@@ -336,6 +345,44 @@ export function MarketScreen({
       {/* ── Seller section hidden to keep marketplace buyer-focused ── */}
 
       {/* ── Listings header ── */}
+      {!isLoadingListings && !listingError && featuredListing && (
+        <Pressable
+          onPress={() => onOpenListingDetail && onOpenListingDetail(featuredListing.id)}
+          style={({ pressed }) => [styles.featuredBanner, pressed && styles.listingCardPressed]}
+          accessibilityRole="button"
+          accessibilityLabel={`Open featured listing ${featuredListing.name}`}
+        >
+          <View style={styles.featuredCopy}>
+            <View style={styles.featuredEyebrowRow}>
+              <MaterialCommunityIcons name="leaf" size={13} color={stylesConst.gold} />
+              <Text style={styles.featuredEyebrow}>Staff Pick</Text>
+            </View>
+            <Text style={styles.featuredTitle} numberOfLines={2}>
+              {featuredListing.name}
+            </Text>
+            <Text style={styles.featuredMeta} numberOfLines={1}>
+              {featuredListing.category} - {featuredListing.sellerName}
+            </Text>
+            <View style={styles.featuredFooter}>
+              <Text style={styles.featuredPrice}>{formatCurrency(featuredListing.price)}</Text>
+              <View style={styles.featuredCta}>
+                <Text style={styles.featuredCtaText}>View</Text>
+                <MaterialCommunityIcons name="arrow-right" size={14} color={colors.white} />
+              </View>
+            </View>
+          </View>
+          <View style={styles.featuredImageWrap}>
+            {featuredListing.photoUrl ? (
+              <Image source={{ uri: featuredListing.photoUrl }} style={styles.featuredImage} />
+            ) : (
+              <View style={styles.featuredImageFallback}>
+                <MaterialCommunityIcons name="flower-outline" size={34} color="rgba(255,255,255,0.65)" />
+              </View>
+            )}
+          </View>
+        </Pressable>
+      )}
+
       <View style={styles.sectionRow}>
         <Text style={styles.section}>Listings</Text>
         <Pressable
@@ -450,38 +497,6 @@ export function MarketScreen({
                 </Text>
 
                 <View style={styles.cardSpacer} />
-
-                {/* Actions row: Talk to Seller + Add to Cart + Buy Now */}
-                <View style={styles.cardActionsRow}>
-                  {onOpenChat && (
-                    <Pressable
-                      onPress={(e) => { e.stopPropagation?.(); handleMessageSeller(listing); }}
-                      style={({ pressed }) => [styles.gridChatBtn, pressed && styles.actionBtnPressed]}
-                      hitSlop={6}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Message seller for ${listing.name}`}
-                    >
-                      <MaterialCommunityIcons name="forum-outline" size={14} color={colors.greenMid || colors.green} />
-                    </Pressable>
-                  )}
-                  <Pressable
-                    onPress={(e) => { e.stopPropagation?.(); handleAddToCart(listing); }}
-                    style={({ pressed }) => [styles.gridCartBtn, pressed && styles.actionBtnPressed]}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Add ${listing.name} to cart`}
-                  >
-                    <MaterialCommunityIcons color={colors.green} name="cart-plus" size={14} />
-                    <Text style={styles.gridCartBtnText}>Add</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={(e) => { e.stopPropagation?.(); handleOrderPress(listing); }}
-                    style={({ pressed }) => [styles.gridOrderBtn, pressed && styles.actionBtnPressed]}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Buy ${listing.name} now`}
-                  >
-                    <Text style={styles.gridOrderBtnText}>Buy Now</Text>
-                  </Pressable>
-                </View>
               </View>
             </Pressable>
           ))}
@@ -822,15 +837,15 @@ const styles = StyleSheet.create({
   searchWrap: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.white,
-    borderColor: colors.line,
+    backgroundColor: "#fffaf1",
+    borderColor: "#eadcc0",
     borderRadius: 28,
     borderWidth: 1,
-    marginTop: 6,
-    marginBottom: 10,
+    marginTop: 10,
+    marginBottom: 14,
     paddingHorizontal: 14,
     paddingVertical: 4,
-    shadowColor: "#000",
+    shadowColor: stylesConst.forest,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
@@ -839,45 +854,46 @@ const styles = StyleSheet.create({
   searchIcon: { marginRight: 8 },
   searchInput: {
     flex: 1,
-    color: colors.green,
+    color: stylesConst.forest,
+    fontFamily: marketFonts.body,
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "600",
     paddingVertical: 10,
   },
   // ── Category chips ───────────────────────────────────────
-  chipsScroll: { marginBottom: 10 },
+  chipsScroll: { marginBottom: 14 },
   chipsRow: { gap: 8, paddingVertical: 2, paddingRight: 4 },
   chip: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.white,
+    borderColor: "#e3d6bc",
+    backgroundColor: "#fffaf1",
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  chipActive: { backgroundColor: colors.green, borderColor: colors.green },
-  chipText: { color: colors.greenMuted, fontSize: 13, fontWeight: "800" },
+  chipActive: { backgroundColor: stylesConst.forest, borderColor: stylesConst.forest },
+  chipText: { color: colors.greenMuted, fontFamily: marketFonts.body, fontSize: 13, fontWeight: "800" },
   chipTextActive: { color: colors.white },
   // ── Sort ─────────────────────────────────────────────────
   sortRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 4,
+    marginBottom: 10,
   },
-  sortLabel: { color: colors.greenMuted, fontSize: 13, fontWeight: "800" },
+  sortLabel: { color: colors.greenMuted, fontFamily: marketFonts.body, fontSize: 12, fontWeight: "800", letterSpacing: 0.4, textTransform: "uppercase" },
   sortPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.white,
+    borderColor: "#e3d6bc",
+    backgroundColor: "#fffaf1",
     paddingHorizontal: 14,
     paddingVertical: 7,
   },
-  sortPillText: { color: colors.green, fontSize: 13, fontWeight: "900" },
+  sortPillText: { color: stylesConst.forest, fontFamily: marketFonts.body, fontSize: 13, fontWeight: "900" },
   sortMenu: {
     backgroundColor: colors.white,
     borderRadius: 16,
@@ -895,6 +911,81 @@ const styles = StyleSheet.create({
   sortMenuItemActive: { backgroundColor: colors.sage },
   sortMenuItemText: { color: colors.greenMuted, fontSize: 14, fontWeight: "700" },
   sortMenuItemTextActive: { color: colors.green, fontWeight: "900" },
+  featuredBanner: {
+    alignItems: "stretch",
+    backgroundColor: stylesConst.forest,
+    borderRadius: 18,
+    flexDirection: "row",
+    gap: 14,
+    marginBottom: 18,
+    marginTop: 2,
+    minHeight: 160,
+    overflow: "hidden",
+    padding: 16,
+    shadowColor: stylesConst.forest,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 5,
+  },
+  featuredCopy: { flex: 1, justifyContent: "space-between", gap: 8 },
+  featuredEyebrowRow: { alignItems: "center", flexDirection: "row", gap: 6 },
+  featuredEyebrow: {
+    color: "#e8d7a8",
+    fontFamily: marketFonts.body,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  featuredTitle: {
+    color: colors.white,
+    fontFamily: marketFonts.display,
+    fontSize: 24,
+    fontWeight: "900",
+    lineHeight: 29,
+  },
+  featuredMeta: {
+    color: "#c9d6c5",
+    fontFamily: marketFonts.body,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  featuredFooter: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", gap: 10 },
+  featuredPrice: {
+    color: stylesConst.gold,
+    fontFamily: marketFonts.body,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  featuredCta: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.13)",
+    borderColor: "rgba(255,255,255,0.18)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  featuredCtaText: { color: colors.white, fontFamily: marketFonts.body, fontSize: 12, fontWeight: "900" },
+  featuredImageWrap: {
+    alignSelf: "center",
+    borderColor: "rgba(255,255,255,0.14)",
+    borderRadius: 16,
+    borderWidth: 1,
+    height: 120,
+    overflow: "hidden",
+    width: 108,
+  },
+  featuredImage: { height: "100%", width: "100%" },
+  featuredImageFallback: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    flex: 1,
+    justifyContent: "center",
+  },
   // ── Seller banners ───────────────────────────────────────
   sellerBanner: {
     flexDirection: "row",
@@ -984,11 +1075,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 12,
-    marginBottom: 10,
+    marginTop: 8,
+    marginBottom: 12,
   },
-  section: { color: colors.green, fontSize: 20, fontWeight: "900" },
-  refreshBtn: { padding: 6 },
+  section: {
+    color: stylesConst.forest,
+    fontFamily: marketFonts.display,
+    fontSize: 25,
+    fontWeight: "900",
+  },
+  refreshBtn: {
+    alignItems: "center",
+    backgroundColor: "#fffaf1",
+    borderColor: "#e3d6bc",
+    borderRadius: 16,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: "center",
+    width: 34,
+  },
   // ── States ───────────────────────────────────────────────
   centerState: { alignItems: "center", paddingVertical: 32, gap: 10 },
   stateText: { color: colors.greenMuted, fontSize: 13, fontWeight: "700", textAlign: "center" },
@@ -1006,24 +1111,24 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
-    marginTop: 4,
+    gap: 12,
+    marginTop: 2,
   },
   gridSpacer: {
-    width: "48%",
+    width: "47.8%",
   },
   // ── Listing card (grid cell) ──────────────────────────────
   listingCard: {
-    width: "48%",
-    backgroundColor: colors.white,
+    width: "47.8%",
+    backgroundColor: "#fffaf1",
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: "#eadcc0",
     overflow: "hidden",
-    shadowColor: "#315d37",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
+    shadowColor: stylesConst.forest,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
     elevation: 3,
   },
   listingCardPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
@@ -1031,11 +1136,11 @@ const styles = StyleSheet.create({
   photoFallback: {
     width: "100%",
     aspectRatio: 1,
-    backgroundColor: colors.surface1, // premium soft tint sage replacement
+    backgroundColor: "#f3ebd9",
     alignItems: "center",
     justifyContent: "center",
     borderBottomWidth: 1,
-    borderBottomColor: colors.line,
+    borderBottomColor: "#eadcc0",
   },
   photoFallbackText: {
     color: colors.textTertiary,
@@ -1052,54 +1157,67 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(0,0,0,0.28)",
+    backgroundColor: "rgba(26,51,37,0.72)",
     alignItems: "center",
     justifyContent: "center",
   },
-  listingBody: { padding: 10, gap: 3, flex: 1 },
+  listingBody: { padding: 11, gap: 4, flex: 1 },
   cardSpacer: { flex: 1 },
   categoryChip: {
     alignSelf: "flex-start",
-    backgroundColor: colors.sage,
+    backgroundColor: "#efe5cc",
     borderRadius: 999,
-    paddingHorizontal: 8,
+    paddingHorizontal: 9,
     paddingVertical: 3,
     marginBottom: 2,
   },
-  categoryChipText: { color: colors.green, fontSize: 12, fontWeight: "900" },
+  categoryChipText: {
+    color: stylesConst.forest,
+    fontFamily: marketFonts.body,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.7,
+    textTransform: "uppercase",
+  },
   heartBtn: { padding: 4 },
-  listingTitle: { color: colors.green, fontSize: 13, fontWeight: "900", lineHeight: 18 },
+  listingTitle: {
+    color: stylesConst.forest,
+    fontFamily: marketFonts.display,
+    fontSize: 16,
+    fontWeight: "900",
+    lineHeight: 20,
+  },
   localName: { color: colors.greenMuted, fontSize: 11, fontWeight: "700" },
-  price: { color: colors.green, fontSize: 15, fontWeight: "900", marginTop: 2 },
+  price: { color: stylesConst.forest, fontFamily: marketFonts.body, fontSize: 16, fontWeight: "900", marginTop: 2 },
   meta: { color: colors.greenMuted, fontSize: 11, fontWeight: "800" },
-  sellerRow: { flexDirection: "row", alignItems: "center", gap: 2, marginTop: 1 },
-  metaSmall: { color: colors.greenMuted, fontSize: 12, fontWeight: "700", flex: 1 },
+  sellerRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 1 },
+  metaSmall: { color: colors.greenMuted, fontFamily: marketFonts.body, fontSize: 11, fontWeight: "700", flex: 1 },
   gridOrderBtn: {
     flex: 1,
     flexDirection: "row",
-    backgroundColor: colors.green,
-    borderRadius: 999,
+    backgroundColor: stylesConst.forest,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     gap: 5,
-    minHeight: 44,
-    paddingVertical: 10,
+    minHeight: 38,
+    paddingVertical: 8,
   },
-  gridOrderBtnText: { color: colors.white, fontSize: 12, fontWeight: "900" },
+  gridOrderBtnText: { color: colors.white, fontFamily: marketFonts.body, fontSize: 11, fontWeight: "900" },
   gridCartBtn: {
-    flex: 0.8,
+    flex: 0.72,
     flexDirection: "row",
-    backgroundColor: colors.sage,
-    borderColor: colors.line,
+    backgroundColor: "#f4ead3",
+    borderColor: "#e0d0ad",
     borderWidth: 1,
-    borderRadius: 999,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
-    minHeight: 44,
-    paddingVertical: 10,
+    minHeight: 38,
+    paddingVertical: 8,
   },
-  gridCartBtnText: { color: colors.green, fontSize: 12, fontWeight: "900" },
+  gridCartBtnText: { color: stylesConst.forest, fontFamily: marketFonts.body, fontSize: 11, fontWeight: "900" },
   cartEmpty: {
     alignItems: "center",
     gap: 8,
@@ -1170,18 +1288,18 @@ const styles = StyleSheet.create({
   cardActionsRow: {
     flexDirection: "row",
     gap: 6,
-    marginTop: 6,
+    marginTop: 8,
     alignItems: "center",
   },
   gridChatBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.sage,
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    backgroundColor: "#f4ead3",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: "#e0d0ad",
   },
   sheetOverlay: {
     flex: 1,
@@ -1475,31 +1593,35 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 8,
     left: 8,
-    backgroundColor: colors.green,
-    borderRadius: 8,
-    paddingHorizontal: 8,
+    backgroundColor: "rgba(26,51,37,0.82)",
+    borderColor: "rgba(255,255,255,0.18)",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 7,
     paddingVertical: 4,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 3,
   },
   aiCheckedImageOverlayText: {
     color: colors.white,
-    fontSize: 11,
+    fontFamily: marketFonts.body,
+    fontSize: 9,
     fontWeight: "900",
   },
   sellerTrustRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 2,
-    backgroundColor: "#fef3c7",
+    backgroundColor: "#f3dfaa",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
     marginLeft: 6,
   },
   sellerTrustText: {
-    color: "#b45309",
+    color: "#7c5314",
+    fontFamily: marketFonts.body,
     fontSize: 11,
     fontWeight: "900",
   },

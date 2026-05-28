@@ -17,51 +17,35 @@ import { getOrCreateMyGarden, getGardenPlants, type GardenPlant } from "../servi
 import { getUserOrders, type Order } from "../services/listings";
 import { colors, radius, shadow, fontSize, spacing } from "../theme/colors";
 import { Screen } from "../components/Screen";
+import { SellerGardenModal } from "../components/SellerGardenModal";
 
 const MEDAL_COLORS = ["#f59e0b", "#94a3b8", "#cd7f32"];
 const MEDAL_BG = ["#fef3c7", "#f1f5f9", "#fdf4e7"];
 const MEDAL_ICONS: ("medal" | "medal-outline" | "podium-bronze")[] = ["medal", "medal-outline", "podium-bronze"];
 
-const MOCK_USERS: LeaderboardEntry[] = [
-  {
-    userId: "mock-1",
-    displayName: "Flora Lover",
-    location: "Quezon City, PH",
-    avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=60",
-    points: 1250,
-  },
-  {
-    userId: "mock-2",
-    displayName: "Leafy Explorer",
-    location: "Davao City, PH",
-    avatarUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=60",
-    points: 980,
-  },
-  {
-    userId: "mock-3",
-    displayName: "Seedling Queen",
-    location: "Cebu City, PH",
-    avatarUrl: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&auto=format&fit=crop&q=60",
-    points: 750,
-  },
-  {
-    userId: "mock-4",
-    displayName: "Urban Botanist",
-    location: "Manila, PH",
-    avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=60",
-    points: 540,
-  },
-  {
-    userId: "mock-5",
-    displayName: "Green Thumb Joe",
-    location: "Baguio City, PH",
-    avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=60",
-    points: 320,
-  },
-];
+type RankingsScreenProps = {
+  embedded?: boolean;
+  onOpenChat?: (convoId: string, title: string) => void;
+  onOpenListingDetail?: (listingId: string) => void;
+};
 
-export function RankingsScreen() {
+export function RankingsScreen({
+  embedded = false,
+  onOpenChat,
+  onOpenListingDetail,
+}: RankingsScreenProps) {
   const { user } = useAuth();
+
+  // Seller garden modal state
+  const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
+  const [selectedSellerName, setSelectedSellerName] = useState<string>("");
+  const [showSellerGarden, setShowSellerGarden] = useState(false);
+
+  function handleViewSellerGarden(sellerId: string, sellerName: string) {
+    setSelectedSellerId(sellerId);
+    setSelectedSellerName(sellerName);
+    setShowSellerGarden(true);
+  }
   const [activeView, setActiveView] = useState<"badges" | "leaderboard">("leaderboard");
   const [activeTab, setActiveTab] = useState<"consistency" | "collections" | "sets">("consistency");
 
@@ -76,10 +60,10 @@ export function RankingsScreen() {
   const [isLoadingBadges, setIsLoadingBadges] = useState(false);
 
   // AsyncStorage consistency data
-  const [appOpens, setAppOpens] = useState(18); // default values matching user's screenshots
-  const [loginStreak, setLoginStreak] = useState(5);
-  const [weekendVisits, setWeekendVisits] = useState(2);
-  const [returnedAfterBreak, setReturnedAfterBreak] = useState(true);
+  const [appOpens, setAppOpens] = useState(0);
+  const [loginStreak, setLoginStreak] = useState(0);
+  const [weekendVisits, setWeekendVisits] = useState(0);
+  const [returnedAfterBreak, setReturnedAfterBreak] = useState(false);
 
   // ── Load Leaderboard ──
   async function loadLeaderboard() {
@@ -87,25 +71,7 @@ export function RankingsScreen() {
     setLeaderboardError(null);
     try {
       const data = await getLeaderboard();
-      
-      // If we have fewer than 5 entries, merge with high-fidelity mock users to present a complete top-5 leaderboard
-      let merged = [...data];
-      if (merged.length < 5) {
-        const existingNames = new Set(data.map(d => d.displayName.toLowerCase()));
-        const needed = 5 - merged.length;
-        let added = 0;
-        for (const mock of MOCK_USERS) {
-          if (added >= needed) break;
-          if (!existingNames.has(mock.displayName.toLowerCase())) {
-            merged.push(mock);
-            added++;
-          }
-        }
-      }
-      
-      // Sort points descending
-      merged.sort((a, b) => b.points - a.points);
-      setLeaderboard(merged);
+      setLeaderboard(data);
     } catch (loadError) {
       setLeaderboardError(loadError instanceof Error ? loadError.message : "Unable to load leaderboard.");
     } finally {
@@ -140,11 +106,11 @@ export function RankingsScreen() {
         const storedWeekend = await AsyncStorage.getItem("growmate_weekend_visits");
         const storedLastOpen = await AsyncStorage.getItem("growmate_last_open_time");
 
-        let opens = storedOpens ? parseInt(storedOpens, 10) : 17;
-        let streak = storedStreak ? parseInt(storedStreak, 10) : 5;
-        let weekend = storedWeekend ? parseInt(storedWeekend, 10) : 2;
+        let opens = storedOpens ? parseInt(storedOpens, 10) : 0;
+        let streak = storedStreak ? parseInt(storedStreak, 10) : 0;
+        let weekend = storedWeekend ? parseInt(storedWeekend, 10) : 0;
         let lastOpen = storedLastOpen ? parseInt(storedLastOpen, 10) : 0;
-        let returnedBreak = true;
+        let returnedBreak = false;
 
         const now = Date.now();
         const oneDay = 24 * 60 * 60 * 1000;
@@ -293,19 +259,19 @@ export function RankingsScreen() {
   });
   const marketExplorerProgress = Math.min(purchasedCategories.size, 3);
 
-  // ── Fallback Merge for Visual Mock Accuracy ──
-  const displayIndoor = Math.max(indoorCount, 3);
-  const displayRare = Math.max(rareCount, 3); // Unlocked
-  const displayFlowering = Math.max(floweringCount, 1);
-  const displayHerbs = herbsCount; // 0/5 in screenshot
-  const displayVeggies = Math.max(veggiesCount, 5); // Unlocked
+  // ── Real Progress ──
+  const displayIndoor = indoorCount;
+  const displayRare = rareCount;
+  const displayFlowering = floweringCount;
+  const displayHerbs = herbsCount;
+  const displayVeggies = veggiesCount;
   const displayRootCrops = rootCropsCount;
-  const displayFruit = Math.max(fruitTreesCount, 1);
+  const displayFruit = fruitTreesCount;
 
-  const displayAroidProgress = Math.max(aroidProgress, 4); // Unlocked
-  const displayFoodProgress = Math.max(foodProgress, 5); // Unlocked
-  const displayBeginnerProgress = Math.max(beginnerProgress, 3);
-  const displayMarketProgress = Math.max(marketExplorerProgress, 2);
+  const displayAroidProgress = aroidProgress;
+  const displayFoodProgress = foodProgress;
+  const displayBeginnerProgress = beginnerProgress;
+  const displayMarketProgress = marketExplorerProgress;
 
   // ── Badges List Data ──
   const consistencyBadges = [
@@ -316,6 +282,8 @@ export function RankingsScreen() {
       progress: Math.min(loginStreak, 3),
       max: 3,
       unlocked: loginStreak >= 3,
+      iconLocked: "calendar-blank-outline",
+      iconUnlocked: "calendar-check",
     },
     {
       id: "green_streak",
@@ -324,6 +292,8 @@ export function RankingsScreen() {
       progress: Math.min(loginStreak, 7),
       max: 7,
       unlocked: loginStreak >= 7,
+      iconLocked: "fire",
+      iconUnlocked: "fire",
     },
     {
       id: "garden_regular",
@@ -332,6 +302,8 @@ export function RankingsScreen() {
       progress: Math.min(appOpens, 30),
       max: 30,
       unlocked: appOpens >= 30,
+      iconLocked: "sprout-outline",
+      iconUnlocked: "sprout",
     },
     {
       id: "weekend_grower",
@@ -340,6 +312,8 @@ export function RankingsScreen() {
       progress: Math.min(weekendVisits, 4),
       max: 4,
       unlocked: weekendVisits >= 4,
+      iconLocked: "calendar-range-outline",
+      iconUnlocked: "calendar-heart",
     },
     {
       id: "back_to_garden",
@@ -348,6 +322,8 @@ export function RankingsScreen() {
       progress: returnedAfterBreak ? 1 : 0,
       max: 1,
       unlocked: returnedAfterBreak,
+      iconLocked: "sync-off",
+      iconUnlocked: "sync",
     },
   ];
 
@@ -359,6 +335,8 @@ export function RankingsScreen() {
       progress: displayIndoor,
       max: 5,
       unlocked: displayIndoor >= 5,
+      iconLocked: "home-outline",
+      iconUnlocked: "home",
     },
     {
       id: "rare_shelf",
@@ -367,6 +345,8 @@ export function RankingsScreen() {
       progress: displayRare,
       max: 3,
       unlocked: displayRare >= 3,
+      iconLocked: "diamond-outline",
+      iconUnlocked: "diamond-stone",
     },
     {
       id: "bloom_keeper",
@@ -375,6 +355,8 @@ export function RankingsScreen() {
       progress: displayFlowering,
       max: 5,
       unlocked: displayFlowering >= 5,
+      iconLocked: "flower-outline",
+      iconUnlocked: "flower",
     },
     {
       id: "herb_basket",
@@ -383,6 +365,8 @@ export function RankingsScreen() {
       progress: displayHerbs,
       max: 5,
       unlocked: displayHerbs >= 5,
+      iconLocked: "leaf-outline",
+      iconUnlocked: "leaf",
     },
     {
       id: "bahay_kubo_set",
@@ -391,6 +375,8 @@ export function RankingsScreen() {
       progress: displayVeggies,
       max: 5,
       unlocked: displayVeggies >= 5,
+      iconLocked: "basket-outline",
+      iconUnlocked: "carrot",
     },
     {
       id: "root_crop_keeper",
@@ -399,6 +385,8 @@ export function RankingsScreen() {
       progress: displayRootCrops,
       max: 3,
       unlocked: displayRootCrops >= 3,
+      iconLocked: "pot-mix-outline",
+      iconUnlocked: "pot-mix",
     },
     {
       id: "fruit_corner",
@@ -407,6 +395,8 @@ export function RankingsScreen() {
       progress: displayFruit,
       max: 3,
       unlocked: displayFruit >= 3,
+      iconLocked: "food-apple-outline",
+      iconUnlocked: "food-apple",
     },
   ];
 
@@ -418,6 +408,8 @@ export function RankingsScreen() {
       progress: displayAroidProgress,
       max: 4,
       unlocked: displayAroidProgress >= 4,
+      iconLocked: "leaf-maple-outline",
+      iconUnlocked: "leaf-maple",
     },
     {
       id: "food_garden_set",
@@ -426,6 +418,8 @@ export function RankingsScreen() {
       progress: displayFoodProgress,
       max: 7,
       unlocked: displayFoodProgress >= 5,
+      iconLocked: "basket-outline",
+      iconUnlocked: "basket",
     },
     {
       id: "beginner_set",
@@ -434,6 +428,8 @@ export function RankingsScreen() {
       progress: displayBeginnerProgress,
       max: 4,
       unlocked: displayBeginnerProgress >= 4,
+      iconLocked: "hand-heart-outline",
+      iconUnlocked: "hand-heart",
     },
     {
       id: "market_explorer",
@@ -442,6 +438,8 @@ export function RankingsScreen() {
       progress: displayMarketProgress,
       max: 3,
       unlocked: displayMarketProgress >= 3,
+      iconLocked: "cart-outline",
+      iconUnlocked: "cart",
     },
   ];
 
@@ -459,7 +457,7 @@ export function RankingsScreen() {
   return (
     <Screen showHeader={false} scroll={false} noPadding={true}>
       {/* ── Forest Green Rounded Header ── */}
-      <View style={styles.headerBlock}>
+      <View style={[styles.headerBlock, embedded && styles.headerBlockEmbedded]}>
         <View style={styles.headerLeft}>
           <Text style={styles.headerSubtitle}>
             {activeView === "badges" ? "ACHIEVEMENTS" : "COMMUNITY"}
@@ -538,7 +536,7 @@ export function RankingsScreen() {
                   ]}
                 >
                   <MaterialCommunityIcons
-                    name={badge.unlocked ? "medal-outline" : "sprout-outline"}
+                    name={(badge.unlocked ? badge.iconUnlocked : badge.iconLocked) as any}
                     size={24}
                     color={badge.unlocked ? "#f97316" : "#84cc16"}
                   />
@@ -615,7 +613,7 @@ export function RankingsScreen() {
             <View style={styles.center}>
               <MaterialCommunityIcons name="trophy-outline" size={48} color={colors.line} />
               <Text style={styles.emptyTitle}>No rankings yet</Text>
-              <Text style={styles.emptySub}>Complete transactions to earn points!</Text>
+              <Text style={styles.emptySub}>Add plants, list items, post updates, or complete transactions to earn points.</Text>
             </View>
           )}
 
@@ -624,7 +622,10 @@ export function RankingsScreen() {
             <View style={styles.podium}>
               {/* 2nd place */}
               {top3[1] && (
-                <View style={styles.podiumItem}>
+                <Pressable
+                  style={styles.podiumItem}
+                  onPress={() => handleViewSellerGarden(top3[1].userId, top3[1].displayName)}
+                >
                   <View style={[styles.podiumAvatar, { borderColor: MEDAL_COLORS[1] }]}>
                     {top3[1].avatarUrl ? (
                       <Image source={{ uri: top3[1].avatarUrl }} style={styles.podiumAvatarImg} />
@@ -638,12 +639,15 @@ export function RankingsScreen() {
                   <Text style={styles.podiumName} numberOfLines={1}>{top3[1].displayName}</Text>
                   <Text style={styles.podiumPoints}>{top3[1].points} pts</Text>
                   <View style={[styles.podiumBar, { height: 56, backgroundColor: MEDAL_BG[1], borderColor: MEDAL_COLORS[1] }]} />
-                </View>
+                </Pressable>
               )}
 
               {/* 1st place */}
               {top3[0] && (
-                <View style={styles.podiumItem}>
+                <Pressable
+                  style={styles.podiumItem}
+                  onPress={() => handleViewSellerGarden(top3[0].userId, top3[0].displayName)}
+                >
                   <View style={styles.crownWrap}>
                     <MaterialCommunityIcons name="crown" size={22} color="#f59e0b" />
                   </View>
@@ -660,12 +664,15 @@ export function RankingsScreen() {
                   <Text style={[styles.podiumName, styles.podiumNameLg]} numberOfLines={1}>{top3[0].displayName}</Text>
                   <Text style={[styles.podiumPoints, styles.podiumPointsLg]}>{top3[0].points} pts</Text>
                   <View style={[styles.podiumBar, { height: 80, backgroundColor: MEDAL_BG[0], borderColor: MEDAL_COLORS[0] }]} />
-                </View>
+                </Pressable>
               )}
 
               {/* 3rd place */}
               {top3[2] && (
-                <View style={styles.podiumItem}>
+                <Pressable
+                  style={styles.podiumItem}
+                  onPress={() => handleViewSellerGarden(top3[2].userId, top3[2].displayName)}
+                >
                   <View style={[styles.podiumAvatar, { borderColor: MEDAL_COLORS[2] }]}>
                     {top3[2].avatarUrl ? (
                       <Image source={{ uri: top3[2].avatarUrl }} style={styles.podiumAvatarImg} />
@@ -679,7 +686,7 @@ export function RankingsScreen() {
                   <Text style={styles.podiumName} numberOfLines={1}>{top3[2].displayName}</Text>
                   <Text style={styles.podiumPoints}>{top3[2].points} pts</Text>
                   <View style={[styles.podiumBar, { height: 40, backgroundColor: MEDAL_BG[2], borderColor: MEDAL_COLORS[2] }]} />
-                </View>
+                </Pressable>
               )}
             </View>
           )}
@@ -689,7 +696,11 @@ export function RankingsScreen() {
             <View style={styles.listWrap}>
               <Text style={styles.listLabel}>All Rankings</Text>
               {rest.map((entry, idx) => (
-                <View key={entry.userId} style={styles.row}>
+                <Pressable
+                  key={entry.userId}
+                  style={styles.row}
+                  onPress={() => handleViewSellerGarden(entry.userId, entry.displayName)}
+                >
                   <View style={styles.rankBubble}>
                     <Text style={styles.rankNum}>#{idx + 4}</Text>
                   </View>
@@ -713,12 +724,30 @@ export function RankingsScreen() {
                     <Text style={styles.ptsNum}>{entry.points}</Text>
                     <Text style={styles.ptsLabel}>pts</Text>
                   </View>
-                </View>
+                </Pressable>
               ))}
             </View>
           )}
           <View style={{ height: Platform.OS === "ios" ? 100 : 80 }} />
         </ScrollView>
+      )}
+
+      {/* Seller Garden Modal for public profile garden view */}
+      {showSellerGarden && (
+        <SellerGardenModal
+          visible={showSellerGarden}
+          onClose={() => setShowSellerGarden(false)}
+          sellerId={selectedSellerId}
+          sellerName={selectedSellerName}
+          onOpenChat={(convoId, title) => {
+            setShowSellerGarden(false);
+            onOpenChat?.(convoId, title);
+          }}
+          onOpenListingDetail={(listingId) => {
+            setShowSellerGarden(false);
+            onOpenListingDetail?.(listingId);
+          }}
+        />
       )}
     </Screen>
   );
@@ -736,6 +765,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  headerBlockEmbedded: {
+    borderBottomLeftRadius: 22,
+    borderBottomRightRadius: 22,
+    paddingTop: 24,
+    paddingBottom: 22,
   },
   headerLeft: {
     flex: 1,
@@ -928,7 +963,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     paddingHorizontal: 8,
   },
-  podiumItem: { alignItems: "center", flex: 1 },
+  podiumItem: { alignItems: "center", flex: 1, maxWidth: 120 },
   crownWrap: { marginBottom: 4 },
   crownIcon: { fontSize: 22 },
   podiumAvatar: {

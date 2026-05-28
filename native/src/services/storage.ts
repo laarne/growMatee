@@ -1,4 +1,5 @@
 import * as ImagePicker from "expo-image-picker";
+import { decode } from "base64-arraybuffer";
 import { supabase } from "./supabase";
 
 type PublicImageBucket = "avatars" | "listing-photos" | "garden-photos" | "feed-photos";
@@ -84,30 +85,16 @@ function getFileExtension(image: PickedImage) {
   return "jpg";
 }
 
-function uriToBlob(uri: string): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.onload = function () {
-      resolve(xhr.response);
-    };
-    xhr.onerror = function () {
-      reject(new Error("Unable to resolve local image file."));
-    };
-    xhr.responseType = "blob";
-    xhr.open("GET", uri, true);
-    xhr.send(null);
-  });
-}
-
 export async function uploadPublicImage(bucket: PublicImageBucket, userId: string, folder: string, image: PickedImage): Promise<UploadedImage> {
   if (!supabase) throw new Error("Supabase is not configured.");
+  if (!image.base64) throw new Error("Selected image could not be prepared for upload.");
 
   const extension = getFileExtension(image);
   const path = `${userId}/${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
-  const blob = await uriToBlob(image.uri);
+  const fileData = decode(image.base64);
   const contentType = image.mimeType ?? (extension === "png" ? "image/png" : extension === "webp" ? "image/webp" : "image/jpeg");
 
-  const { error } = await supabase.storage.from(bucket).upload(path, blob, {
+  const { error } = await supabase.storage.from(bucket).upload(path, fileData, {
     contentType,
     upsert: false,
   });

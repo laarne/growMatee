@@ -262,7 +262,11 @@ function AppContent() {
             <OrdersScreen onOpenChat={handleOpenChat} onOpenListingDetail={handleOpenListingDetail} />
           </ErrorBoundary>
         )}
-        {activeTab === "Profile" && <ErrorBoundary><ProfileScreen onOpenListingDetail={handleOpenListingDetail} /></ErrorBoundary>}
+        {activeTab === "Profile" && (
+          <ErrorBoundary>
+            <ProfileScreen onOpenChat={handleOpenChat} onOpenListingDetail={handleOpenListingDetail} />
+          </ErrorBoundary>
+        )}
       </View>
 
       {/* Bottom nav — NOT absolutely positioned; sits as a flex child */}

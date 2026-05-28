@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
@@ -38,6 +38,7 @@ export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [search, setSearch] = useState("");
 
   async function loadConversations() {
     if (!user) return;
@@ -79,6 +80,22 @@ export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
 
   const leafyConversation = conversations.find((convo) => convo.id === "leafy-ai-assistant");
   const otherConversations = conversations.filter((convo) => convo.id !== "leafy-ai-assistant");
+  const searchTerm = search.trim().toLowerCase();
+  const conversationMatchesSearch = (convo: Conversation) => {
+    if (!searchTerm) return true;
+    const title = convo.title || convo.otherMember?.displayName || "";
+    const subtitle = convo.id === "leafy-ai-assistant"
+      ? "Instant Plant Care & Gardening Tips"
+      : convo.type === "market"
+      ? "Marketplace inquiry"
+      : "Tap to open chat";
+
+    return [title, convo.otherMember?.displayName, subtitle, convo.type]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(searchTerm));
+  };
+  const filteredLeafyConversation = leafyConversation && conversationMatchesSearch(leafyConversation) ? leafyConversation : null;
+  const filteredOtherConversations = otherConversations.filter(conversationMatchesSearch);
 
   function renderConversation(convo: Conversation) {
     const isLeafy = convo.id === "leafy-ai-assistant";
@@ -143,6 +160,23 @@ export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
         </Button>
       </View>
 
+      <View style={styles.searchWrap}>
+        <MaterialCommunityIcons name="magnify" size={19} color={colors.greenMuted} />
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search messages"
+          placeholderTextColor={colors.textTertiary}
+          style={styles.searchInput}
+          returnKeyType="search"
+        />
+        {search.length > 0 && (
+          <Pressable onPress={() => setSearch("")} hitSlop={8} style={styles.clearSearchBtn}>
+            <MaterialCommunityIcons name="close" size={16} color={colors.greenMuted} />
+          </Pressable>
+        )}
+      </View>
+
       {error && (
         <Card tint="warning">
           <Text style={styles.errorTitle}>Connection error</Text>
@@ -157,9 +191,9 @@ export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
         </Card>
       )}
 
-      {!isLoading && leafyConversation && renderConversation(leafyConversation)}
+      {!isLoading && filteredLeafyConversation && renderConversation(filteredLeafyConversation)}
 
-      {!isLoading && otherConversations.length === 0 && (
+      {!isLoading && !searchTerm && otherConversations.length === 0 && (
         <EmptyState
           icon="chat-processing-outline"
           title="No messages yet"
@@ -167,7 +201,15 @@ export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
         />
       )}
 
-      {!isLoading && otherConversations.map(renderConversation)}
+      {!isLoading && searchTerm && !filteredLeafyConversation && filteredOtherConversations.length === 0 && (
+        <EmptyState
+          icon="magnify"
+          title="No matches"
+          description="Try searching a name, listing, or chat type."
+        />
+      )}
+
+      {!isLoading && filteredOtherConversations.map(renderConversation)}
     </Screen>
   );
 }
@@ -183,6 +225,33 @@ const styles = StyleSheet.create({
     color: colors.green,
     fontSize: 30,
     fontWeight: "900",
+  },
+  searchWrap: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 14,
+    paddingHorizontal: 13,
+    paddingVertical: 3,
+  },
+  searchInput: {
+    color: colors.green,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "700",
+    paddingVertical: 10,
+  },
+  clearSearchBtn: {
+    alignItems: "center",
+    backgroundColor: colors.surface1,
+    borderRadius: radius.full,
+    height: 24,
+    justifyContent: "center",
+    width: 24,
   },
   errorTitle: {
     color: colors.green,

@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { sanitizeNullableUserInput, sanitizeSearchInput, sanitizeUserInput } from "../utils/sanitize";
+import { recordRankEvent } from "./rankings";
 
 type ListingPhotoRow = {
   storage_path: string;
@@ -291,6 +292,11 @@ export async function createListingForReview(input: ListingInput) {
     throw error;
   }
 
+  // Record ranking event for XP/leveling
+  recordRankEvent(input.sellerId, "listing_created").catch((err) => {
+    console.warn("Failed to record listing rank event:", err);
+  });
+
   if (input.photoPath) {
     const { error: photoError } = await supabase.from("listing_photos").insert({
       listing_id: data.id,
@@ -425,6 +431,27 @@ export async function updateOrderStatus(orderId: string, status: Order["status"]
 
   if (error) {
     throw error;
+  }
+
+  if (status === "completed") {
+    try {
+      const { data: orderData } = await supabase
+        .from("orders")
+        .select("buyer_id, seller_id")
+        .eq("id", orderId)
+        .maybeSingle();
+
+      if (orderData) {
+        recordRankEvent(orderData.buyer_id, "purchase_completed").catch((err) =>
+          console.warn("Failed to record purchase completed rank event:", err)
+        );
+        recordRankEvent(orderData.seller_id, "sale_completed").catch((err) =>
+          console.warn("Failed to record sale completed rank event:", err)
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to retrieve order data for ranking events:", err);
+    }
   }
 }
 
