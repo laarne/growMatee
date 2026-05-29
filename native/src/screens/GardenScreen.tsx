@@ -46,29 +46,103 @@ type ParsedCareNote = {
   value: string;
 };
 
+function cleanValue(sentence: string, label: string): string {
+  let clean = sentence.trim();
+  // Strip bullet points
+  clean = clean.replace(/^\s*[•\-\*]+\s*/, "");
+
+  // Strip "<Label>:" prefix (e.g. "Water: ")
+  const labelEscaped = label.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const prefixRegex = new RegExp(`^\\s*(?:${labelEscaped}|general|ai\\s*scan|ai\\s*diagnostics|observation|care\\s*log)\\s*:\\s*`, 'i');
+
+  let prev;
+  do {
+    prev = clean;
+    clean = clean.replace(prefixRegex, "");
+  } while (clean !== prev);
+
+  // Strip repeating label word itself if it starts with it (e.g. "Water when..." -> "when...")
+  const repeatRegex = new RegExp(`^\\s*${labelEscaped}\\b\\s*`, 'i');
+  clean = clean.replace(repeatRegex, "");
+
+  // Clean up any remaining leading punctuation/spaces
+  clean = clean.replace(/^\s*[:;,-]+\s*/, "");
+
+  // Capitalize first letter
+  if (clean.length > 0) {
+    clean = clean.charAt(0).toUpperCase() + clean.slice(1);
+  }
+  return clean;
+}
+
 function parseCareNotes(notes?: string): ParsedCareNote[] {
   if (!notes) return [];
   const sentences = notes
-    .split(/[.\n;]+/)
+    .split(/(?:\.(?=\s|$)|;|\n)+/)
     .map((s) => s.trim())
     .filter(Boolean);
 
-  return sentences.map((sentence) => {
+  const rawItems = sentences.map((sentence) => {
     const lower = sentence.toLowerCase();
+
+    // AI Diagnostics Check
+    if (
+      lower.includes("match:") ||
+      lower.includes("confidence") ||
+      lower.includes("leafy ai") ||
+      lower.includes("identified") ||
+      lower.includes("scan") ||
+      lower.includes("safety") ||
+      lower.includes("safe to sell")
+    ) {
+      return { emoji: "🧠", label: "AI Diagnostics", value: sentence, type: "ai" as const };
+    }
+
     if (lower.includes("water") || lower.includes("watering") || lower.includes("wet")) {
-      return { emoji: "💧", label: "Water", value: sentence };
+      return { emoji: "💧", label: "Water", value: sentence, type: "water" as const };
     }
     if (lower.includes("light") || lower.includes("sun") || lower.includes("shade") || lower.includes("indirect") || lower.includes("direct")) {
-      return { emoji: "☀️", label: "Light", value: sentence };
+      return { emoji: "☀️", label: "Light", value: sentence, type: "light" as const };
     }
     if (lower.includes("listed") || lower.includes("php") || lower.includes("price") || lower.includes("sell") || lower.includes("cutting") || lower.includes("cost") || lower.includes("buy")) {
-      return { emoji: "💰", label: "Market", value: sentence };
+      return { emoji: "💰", label: "Market", value: sentence, type: "market" as const };
     }
     if (lower.includes("wipe") || lower.includes("clean") || lower.includes("dust") || lower.includes("monthly") || lower.includes("mist") || lower.includes("fertiliz") || lower.includes("feed")) {
-      return { emoji: "🌱", label: "Care", value: sentence };
+      return { emoji: "🌱", label: "Care", value: sentence, type: "care" as const };
     }
-    return { emoji: "📋", label: "General", value: sentence };
+    return { emoji: "📋", label: "General", value: sentence, type: "general" as const };
   });
+
+  const finalItems: ParsedCareNote[] = [];
+  const aiSentences: string[] = [];
+
+  for (const item of rawItems) {
+    if (item.type === "ai") {
+      aiSentences.push(item.value);
+    }
+  }
+
+  if (aiSentences.length > 0) {
+    const cleanedAiSentences = aiSentences.map(s => cleanValue(s, "AI Diagnostics"));
+    const joinedValue = cleanedAiSentences.join(". ");
+    finalItems.push({
+      emoji: "🧠",
+      label: "AI Diagnostics",
+      value: joinedValue
+    });
+  }
+
+  for (const item of rawItems) {
+    if (item.type !== "ai") {
+      finalItems.push({
+        emoji: item.emoji,
+        label: item.label,
+        value: cleanValue(item.value, item.label)
+      });
+    }
+  }
+
+  return finalItems;
 }
 
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -1042,7 +1116,7 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
                       </Text>
                     </View>
                   </View>
-                  
+
                   <View style={styles.scannerResultBody}>
                     {scannerResult.category && (
                       <View style={styles.scannerResultRow}>
@@ -2341,7 +2415,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   detailScroll: {
-    paddingBottom: 40,
+    paddingBottom: 64,
   },
   detailPhoto: {
     width: "100%",

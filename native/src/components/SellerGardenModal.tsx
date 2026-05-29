@@ -32,35 +32,149 @@ type ParsedCareNote = {
   backgroundColor: string;
 };
 
+function cleanValue(sentence: string, label: string): string {
+  let clean = sentence.trim();
+  // Strip bullet points
+  clean = clean.replace(/^\s*[•\-\*]+\s*/, "");
+
+  // Strip "<Label>:" prefix (e.g. "Water: ")
+  const labelEscaped = label.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const prefixRegex = new RegExp(`^\\s*(?:${labelEscaped}|general|ai\\s*scan|ai\\s*diagnostics|observation|care\\s*log)\\s*:\\s*`, 'i');
+
+  let prev;
+  do {
+    prev = clean;
+    clean = clean.replace(prefixRegex, "");
+  } while (clean !== prev);
+
+  // Strip repeating label word itself if it starts with it (e.g. "Water when..." -> "when...")
+  const repeatRegex = new RegExp(`^\\s*${labelEscaped}\\b\\s*`, 'i');
+  clean = clean.replace(repeatRegex, "");
+
+  // Clean up any remaining leading punctuation/spaces
+  clean = clean.replace(/^\s*[:;,-]+\s*/, "");
+
+  // Capitalize first letter
+  if (clean.length > 0) {
+    clean = clean.charAt(0).toUpperCase() + clean.slice(1);
+  }
+  return clean;
+}
+
 function parseCareNotes(notes?: string): ParsedCareNote[] {
   if (!notes) return [];
   const sentences = notes
-    .replace(/(\d)\.(\d)/g, "$1<decimal>$2")
-    .split(/\n+|;+/)
-    .flatMap((line) => line.split(/\.\s+/))
-    .map((s) => s.replace(/<decimal>/g, "."))
+    .split(/(?:\.(?=\s|$)|;|\n)+/)
     .map((s) => s.trim())
     .filter(Boolean);
 
-  return sentences.map((sentence) => {
+  const rawItems = sentences.map((sentence) => {
     const lower = sentence.toLowerCase();
-    if (lower.includes("leafy ai") || lower.includes("identified") || lower.includes("confidence") || lower.includes("scan")) {
-      return { icon: "brain", label: "AI Scan", value: sentence, color: "#2563eb", backgroundColor: "#dbeafe" };
+
+    // AI Scan Check
+    if (
+      lower.includes("match:") ||
+      lower.includes("confidence") ||
+      lower.includes("leafy ai") ||
+      lower.includes("identified") ||
+      lower.includes("scan") ||
+      lower.includes("safety") ||
+      lower.includes("safe to sell")
+    ) {
+      return {
+        icon: "brain",
+        label: "AI Diagnostics",
+        value: sentence,
+        color: "#2563eb",
+        backgroundColor: "#dbeafe",
+        type: "ai" as const
+      };
     }
+
     if (lower.includes("water") || lower.includes("watering") || lower.includes("wet")) {
-      return { icon: "water-outline", label: "Water", value: sentence, color: "#0284c7", backgroundColor: "#e0f2fe" };
+      return {
+        icon: "water-outline",
+        label: "Water",
+        value: sentence,
+        color: "#0284c7",
+        backgroundColor: "#e0f2fe",
+        type: "water" as const
+      };
     }
     if (lower.includes("light") || lower.includes("sun") || lower.includes("shade") || lower.includes("indirect") || lower.includes("direct")) {
-      return { icon: "white-balance-sunny", label: "Light", value: sentence, color: "#ca8a04", backgroundColor: "#fef3c7" };
+      return {
+        icon: "white-balance-sunny",
+        label: "Light",
+        value: sentence,
+        color: "#ca8a04",
+        backgroundColor: "#fef3c7",
+        type: "light" as const
+      };
     }
     if (lower.includes("listed") || lower.includes("php") || lower.includes("price") || lower.includes("sell") || lower.includes("cutting") || lower.includes("cost") || lower.includes("buy")) {
-      return { icon: "storefront-outline", label: "Market", value: sentence, color: "#15803d", backgroundColor: "#dcfce7" };
+      return {
+        icon: "storefront-outline",
+        label: "Market",
+        value: sentence,
+        color: "#15803d",
+        backgroundColor: "#dcfce7",
+        type: "market" as const
+      };
     }
     if (lower.includes("wipe") || lower.includes("clean") || lower.includes("dust") || lower.includes("monthly") || lower.includes("mist") || lower.includes("fertiliz") || lower.includes("feed")) {
-      return { icon: "clipboard-check-outline", label: "Care Log", value: sentence, color: "#7c3aed", backgroundColor: "#ede9fe" };
+      return {
+        icon: "clipboard-check-outline",
+        label: "Care Log",
+        color: "#7c3aed",
+        backgroundColor: "#ede9fe",
+        value: sentence,
+        type: "care" as const
+      };
     }
-    return { icon: "note-text-outline", label: "Observation", value: sentence, color: colors.green, backgroundColor: colors.sage };
+    return {
+      icon: "note-text-outline",
+      label: "Observation",
+      color: colors.green,
+      backgroundColor: colors.sage,
+      value: sentence,
+      type: "general" as const
+    };
   });
+
+  const finalItems: ParsedCareNote[] = [];
+  const aiSentences: string[] = [];
+
+  for (const item of rawItems) {
+    if (item.type === "ai") {
+      aiSentences.push(item.value);
+    }
+  }
+
+  if (aiSentences.length > 0) {
+    const cleanedAiSentences = aiSentences.map(s => cleanValue(s, "AI Diagnostics"));
+    const joinedValue = cleanedAiSentences.join(". ");
+    finalItems.push({
+      icon: "brain",
+      label: "AI Diagnostics",
+      color: "#2563eb",
+      backgroundColor: "#dbeafe",
+      value: joinedValue
+    });
+  }
+
+  for (const item of rawItems) {
+    if (item.type !== "ai") {
+      finalItems.push({
+        icon: item.icon as keyof typeof MaterialCommunityIcons.glyphMap,
+        label: item.label,
+        color: item.color,
+        backgroundColor: item.backgroundColor,
+        value: cleanValue(item.value, item.label)
+      });
+    }
+  }
+
+  return finalItems;
 }
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
@@ -1053,6 +1167,7 @@ const styles = StyleSheet.create({
   },
   detailScroll: {
     gap: 16,
+    paddingBottom: 32,
   },
   detailPhoto: {
     width: "100%",
