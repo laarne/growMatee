@@ -13,6 +13,7 @@ import { SellerGardenModal } from "../components/SellerGardenModal";
 import { useNavigationContext } from "../context/NavigationContext";
 import { EmptyState } from "../components/EmptyState";
 import { ImageZoomModal } from "../components/ImageZoomModal";
+import { readFastCache, writeFastCache } from "../utils/fastCache";
 
 const CATEGORIES = ["All", "Indoor", "Outdoor", "Vegetables", "Root Crops", "Fruit Trees", "Rare", "Flowering", "Medicinal", "Succulents", "Herbs", "Ornamental"];
 const SORT_OPTIONS = ["Nearest", "Newest", "Price: Low", "Price: High"];
@@ -24,6 +25,7 @@ const marketFonts = {
   display: Platform.OS === "ios" ? "Georgia" : "serif",
   body: Platform.OS === "ios" ? "Avenir Next" : "sans-serif",
 };
+const MARKET_CACHE_MAX_AGE_MS = 1000 * 60 * 15;
 
 export function MarketScreen({
   onOpenChat,
@@ -90,7 +92,7 @@ export function MarketScreen({
 
   const loadListings = useCallback(async (nextSearch = search, isLoadMore = false) => {
     if (!isLoadMore) {
-      setIsLoadingListings(true);
+      setIsLoadingListings(listingsRef.current.length === 0);
       setListingError(null);
     }
     try {
@@ -101,6 +103,9 @@ export function MarketScreen({
         setListings((prev) => [...prev, ...data]);
       } else {
         setListings(data);
+        if (!nextSearch.trim()) {
+          writeFastCache("market:listings:v1", data).catch(() => {});
+        }
       }
       setHasMore(data.length === 10);
     } catch (error) {
@@ -130,7 +135,25 @@ export function MarketScreen({
   }
 
   useEffect(() => {
-    loadListings("").catch(() => {});
+    let isMounted = true;
+
+    async function hydrateThenRefresh() {
+      const cached = await readFastCache<MarketListing[]>("market:listings:v1", MARKET_CACHE_MAX_AGE_MS);
+      if (cached && cached.length > 0 && isMounted) {
+        setListings(cached);
+        setHasMore(cached.length >= 10);
+        setIsLoadingListings(false);
+      }
+
+      if (isMounted) {
+        loadListings("").catch(() => {});
+      }
+    }
+
+    hydrateThenRefresh();
+    return () => {
+      isMounted = false;
+    };
   }, [loadListings]);
 
   async function handleRefresh() {

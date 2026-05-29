@@ -87,6 +87,18 @@ Required secret:
 GEMINI_API_KEY=...
 ```
 
+Leafy plant scanning uses PlantNet for image identification and Perenual for cached care data.
+
+Required scan secrets:
+
+```text
+PLANTNET_API_KEY=...
+PERENUAL_API_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+`SUPABASE_SERVICE_ROLE_KEY` is used only inside the Edge Function to cache Perenual care profiles in `plant_care_profiles`. Do not put it in the Expo app.
+
 Optional model override:
 
 ```text

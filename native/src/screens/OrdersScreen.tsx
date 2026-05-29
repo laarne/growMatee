@@ -21,6 +21,9 @@ import { getUserOrders, updateOrderStatus, type Order } from "../services/listin
 import { createReview, getReviewForOrder } from "../services/reviews";
 import { getOrCreateMarketConversation } from "../services/messages";
 import { colors } from "../theme/colors";
+import { readFastCache, writeFastCache } from "../utils/fastCache";
+
+const ORDERS_CACHE_MAX_AGE_MS = 1000 * 60 * 10;
 
 export function OrdersScreen({
   onOpenChat,
@@ -44,25 +47,44 @@ export function OrdersScreen({
   const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
-    loadOrders();
+    let isMounted = true;
+
+    async function hydrateThenRefresh() {
+      if (!user) return;
+      const cached = await readFastCache<Order[]>(`orders:${user.id}:buyer:v1`, ORDERS_CACHE_MAX_AGE_MS);
+      if (cached && isMounted) {
+        setOrders(cached);
+        setLoading(false);
+      }
+
+      if (isMounted) {
+        loadOrders({ silent: !!cached });
+      }
+    }
+
+    hydrateThenRefresh();
+    return () => {
+      isMounted = false;
+    };
   }, [user?.id]);
 
-  async function loadOrders() {
+  async function loadOrders(options: { silent?: boolean } = {}) {
     if (!user) return;
-    setLoading(true);
+    setLoading(options.silent ? false : orders.length === 0);
     try {
       const allOrders = await getUserOrders(user.id);
       // Filter out only where user is the buyer to keep it buyer-focused
       const buyerOrders = allOrders.filter((o) => o.buyerId === user.id);
       setOrders(buyerOrders);
+      writeFastCache<Order[]>(`orders:${user.id}:buyer:v1`, buyerOrders).catch(() => {});
 
       // Check reviews for completed orders
       const completed = buyerOrders.filter((o) => o.status === "completed");
-      const reviewChecks: Record<string, boolean> = {};
-      for (const order of completed) {
+      const reviewEntries = await Promise.all(completed.map(async (order) => {
         const review = await getReviewForOrder(order.id, user.id);
-        reviewChecks[order.id] = !!review;
-      }
+        return [order.id, !!review] as const;
+      }));
+      const reviewChecks = Object.fromEntries(reviewEntries);
       setReviewedOrders(reviewChecks);
     } catch (err) {
       console.error("Failed to load orders:", err);

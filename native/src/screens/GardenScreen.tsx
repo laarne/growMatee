@@ -38,6 +38,7 @@ import { colors, radius, shadow, fontSize } from "../theme/colors";
 import { DiscoverGardensScreen } from "./DiscoverGardensScreen";
 import { RankingsScreen } from "./RankingsScreen";
 import { supabase } from "../services/supabase";
+import { readFastCache, writeFastCache } from "../utils/fastCache";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const COVER_HEIGHT = 220;
@@ -46,6 +47,12 @@ const CARD_WIDTH = (SCREEN_W - 32 - CARD_GAP) / 2;
 
 const CATEGORIES = ["All", "Indoor", "Outdoor", "Vegetables", "Root Crops", "Fruit Trees", "Rare", "Flowering", "Medicinal", "Succulents", "Herbs", "Ornamental"];
 const CONDITIONS = ["Healthy", "Thriving", "Needs Water", "Needs Care", "Blooming", "Growing"];
+const GARDEN_CACHE_MAX_AGE_MS = 1000 * 60 * 20;
+
+type GardenCachePayload = {
+  garden: Garden;
+  plants: GardenPlant[];
+};
 
 type GardenScreenProps = {
   onOpenChat?: (conversationId: string, title: string) => void;
@@ -108,15 +115,16 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
   // Pull-to-refresh
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  async function loadGarden() {
+  async function loadGarden(options: { silent?: boolean } = {}) {
     if (!user) return;
-    setIsLoading(true);
+    setIsLoading(options.silent ? false : !garden && plants.length === 0);
     setError(null);
     try {
       const g = await getOrCreateMyGarden(user.id);
       const p = await getGardenPlants(g.id);
       setGarden(g);
       setPlants(p);
+      writeFastCache<GardenCachePayload>(`garden:${user.id}:v1`, { garden: g, plants: p }).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to load garden.");
     } finally {
@@ -124,7 +132,28 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
     }
   }
 
-  useEffect(() => { loadGarden(); }, [user?.id]);
+  useEffect(() => {
+    let isMounted = true;
+
+    async function hydrateThenRefresh() {
+      if (!user) return;
+      const cached = await readFastCache<GardenCachePayload>(`garden:${user.id}:v1`, GARDEN_CACHE_MAX_AGE_MS);
+      if (cached && isMounted) {
+        setGarden(cached.garden);
+        setPlants(cached.plants);
+        setIsLoading(false);
+      }
+
+      if (isMounted) {
+        loadGarden({ silent: !!cached }).catch(() => {});
+      }
+    }
+
+    hydrateThenRefresh();
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
 
   function resetForm() {
     setPlantName(""); setCategory(""); setScientificName("");
@@ -156,7 +185,7 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
       setScientificName(result.scientificName || "");
       setCategory(result.category);
       setCondition("Healthy");
-      setCareNotes(`Leafy AI: ${result.bestMatch} (${result.confidence}% confidence).`);
+      setCareNotes(buildCareNotesFromScan(result));
       setScanMessage("Plant identified!");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Leafy AI scan failed.");
@@ -337,6 +366,21 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
     if (status === "review_required") return "Review required";
     if (status === "blocked") return "Blocked";
     return "Not available";
+  }
+
+  function buildCareNotesFromScan(result: LeafyScanResult) {
+    const care = result.careProfile;
+    const details = [
+      care?.watering ? `Water: ${care.watering}` : null,
+      care?.sunlight ? `Light: ${care.sunlight}` : null,
+      care?.soil ? `Soil: ${care.soil}` : null,
+      care?.toxicity ? `Toxicity: ${care.toxicity}` : null,
+    ].filter(Boolean);
+
+    return [
+      `Identified: ${result.bestMatch} (${result.confidence}% confidence).`,
+      ...details,
+    ].join("\n");
   }
 
   // ─────────────────────────────────────────────────────
@@ -990,6 +1034,33 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
                       <Text style={styles.scannerResultNoteText}>{scannerResult.reviewReason}</Text>
                     </View>
 
+                    {scannerResult.careProfile && (
+                      <View style={styles.careGuideCard}>
+                        <View style={styles.careGuideHeader}>
+                          <MaterialCommunityIcons name="sprout-outline" size={18} color={colors.green} />
+                          <Text style={styles.careGuideTitle}>
+                            Care guide from {scannerResult.careProfile.provider}
+                          </Text>
+                        </View>
+                        {scannerResult.careProfile.summary && (
+                          <Text style={styles.careGuideSummary}>{scannerResult.careProfile.summary}</Text>
+                        )}
+                        {[
+                          ["Water", scannerResult.careProfile.watering],
+                          ["Light", scannerResult.careProfile.sunlight],
+                          ["Soil", scannerResult.careProfile.soil],
+                          ["Growth", scannerResult.careProfile.growthHabit],
+                          ["Propagation", scannerResult.careProfile.propagation],
+                          ["Toxicity", scannerResult.careProfile.toxicity],
+                        ].filter(([, value]) => Boolean(value)).map(([label, value]) => (
+                          <View key={label} style={styles.careGuideRow}>
+                            <Text style={styles.careGuideLabel}>{label}</Text>
+                            <Text style={styles.careGuideValue}>{value}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
                     {typeof scannerResult.remainingRequests === "number" && (
                       <View style={styles.scannerResultRow}>
                         <Text style={styles.scannerResultLabel}>PlantNet Requests Left</Text>
@@ -1037,7 +1108,7 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
                       setScientificName(scannerResult.scientificName || "");
                       setCategory(scannerResult.category || "");
                       setCondition("Healthy");
-                      setCareNotes(`Leafy AI identified: ${scannerResult.bestMatch} (${scannerResult.confidence}% confidence).`);
+                      setCareNotes(buildCareNotesFromScan(scannerResult));
                       setPlantPhoto(scannerPhoto);
                       setShowScannerModal(false);
                       setShowAddModal(true);
@@ -1806,6 +1877,50 @@ const styles = StyleSheet.create({
   scannerResultNoteText: {
     color: colors.green,
     flex: 1,
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17,
+  },
+  careGuideCard: {
+    backgroundColor: colors.white,
+    borderColor: colors.line,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    gap: 8,
+    marginTop: 4,
+    padding: 12,
+  },
+  careGuideHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 7,
+  },
+  careGuideTitle: {
+    color: colors.green,
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  careGuideSummary: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 17,
+  },
+  careGuideRow: {
+    borderTopColor: colors.line,
+    borderTopWidth: 1,
+    gap: 3,
+    paddingTop: 8,
+  },
+  careGuideLabel: {
+    color: colors.greenMuted,
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  careGuideValue: {
+    color: colors.textPrimary,
     fontSize: 12,
     fontWeight: "700",
     lineHeight: 17,

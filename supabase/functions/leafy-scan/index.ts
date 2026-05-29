@@ -25,6 +25,60 @@ type PlantNetResponse = {
   results?: PlantNetResult[];
 };
 
+type PerenualSpecies = {
+  id?: number;
+  common_name?: string | null;
+  scientific_name?: string[] | string | null;
+  default_image?: {
+    regular_url?: string | null;
+    medium_url?: string | null;
+    thumbnail?: string | null;
+  } | null;
+};
+
+type PerenualSpeciesListResponse = {
+  data?: PerenualSpecies[];
+};
+
+type PerenualDetailsResponse = PerenualSpecies & {
+  type?: string | null;
+  cycle?: string | null;
+  watering?: string | null;
+  sunlight?: string[] | string | null;
+  propagation?: string[] | string | null;
+  attracts?: string[] | string | null;
+  indoor?: boolean | null;
+  poisonous_to_humans?: boolean | number | null;
+  poisonous_to_pets?: boolean | number | null;
+  description?: string | null;
+};
+
+type PerenualCareGuideResponse = {
+  data?: {
+    section?: {
+      type?: string | null;
+      description?: string | null;
+    }[];
+  }[];
+};
+
+type CareProfile = {
+  provider: "Perenual" | "GrowMate";
+  scientificName: string;
+  commonName: string | null;
+  summary: string | null;
+  watering: string | null;
+  sunlight: string | null;
+  soil: string | null;
+  pruning: string | null;
+  propagation: string | null;
+  cycle: string | null;
+  growthHabit: string | null;
+  toxicity: string | null;
+  imageUrl: string | null;
+  source: "cache" | "perenual" | "fallback";
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -79,6 +133,15 @@ function normalizeText(value: string) {
   return value.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+function normalizeScientificName(value: string) {
+  return normalizeText(value).replace(/[^a-z0-9\s-]/g, "");
+}
+
+function toText(value: string[] | string | null | undefined) {
+  if (Array.isArray(value)) return value.filter(Boolean).join(", ");
+  return value ?? null;
+}
+
 function inferCategory(name: string, commonNames: string[]) {
   const combined = normalizeText([name, ...commonNames].join(" "));
 
@@ -120,6 +183,162 @@ function getSaleDecision(name: string, commonNames: string[], confidence: number
   };
 }
 
+function fallbackCareProfile(scientificName: string, commonNames: string[], category: string): CareProfile {
+  const normalizedCategory = normalizeText(category);
+  const isSucculent = normalizedCategory.includes("succulent");
+  const isHerb = normalizedCategory.includes("herb");
+  const isFlowering = normalizedCategory.includes("flower");
+
+  return {
+    provider: "GrowMate",
+    scientificName,
+    commonName: commonNames[0] ?? null,
+    summary: "Basic care guidance based on the identified plant category.",
+    watering: isSucculent ? "Water only when the soil is fully dry." : "Water when the top layer of soil feels dry.",
+    sunlight: isHerb || isFlowering ? "Bright light is best; protect from harsh midday heat." : "Bright indirect light is usually safest.",
+    soil: isSucculent ? "Use a fast-draining cactus or succulent mix." : "Use a loose, well-draining potting mix.",
+    pruning: "Remove yellowing, damaged, or dead leaves to keep the plant healthy.",
+    propagation: isSucculent ? "Many succulents propagate from leaves, offsets, or cuttings." : "Propagation depends on the species; stem cuttings are common for many houseplants.",
+    cycle: null,
+    growthHabit: category,
+    toxicity: "Toxicity data is not available from the fallback guide.",
+    imageUrl: null,
+    source: "fallback",
+  };
+}
+
+function careSectionsByType(careGuide: PerenualCareGuideResponse) {
+  const sections = careGuide.data?.[0]?.section ?? [];
+  const result: Record<string, string> = {};
+
+  for (const section of sections) {
+    const type = normalizeText(section.type ?? "");
+    if (type && section.description) {
+      result[type] = section.description;
+    }
+  }
+
+  return result;
+}
+
+function pickSpeciesMatch(results: PerenualSpecies[], scientificName: string, commonNames: string[]) {
+  const normalizedScientific = normalizeScientificName(scientificName);
+  const normalizedCommonNames = commonNames.map(normalizeText);
+
+  return results.find((species) => {
+    const speciesScientific = toText(species.scientific_name);
+    return speciesScientific ? normalizeScientificName(speciesScientific).includes(normalizedScientific) : false;
+  }) ?? results.find((species) => {
+    const commonName = normalizeText(species.common_name ?? "");
+    return commonName && normalizedCommonNames.some((name) => commonName.includes(name) || name.includes(commonName));
+  }) ?? results[0] ?? null;
+}
+
+async function fetchPerenualCareProfile(scientificName: string, commonNames: string[], category: string, apiKey: string): Promise<CareProfile | null> {
+  const searchUrl = new URL("https://perenual.com/api/species-list");
+  searchUrl.searchParams.set("key", apiKey);
+  searchUrl.searchParams.set("q", scientificName);
+
+  const searchResponse = await fetch(searchUrl);
+  if (!searchResponse.ok) return null;
+
+  const searchData = (await searchResponse.json()) as PerenualSpeciesListResponse;
+  const species = pickSpeciesMatch(searchData.data ?? [], scientificName, commonNames);
+  if (!species?.id) return null;
+
+  const detailsUrl = new URL(`https://perenual.com/api/species/details/${species.id}`);
+  detailsUrl.searchParams.set("key", apiKey);
+
+  const careUrl = new URL("https://perenual.com/api/species-care-guide-list");
+  careUrl.searchParams.set("key", apiKey);
+  careUrl.searchParams.set("species_id", String(species.id));
+
+  const [detailsResponse, careResponse] = await Promise.all([
+    fetch(detailsUrl),
+    fetch(careUrl),
+  ]);
+
+  const details = detailsResponse.ok ? ((await detailsResponse.json()) as PerenualDetailsResponse) : species;
+  const careGuide = careResponse.ok ? ((await careResponse.json()) as PerenualCareGuideResponse) : {};
+  const sections = careSectionsByType(careGuide);
+  const toxicityParts = [
+    details.poisonous_to_humans ? "Can be toxic to humans." : null,
+    details.poisonous_to_pets ? "Can be toxic to pets." : null,
+  ].filter(Boolean);
+
+  return {
+    provider: "Perenual",
+    scientificName,
+    commonName: details.common_name ?? species.common_name ?? commonNames[0] ?? null,
+    summary: details.description ?? sections.description ?? null,
+    watering: sections.watering ?? details.watering ?? null,
+    sunlight: sections.sunlight ?? toText(details.sunlight),
+    soil: sections.soil ?? null,
+    pruning: sections.pruning ?? null,
+    propagation: sections.propagation ?? toText(details.propagation),
+    cycle: details.cycle ?? null,
+    growthHabit: details.type ?? category,
+    toxicity: toxicityParts.length > 0 ? toxicityParts.join(" ") : null,
+    imageUrl: details.default_image?.regular_url ?? details.default_image?.medium_url ?? details.default_image?.thumbnail ?? null,
+    source: "perenual",
+  };
+}
+
+async function loadCachedCareProfile(client: ReturnType<typeof createClient>, normalizedScientificName: string): Promise<CareProfile | null> {
+  const { data, error } = await client
+    .from("plant_care_profiles")
+    .select("provider, scientific_name, common_name, summary, watering, sunlight, soil, pruning, propagation, cycle, growth_habit, toxicity, image_url")
+    .eq("normalized_scientific_name", normalizedScientificName)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  return {
+    provider: data.provider === "Perenual" ? "Perenual" : "GrowMate",
+    scientificName: data.scientific_name,
+    commonName: data.common_name,
+    summary: data.summary,
+    watering: data.watering,
+    sunlight: data.sunlight,
+    soil: data.soil,
+    pruning: data.pruning,
+    propagation: data.propagation,
+    cycle: data.cycle,
+    growthHabit: data.growth_habit,
+    toxicity: data.toxicity,
+    imageUrl: data.image_url,
+    source: "cache",
+  };
+}
+
+async function saveCareProfile(client: ReturnType<typeof createClient> | null, normalizedScientificName: string, profile: CareProfile) {
+  if (!client || profile.source === "cache") return;
+
+  await client.from("plant_care_profiles").upsert(
+    {
+      normalized_scientific_name: normalizedScientificName,
+      provider: profile.provider,
+      scientific_name: profile.scientificName,
+      common_name: profile.commonName,
+      summary: profile.summary,
+      watering: profile.watering,
+      sunlight: profile.sunlight,
+      soil: profile.soil,
+      pruning: profile.pruning,
+      propagation: profile.propagation,
+      cycle: profile.cycle,
+      growth_habit: profile.growthHabit,
+      toxicity: profile.toxicity,
+      image_url: profile.imageUrl,
+      raw_source: {
+        source: profile.source,
+      },
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "normalized_scientific_name" },
+  );
+}
+
 function getBearerToken(request: Request) {
   const authHeader = request.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) return null;
@@ -137,6 +356,7 @@ Deno.serve(async (request) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const authorization = getBearerToken(request);
 
   if (!supabaseUrl || !supabaseAnonKey) {
@@ -154,6 +374,13 @@ Deno.serve(async (request) => {
       },
     },
   });
+  const supabaseAdmin = supabaseServiceRoleKey
+    ? createClient(supabaseUrl, supabaseServiceRoleKey, {
+        auth: {
+          persistSession: false,
+        },
+      })
+    : null;
 
   const {
     data: { user },
@@ -165,6 +392,7 @@ Deno.serve(async (request) => {
   }
 
   const apiKey = Deno.env.get("PLANTNET_API_KEY");
+  const perenualApiKey = Deno.env.get("PERENUAL_API_KEY");
 
   if (!apiKey) {
     return jsonResponse({ error: "PlantNet secret is not configured." }, 500);
@@ -267,7 +495,29 @@ Deno.serve(async (request) => {
   const scientificName = best.species.scientificNameWithoutAuthor ?? "Unknown plant";
   const commonNames = best.species.commonNames ?? [];
   const confidence = Math.round((best.score ?? 0) * 1000) / 10;
+  const category = inferCategory(scientificName, commonNames);
   const decision = getSaleDecision(scientificName, commonNames, confidence);
+  const normalizedScientificName = normalizeScientificName(scientificName);
+  let careProfile = await loadCachedCareProfile(supabase, normalizedScientificName);
+
+  if (!careProfile) {
+    try {
+      careProfile = perenualApiKey
+        ? await fetchPerenualCareProfile(scientificName, commonNames, category, perenualApiKey)
+        : null;
+    } catch (careError) {
+      console.warn("Perenual care lookup failed:", careError);
+    }
+  }
+
+  if (!careProfile) {
+    careProfile = fallbackCareProfile(scientificName, commonNames, category);
+  }
+
+  saveCareProfile(supabaseAdmin, normalizedScientificName, careProfile).catch((careSaveError) => {
+    console.warn("Care profile cache write failed:", careSaveError);
+  });
+
   const alternativeMatches = (data.results ?? []).slice(1, 5).map((match) => {
     const matchScientificName = match.species?.scientificNameWithoutAuthor ?? null;
     const matchCommonNames = match.species?.commonNames ?? [];
@@ -290,7 +540,8 @@ Deno.serve(async (request) => {
     family: best.species.family?.scientificNameWithoutAuthor ?? null,
     genus: best.species.genus?.scientificNameWithoutAuthor ?? null,
     confidence,
-    category: inferCategory(scientificName, commonNames),
+    category,
+    careProfile,
     saleStatus: decision.saleStatus,
     reviewReason: decision.reviewReason,
     alternativeMatches,

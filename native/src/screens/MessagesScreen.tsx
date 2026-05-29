@@ -8,8 +8,10 @@ import { useAuth } from "../context/AuthContext";
 import { EmptyState } from "../components/EmptyState";
 import { getConversations, type Conversation } from "../services/messages";
 import { colors, radius } from "../theme/colors";
+import { readFastCache, writeFastCache } from "../utils/fastCache";
 
 const leafyAvatar = require("../../assets/leafy-ai.png");
+const MESSAGES_CACHE_MAX_AGE_MS = 1000 * 60 * 10;
 
 type MessagesScreenProps = {
   onOpenChat: (conversationId: string, title: string) => void;
@@ -32,6 +34,22 @@ function formatConvoTime(dateStr: string): string {
   }
 }
 
+function createLeafyConversation(): Conversation {
+  return {
+    id: "leafy-ai-assistant",
+    type: "leafy",
+    listingId: null,
+    gardenId: null,
+    title: "Leafy AI Assistant",
+    updatedAt: new Date().toISOString(),
+    otherMember: {
+      id: "leafy-ai",
+      displayName: "Leafy AI Assistant",
+      avatarUrl: null,
+    },
+  };
+}
+
 export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -40,26 +58,15 @@ export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [search, setSearch] = useState("");
 
-  async function loadConversations() {
+  async function loadConversations(options: { silent?: boolean } = {}) {
     if (!user) return;
-    setIsLoading(true);
+    setIsLoading(options.silent ? false : conversations.length === 0);
     setError(null);
     try {
       const data = await getConversations(user.id);
-      const leafyConvo: Conversation = {
-        id: "leafy-ai-assistant",
-        type: "leafy",
-        listingId: null,
-        gardenId: null,
-        title: "Leafy AI Assistant",
-        updatedAt: new Date().toISOString(),
-        otherMember: {
-          id: "leafy-ai",
-          displayName: "Leafy AI Assistant",
-          avatarUrl: null,
-        },
-      };
+      const leafyConvo = createLeafyConversation();
       setConversations([leafyConvo, ...data]);
+      writeFastCache<Conversation[]>(`messages:${user.id}:v1`, data).catch(() => {});
     } catch (convoError) {
       const message = convoError instanceof Error ? convoError.message : "Unable to load inbox.";
       setError(message);
@@ -69,7 +76,25 @@ export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
   }
 
   useEffect(() => {
-    loadConversations();
+    let isMounted = true;
+
+    async function hydrateThenRefresh() {
+      if (!user) return;
+      const cached = await readFastCache<Conversation[]>(`messages:${user.id}:v1`, MESSAGES_CACHE_MAX_AGE_MS);
+      if (cached && isMounted) {
+        setConversations([createLeafyConversation(), ...cached]);
+        setIsLoading(false);
+      }
+
+      if (isMounted) {
+        loadConversations({ silent: !!cached });
+      }
+    }
+
+    hydrateThenRefresh();
+    return () => {
+      isMounted = false;
+    };
   }, [user?.id]);
 
   async function handleRefresh() {
@@ -155,7 +180,7 @@ export function MessagesScreen({ onOpenChat }: MessagesScreenProps) {
     >
       <View style={styles.headerRow}>
         <Text style={styles.title}>Inbox</Text>
-        <Button variant="secondary" onPress={loadConversations}>
+        <Button variant="secondary" onPress={() => loadConversations()}>
           Refresh
         </Button>
       </View>

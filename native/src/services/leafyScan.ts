@@ -1,6 +1,23 @@
 import { supabase } from "./supabase";
 import type { PickedImage } from "./storage";
 
+export type PlantCareProfile = {
+  provider: "Perenual" | "GrowMate";
+  scientificName: string;
+  commonName: string | null;
+  summary: string | null;
+  watering: string | null;
+  sunlight: string | null;
+  soil: string | null;
+  pruning: string | null;
+  propagation: string | null;
+  cycle: string | null;
+  growthHabit: string | null;
+  toxicity: string | null;
+  imageUrl: string | null;
+  source: "cache" | "perenual" | "fallback";
+};
+
 export type LeafyScanResult = {
   provider: string;
   bestMatch: string;
@@ -10,6 +27,7 @@ export type LeafyScanResult = {
   genus: string | null;
   confidence: number;
   category: string;
+  careProfile?: PlantCareProfile | null;
   saleStatus: "safe_to_sell" | "review_required" | "blocked";
   reviewReason: string;
   alternativeMatches?: {

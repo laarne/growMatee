@@ -18,10 +18,18 @@ import { getUserOrders, type Order } from "../services/listings";
 import { colors, radius, shadow, fontSize, spacing } from "../theme/colors";
 import { Screen } from "../components/Screen";
 import { SellerGardenModal } from "../components/SellerGardenModal";
+import { readFastCache, writeFastCache } from "../utils/fastCache";
 
 const MEDAL_COLORS = ["#f59e0b", "#94a3b8", "#cd7f32"];
 const MEDAL_BG = ["#fef3c7", "#f1f5f9", "#fdf4e7"];
 const MEDAL_ICONS: ("medal" | "medal-outline" | "podium-bronze")[] = ["medal", "medal-outline", "podium-bronze"];
+const LEADERBOARD_CACHE_MAX_AGE_MS = 1000 * 60 * 15;
+const BADGE_CACHE_MAX_AGE_MS = 1000 * 60 * 20;
+
+type BadgeCachePayload = {
+  gardenPlants: GardenPlant[];
+  orders: Order[];
+};
 
 type RankingsScreenProps = {
   embedded?: boolean;
@@ -66,12 +74,13 @@ export function RankingsScreen({
   const [returnedAfterBreak, setReturnedAfterBreak] = useState(false);
 
   // ── Load Leaderboard ──
-  async function loadLeaderboard() {
-    setIsLoadingLeaderboard(true);
+  async function loadLeaderboard(options: { silent?: boolean } = {}) {
+    setIsLoadingLeaderboard(options.silent ? false : leaderboard.length === 0);
     setLeaderboardError(null);
     try {
       const data = await getLeaderboard();
       setLeaderboard(data);
+      writeFastCache<LeaderboardEntry[]>("rankings:leaderboard:v1", data).catch(() => {});
     } catch (loadError) {
       setLeaderboardError(loadError instanceof Error ? loadError.message : "Unable to load leaderboard.");
     } finally {
@@ -80,9 +89,9 @@ export function RankingsScreen({
   }
 
   // ── Load Garden and Order data for badges ──
-  async function loadBadgeData() {
+  async function loadBadgeData(options: { silent?: boolean } = {}) {
     if (!user) return;
-    setIsLoadingBadges(true);
+    setIsLoadingBadges(options.silent ? false : gardenPlants.length === 0 && orders.length === 0);
     try {
       const g = await getOrCreateMyGarden(user.id);
       const plants = await getGardenPlants(g.id);
@@ -90,6 +99,7 @@ export function RankingsScreen({
 
       const userOrders = await getUserOrders(user.id);
       setOrders(userOrders);
+      writeFastCache<BadgeCachePayload>(`rankings:${user.id}:badges:v1`, { gardenPlants: plants, orders: userOrders }).catch(() => {});
     } catch (e) {
       console.warn("Error loading badge data:", e);
     } finally {
@@ -155,15 +165,41 @@ export function RankingsScreen({
       }
     }
 
+    async function hydrateLeaderboard() {
+      const cached = await readFastCache<LeaderboardEntry[]>("rankings:leaderboard:v1", LEADERBOARD_CACHE_MAX_AGE_MS);
+      if (cached) {
+        setLeaderboard(cached);
+        setIsLoadingLeaderboard(false);
+      }
+      loadLeaderboard({ silent: !!cached });
+    }
+
     initConsistency();
-    loadLeaderboard();
+    hydrateLeaderboard();
   }, []);
 
   useEffect(() => {
-    if (user?.id) {
-      loadBadgeData();
+    let isMounted = true;
+
+    async function hydrateBadges() {
+      if (!user?.id || activeView !== "badges") return;
+      const cached = await readFastCache<BadgeCachePayload>(`rankings:${user.id}:badges:v1`, BADGE_CACHE_MAX_AGE_MS);
+      if (cached && isMounted) {
+        setGardenPlants(cached.gardenPlants);
+        setOrders(cached.orders);
+        setIsLoadingBadges(false);
+      }
+
+      if (isMounted) {
+        loadBadgeData({ silent: !!cached });
+      }
     }
-  }, [user?.id]);
+
+    hydrateBadges();
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id, activeView]);
 
   // ── Calculate Category Counts for Collections ──
   const indoorCount = gardenPlants.filter((p) => {
@@ -589,7 +625,7 @@ export function RankingsScreen({
           contentContainerStyle={styles.leaderboardScroll}
         >
           {/* Refresh row */}
-          <Pressable onPress={loadLeaderboard} style={styles.refreshRow}>
+          <Pressable onPress={() => { loadLeaderboard(); }} style={styles.refreshRow}>
             <MaterialCommunityIcons name="refresh" size={14} color={colors.greenMuted} />
             <Text style={styles.refreshText}>Refresh</Text>
           </Pressable>
