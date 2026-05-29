@@ -1623,15 +1623,17 @@
         const safeDisplayName = escapeHTML(displayName);
         const safeUsername = p.username ? `@${escapeHTML(p.username)}` : 'buyer_node';
         const safeSellerStatus = escapeHTML(p.seller_status || 'not_applied');
-        const initials = escapeHTML(displayName.substring(0, 2).toUpperCase());
+        
+        let avatarContent = '';
+        if (p.avatar_url) {
+          avatarContent = `<img src="${escapeHTML(p.avatar_url)}" style="width:36px; height:36px; border-radius:10px; object-fit:cover;" onerror="this.style.display='none';" />`;
+        }
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>
             <div style="display:flex; align-items:center; gap:12px;">
-              <div class="user-avatar" style="width:36px; height:36px; font-size:14px; background:#10b981;">
-                ${initials}
-              </div>
+              ${avatarContent}
               <div>
                 <div style="font-weight:700; color:#fff;">${safeDisplayName}</div>
                 <div style="font-size:12px; color:var(--text-dim);">${safeUsername}</div>
