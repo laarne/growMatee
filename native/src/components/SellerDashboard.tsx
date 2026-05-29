@@ -41,6 +41,7 @@ export function SellerDashboard() {
   const [listingSearch, setListingSearch] = useState("");
   const [listingStatusFilter, setListingStatusFilter] = useState<ListingStatusFilter>("all");
   const [updatingListingId, setUpdatingListingId] = useState<string | null>(null);
+  const [showAllListings, setShowAllListings] = useState(false);
 
   const filteredListings = useMemo(() => {
     const searchTerm = listingSearch.trim().toLowerCase();
@@ -56,6 +57,10 @@ export function SellerDashboard() {
       return matchesStatus && matchesSearch;
     });
   }, [listingSearch, listingStatusFilter, listings]);
+
+  const displayedListings = useMemo(() => {
+    return showAllListings ? filteredListings : filteredListings.slice(0, 3);
+  }, [showAllListings, filteredListings]);
 
   useEffect(() => {
     if (profile?.location) {
@@ -542,7 +547,7 @@ export function SellerDashboard() {
       {!isLoading && listings.length === 0 && <Text style={styles.body}>No seller listings yet.</Text>}
       {!isLoading && listings.length > 0 && filteredListings.length === 0 && <Text style={styles.body}>No listings match that filter.</Text>}
       {!isLoading &&
-        filteredListings.map((listing) => {
+        displayedListings.map((listing) => {
           const statusStyle = getListingStatusStyle(listing.status);
           const stockLevel = listing.quantity <= 2 ? "Low" : "In stock";
           const isUpdatingThisListing = updatingListingId === listing.id;
@@ -622,6 +627,22 @@ export function SellerDashboard() {
             </View>
           );
         })}
+
+      {!isLoading && filteredListings.length > 3 && (
+        <Pressable
+          onPress={() => setShowAllListings(!showAllListings)}
+          style={styles.showAllBtn}
+        >
+          <Text style={styles.showAllBtnText}>
+            {showAllListings ? "Show Less" : `Show All (${filteredListings.length})`}
+          </Text>
+          <MaterialCommunityIcons
+            name={showAllListings ? "chevron-up" : "chevron-down"}
+            size={16}
+            color={colors.green}
+          />
+        </Pressable>
+      )}
     </Card>
 
     <Card>
@@ -1379,6 +1400,21 @@ const styles = StyleSheet.create({
   orderBtnCompleteText: {
     color: colors.white,
     fontSize: 12,
+    fontWeight: "900",
+  },
+  showAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  showAllBtnText: {
+    color: colors.green,
+    fontSize: 13,
     fontWeight: "900",
   },
 });

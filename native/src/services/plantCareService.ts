@@ -1,6 +1,12 @@
 import { supabase } from "./supabase";
 
-export type PlantCareCacheSource = "supabase-cache" | "perenual-api" | "local-fallback";
+export type PlantCareCacheSource =
+  | "supabase-cache"
+  | "perenual-api"
+  | "perenual-fetched-and-cached"
+  | "quota-reached-fallback"
+  | "missing-plant-request-saved"
+  | "local-fallback";
 
 export type PlantCareProfile = {
   id?: string;
@@ -37,7 +43,7 @@ type PlantCareCacheRow = {
   raw_perenual_json: Record<string, unknown> | null;
 };
 
-const MIN_SEARCH_LENGTH = 2;
+const MIN_SEARCH_LENGTH = 3;
 const inFlightPlantCareRequests = new Map<string, Promise<PlantCareProfile | null>>();
 
 export function normalizePlantCareQuery(queryOrPlantId: string | number) {
@@ -68,7 +74,7 @@ export async function getPlantCareFromSupabase(queryOrPlantId: string | number):
   if (!supabase) throw new Error("Supabase is not configured.");
 
   const normalized = normalizePlantCareQuery(queryOrPlantId);
-  if (normalized.length < MIN_SEARCH_LENGTH) return null;
+  if (typeof queryOrPlantId !== "number" && normalized.length < MIN_SEARCH_LENGTH) return null;
 
   const query = supabase
     .from("plant_care_cache")
@@ -86,13 +92,13 @@ export async function getPlantCareFromSupabase(queryOrPlantId: string | number):
   return mapPlantCareRow(data as PlantCareCacheRow);
 }
 
-export async function fetchFromPerenual(queryOrPlantId: string | number): Promise<PlantCareProfile | null> {
+export async function getOrCreatePlantCareFromBackend(queryOrPlantId: string | number): Promise<PlantCareProfile | null> {
   if (!supabase) throw new Error("Supabase is not configured.");
 
   const normalized = normalizePlantCareQuery(queryOrPlantId);
-  if (normalized.length < MIN_SEARCH_LENGTH) return null;
+  if (typeof queryOrPlantId !== "number" && normalized.length < MIN_SEARCH_LENGTH) return null;
 
-  const { data, error } = await supabase.functions.invoke<PlantCareProfile>("plant-care-lookup", {
+  const { data, error } = await supabase.functions.invoke<PlantCareProfile>("get-or-create-plant-care", {
     body: typeof queryOrPlantId === "number"
       ? { perenualId: queryOrPlantId }
       : { query: normalized },
@@ -109,14 +115,16 @@ export async function fetchFromPerenual(queryOrPlantId: string | number): Promis
   return data ?? null;
 }
 
+export const fetchFromPerenual = getOrCreatePlantCareFromBackend;
+
 export async function savePlantCareToSupabase(data: PlantCareProfile): Promise<void> {
   const lookupKey = data.perenualId ?? data.scientificName;
-  await fetchFromPerenual(lookupKey);
+  await getOrCreatePlantCareFromBackend(lookupKey);
 }
 
 export async function getPlantCare(queryOrPlantId: string | number): Promise<PlantCareProfile | null> {
   const normalized = normalizePlantCareQuery(queryOrPlantId);
-  if (normalized.length < MIN_SEARCH_LENGTH) return null;
+  if (typeof queryOrPlantId !== "number" && normalized.length < MIN_SEARCH_LENGTH) return null;
 
   const existingRequest = inFlightPlantCareRequests.get(normalized);
   if (existingRequest) return existingRequest;
@@ -125,7 +133,7 @@ export async function getPlantCare(queryOrPlantId: string | number): Promise<Pla
     const cached = await getPlantCareFromSupabase(queryOrPlantId);
     if (cached) return cached;
 
-    return fetchFromPerenual(queryOrPlantId);
+    return getOrCreatePlantCareFromBackend(queryOrPlantId);
   })();
 
   inFlightPlantCareRequests.set(normalized, request);
@@ -153,5 +161,5 @@ export async function searchPlantCare(query: string): Promise<PlantCareProfile |
   const normalized = normalizePlantCareQuery(query);
   if (normalized.length < MIN_SEARCH_LENGTH) return null;
 
-  return getPlantCare(normalized);
+  return getPlantCareFromSupabase(normalized);
 }
