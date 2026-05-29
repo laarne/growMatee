@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Image, StyleSheet, Text, TextInput, View, Pressable } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, Text, TextInput, View, Pressable, Platform } from "react-native";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { useAuth } from "../context/AuthContext";
@@ -42,6 +42,8 @@ export function SellerDashboard() {
   const [listingStatusFilter, setListingStatusFilter] = useState<ListingStatusFilter>("all");
   const [updatingListingId, setUpdatingListingId] = useState<string | null>(null);
   const [showAllListings, setShowAllListings] = useState(false);
+  const [activeTab, setActiveTab] = useState<"new" | "stock" | "orders">("new");
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
 
   const filteredListings = useMemo(() => {
     const searchTerm = listingSearch.trim().toLowerCase();
@@ -268,471 +270,558 @@ export function SellerDashboard() {
   }
 
   return (
-    <>
-    <Card>
-      <Text style={styles.title}>Seller Dashboard</Text>
-      <Text style={styles.body}>Create listings for review. Public Market visibility starts only after admin approval.</Text>
+    <View style={styles.dashboardContainer}>
+      <Card>
+        <Text style={styles.title}>Seller Management Hub</Text>
+        <Text style={styles.body}>Track your metrics, manage inventory stock, and process incoming buyer orders.</Text>
 
-      {stats && (
-        <View style={styles.statsGrid}>
-          <View style={styles.statsCardCol}>
-            <View style={styles.statsIconWrap}>
-              <MaterialCommunityIcons name="currency-php" size={18} color={colors.green} />
+        {stats && (
+          <View style={styles.statsGrid}>
+            <View style={styles.statsCardCol}>
+              <View style={styles.statsIconWrap}>
+                <MaterialCommunityIcons name="currency-php" size={18} color={colors.green} />
+              </View>
+              <Text style={styles.statsVal} numberOfLines={1}>
+                ₱{stats.totalRevenue.toLocaleString("en-PH")}
+              </Text>
+              <Text style={styles.statsLabel}>Total Revenue</Text>
             </View>
-            <Text style={styles.statsVal} numberOfLines={1}>
-              ₱{stats.totalRevenue.toLocaleString("en-PH")}
+
+            <View style={styles.statsCardCol}>
+              <View style={styles.statsIconWrap}>
+                <MaterialCommunityIcons name="clock-outline" size={18} color="#f59e0b" />
+              </View>
+              <Text style={styles.statsVal} numberOfLines={1}>{stats.pendingOrdersCount}</Text>
+              <Text style={styles.statsLabel}>Pending Orders</Text>
+            </View>
+
+            <View style={styles.statsCardCol}>
+              <View style={styles.statsIconWrap}>
+                <MaterialCommunityIcons name="check-all" size={18} color={colors.green} />
+              </View>
+              <Text style={styles.statsVal} numberOfLines={1}>{stats.soldListingsCount}</Text>
+              <Text style={styles.statsLabel}>Completed Sales</Text>
+            </View>
+
+            <View style={styles.statsCardCol}>
+              <View style={styles.statsIconWrap}>
+                <MaterialCommunityIcons name="star" size={18} color="#eab308" />
+              </View>
+              <Text style={styles.statsVal} numberOfLines={1}>
+                {stats.ratingsAverage} <Text style={{ fontSize: 9, color: colors.greenMuted }}>★</Text>
+              </Text>
+              <Text style={styles.statsLabel}>{stats.ratingsCount} review{stats.ratingsCount !== 1 ? "s" : ""}</Text>
+            </View>
+          </View>
+        )}
+
+        <View style={styles.tabContainer}>
+          <Pressable
+            onPress={() => setActiveTab("new")}
+            style={[styles.tabButton, activeTab === "new" && styles.tabButtonActive]}
+          >
+            <MaterialCommunityIcons
+              name="tag-plus-outline"
+              size={15}
+              color={activeTab === "new" ? colors.white : colors.green}
+            />
+            <Text style={[styles.tabButtonText, activeTab === "new" && styles.tabButtonTextActive]}>
+              New Listing
             </Text>
-            <Text style={styles.statsLabel}>Total Revenue</Text>
-          </View>
+          </Pressable>
 
-          <View style={styles.statsCardCol}>
-            <View style={styles.statsIconWrap}>
-              <MaterialCommunityIcons name="clock-outline" size={18} color="#f59e0b" />
-            </View>
-            <Text style={styles.statsVal} numberOfLines={1}>{stats.pendingOrdersCount}</Text>
-            <Text style={styles.statsLabel}>Pending Orders</Text>
-          </View>
-
-          <View style={styles.statsCardCol}>
-            <View style={styles.statsIconWrap}>
-              <MaterialCommunityIcons name="check-all" size={18} color={colors.green} />
-            </View>
-            <Text style={styles.statsVal} numberOfLines={1}>{stats.soldListingsCount}</Text>
-            <Text style={styles.statsLabel}>Completed Sales</Text>
-          </View>
-
-          <View style={styles.statsCardCol}>
-            <View style={styles.statsIconWrap}>
-              <MaterialCommunityIcons name="star" size={18} color="#eab308" />
-            </View>
-            <Text style={styles.statsVal} numberOfLines={1}>
-              {stats.ratingsAverage} <Text style={{ fontSize: 9, color: colors.greenMuted }}>★</Text>
+          <Pressable
+            onPress={() => setActiveTab("stock")}
+            style={[styles.tabButton, activeTab === "stock" && styles.tabButtonActive]}
+          >
+            <MaterialCommunityIcons
+              name="package-variant-closed"
+              size={15}
+              color={activeTab === "stock" ? colors.white : colors.green}
+            />
+            <Text style={[styles.tabButtonText, activeTab === "stock" && styles.tabButtonTextActive]}>
+              My Stock ({listings.length})
             </Text>
-            <Text style={styles.statsLabel}>{stats.ratingsCount} review{stats.ratingsCount !== 1 ? "s" : ""}</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setActiveTab("orders")}
+            style={[styles.tabButton, activeTab === "orders" && styles.tabButtonActive]}
+          >
+            <MaterialCommunityIcons
+              name="cash-register"
+              size={15}
+              color={activeTab === "orders" ? colors.white : colors.green}
+            />
+            <Text style={[styles.tabButtonText, activeTab === "orders" && styles.tabButtonTextActive]}>
+              Orders ({salesOrders.length})
+            </Text>
+          </Pressable>
+        </View>
+      </Card>
+
+      {/* activeTab === "new" */}
+      {activeTab === "new" && (
+        <View style={styles.subTabViewContainer}>
+          <Card>
+          <Text style={styles.subtitle}>Create New Listing</Text>
+          <View style={styles.form}>
+            {/* Photo preview with scanning overlay */}
+            <Pressable onPress={handlePickPhoto} style={styles.photoContainer}>
+              {photo ? (
+                <>
+                  <Image source={{ uri: photo.uri }} style={styles.preview} />
+                  {isScanning && (
+                    <View style={styles.scanOverlay}>
+                      <View style={styles.scanOverlayInner}>
+                        <ActivityIndicator color={colors.white} size="large" />
+                        <Text style={styles.scanOverlayText}>Leafy AI is identifying your plant...</Text>
+                      </View>
+                    </View>
+                  )}
+                  {scanResult && !isScanning && (
+                    <View style={styles.scanBadgeOverlay}>
+                      <MaterialCommunityIcons color={colors.white} name="leaf" size={12} />
+                      <Text style={styles.scanBadgeOverlayText}>Leafy identified (Tap to change)</Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <View style={styles.photoPlaceholder}>
+                  <MaterialCommunityIcons color={colors.greenMuted} name="image-plus" size={40} />
+                  <Text style={styles.photoPlaceholderText}>Tap to add photo</Text>
+                  <Text style={styles.photoPlaceholderSub}>Leafy AI will scan it automatically</Text>
+                </View>
+              )}
+            </Pressable>
+
+            {photo && (
+              <View style={styles.photoActionRow}>
+                <View style={styles.photoActionBtn}>
+                  <Button
+                    disabled={isScanning}
+                    variant="secondary"
+                    onPress={handleScanPhoto}
+                  >
+                    {isScanning ? "Scanning..." : "Re-scan with Leafy AI"}
+                  </Button>
+                </View>
+              </View>
+            )}
+
+            {/* Leafy scan result card */}
+            {scanResult && !isScanning && (
+              <View style={styles.scanCard}>
+                <View style={styles.scanHeader}>
+                  <View style={styles.scanHeaderLeft}>
+                    <MaterialCommunityIcons color={colors.green} name="leaf-circle" size={18} />
+                    <Text style={styles.scanEyebrow}>Leafy AI Result</Text>
+                  </View>
+                  <Text style={[styles.scanStatusBadge, scanResult.saleStatus !== "safe_to_sell" && styles.scanStatusWarning]}>
+                    {scanResult.saleStatus === "safe_to_sell" ? "Safe to sell" : "Needs review"}
+                  </Text>
+                </View>
+                <Text style={styles.scanTitle}>{scanResult.bestMatch}</Text>
+                <Text style={styles.scanMeta}>
+                  {scanResult.scientificName ?? "Scientific name unavailable"} · {scanResult.confidence}% match
+                </Text>
+                {scanResult.family && (
+                  <Text style={styles.scanMeta}>Family: {scanResult.family}</Text>
+                )}
+                <Text style={styles.scanBody}>{scanResult.reviewReason}</Text>
+              </View>
+            )}
+
+            {/* Form fields — auto-filled by Leafy AI */}
+            <View style={styles.fieldGroup}>
+              {isScanning ? (
+                <View style={styles.fieldSkeleton}>
+                  <ActivityIndicator color={colors.greenMuted} size="small" />
+                  <Text style={styles.fieldSkeletonText}>Filling plant details...</Text>
+                </View>
+              ) : null}
+              <TextInput
+                onChangeText={setName}
+                placeholder="Plant name"
+                placeholderTextColor="#8a9583"
+                style={styles.input}
+                value={name}
+              />
+              <TextInput
+                onChangeText={setLocalName}
+                placeholder="Local name, optional"
+                placeholderTextColor="#8a9583"
+                style={styles.input}
+                value={localName}
+              />
+              <TextInput
+                onChangeText={setScientificName}
+                placeholder="Scientific name, optional"
+                placeholderTextColor="#8a9583"
+                style={styles.input}
+                value={scientificName}
+              />
+              <TextInput
+                onChangeText={setCategory}
+                placeholder="Category (e.g. Root Crops, Vegetables)"
+                placeholderTextColor="#8a9583"
+                style={styles.input}
+                value={category}
+              />
+            </View>
+
+            <View style={styles.formRow}>
+              <View style={styles.formColLarge}>
+                <Text style={styles.formLabel}>Price (PHP)</Text>
+                <TextInput
+                  keyboardType="numeric"
+                  onChangeText={setPrice}
+                  placeholder="Price (PHP)"
+                  placeholderTextColor="#8a9583"
+                  style={styles.input}
+                  value={price}
+                />
+              </View>
+              <View style={styles.formColSmall}>
+                <Text style={styles.formLabel}>Stock Qty</Text>
+                <TextInput
+                  keyboardType="number-pad"
+                  onChangeText={setQuantity}
+                  placeholder="Qty"
+                  placeholderTextColor="#8a9583"
+                  style={styles.input}
+                  value={quantity}
+                />
+              </View>
+            </View>
+
+            <View style={styles.unitRow}>
+              {units.map((unit, index) => (
+                <Button key={unit} variant={index === unitIndex ? "primary" : "secondary"} onPress={() => setUnitIndex(index)}>
+                  {unit}
+                </Button>
+              ))}
+            </View>
+
+            {/* Interactive Location Dropdown */}
+            <View style={styles.fieldLabelContainer}>
+              <Text style={styles.formLabel}>Location</Text>
+            </View>
+            <Pressable onPress={() => setShowLocationDropdown(!showLocationDropdown)} style={styles.dropdownSelector}>
+              <View style={styles.dropdownLeft}>
+                <MaterialCommunityIcons name="map-marker-outline" size={18} color={colors.green} />
+                <Text style={styles.dropdownText}>{location || "Select Location"}</Text>
+              </View>
+              <MaterialCommunityIcons name={showLocationDropdown ? "chevron-up" : "chevron-down"} size={18} color={colors.greenMuted} />
+            </Pressable>
+            {showLocationDropdown && (
+              <View style={styles.dropdownOptionsContainer}>
+                {["Butuan City", "Cabadbaran City", "Surigao City", "Bayugan City", "San Francisco"].map((loc) => (
+                  <Pressable
+                    key={loc}
+                    onPress={() => {
+                      setLocation(loc);
+                      setShowLocationDropdown(false);
+                    }}
+                    style={[styles.dropdownOption, location === loc && styles.dropdownOptionActive]}
+                  >
+                    <Text style={[styles.dropdownOptionText, location === loc && styles.dropdownOptionTextActive]}>
+                      {loc}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            {/* Premium fulfillment static card */}
+            <View style={styles.fieldLabelContainer}>
+              <Text style={styles.formLabel}>Fulfillment Method</Text>
+            </View>
+            <View style={styles.deliverySelectorStatic}>
+              <View style={[styles.dropdownLeft, { flex: 1 }]}>
+                <MaterialCommunityIcons name="truck-delivery-outline" size={18} color={colors.green} />
+                <Text style={styles.deliverySelectorText}>Delivery Only (GrowMate Safety Escrowed)</Text>
+              </View>
+              <View style={styles.deliveryBadgeStatic}>
+                <Text style={styles.deliveryBadgeStaticText}>ACTIVE</Text>
+              </View>
+            </View>
+
+            <TextInput
+              multiline
+              onChangeText={setDescription}
+              placeholder="Description"
+              placeholderTextColor="#8a9583"
+              style={[styles.input, styles.textarea]}
+              value={description}
+            />
+
+            {message && (
+              <View style={styles.messageCard}>
+                <Text style={styles.success}>{message}</Text>
+              </View>
+            )}
+            {error && (
+              <View style={styles.errorCard}>
+                <Text style={styles.error}>{error}</Text>
+              </View>
+            )}
+
+            <Button disabled={isSaving || isScanning} onPress={handleCreateListing}>
+              {isSaving ? "Submitting..." : "Submit for review"}
+            </Button>
           </View>
+        </Card>
         </View>
       )}
 
-      <View style={styles.form}>
-        {/* Photo preview with scanning overlay */}
-        <View style={styles.photoContainer}>
-          {photo ? (
-            <>
-              <Image source={{ uri: photo.uri }} style={styles.preview} />
-              {isScanning && (
-                <View style={styles.scanOverlay}>
-                  <View style={styles.scanOverlayInner}>
-                    <ActivityIndicator color={colors.white} size="large" />
-                    <Text style={styles.scanOverlayText}>Leafy AI is identifying your plant...</Text>
+      {/* activeTab === "stock" */}
+      {activeTab === "stock" && (
+        <View style={styles.subTabViewContainer}>
+          <Card>
+            <View style={styles.sectionHeaderRow}>
+            <View>
+              <Text style={styles.subtitle}>My listings</Text>
+              <Text style={styles.sectionHint}>{filteredListings.length} of {listings.length} shown</Text>
+            </View>
+            <View style={styles.sectionIconBadge}>
+              <MaterialCommunityIcons name="storefront-outline" size={18} color={colors.green} />
+            </View>
+          </View>
+          <View style={styles.listingTools}>
+            <View style={styles.searchBox}>
+              <MaterialCommunityIcons name="magnify" size={17} color={colors.greenMuted} />
+              <TextInput
+                onChangeText={setListingSearch}
+                placeholder="Search listings"
+                placeholderTextColor="#8a9583"
+                style={styles.searchInput}
+                value={listingSearch}
+              />
+            </View>
+            <View style={styles.statusFilterRow}>
+              {listingStatusFilters.map((filter) => (
+                <Pressable
+                  key={filter}
+                  onPress={() => setListingStatusFilter(filter)}
+                  style={[styles.statusFilterChip, listingStatusFilter === filter && styles.statusFilterChipActive]}
+                >
+                  <Text style={[styles.statusFilterText, listingStatusFilter === filter && styles.statusFilterTextActive]}>
+                    {filter === "all" ? "All" : filter.charAt(0).toUpperCase() + filter.slice(1)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          {isLoading && <ActivityIndicator color={colors.green} style={styles.loader} />}
+          {!isLoading && listings.length === 0 && <Text style={styles.body}>No seller listings yet.</Text>}
+          {!isLoading && listings.length > 0 && filteredListings.length === 0 && <Text style={styles.body}>No listings match that filter.</Text>}
+          {!isLoading &&
+            displayedListings.map((listing) => {
+              const statusStyle = getListingStatusStyle(listing.status);
+              const stockLevel = listing.quantity <= 2 ? "Low" : "In stock";
+              const isUpdatingThisListing = updatingListingId === listing.id;
+
+              return (
+                <View key={listing.id} style={styles.listingItem}>
+                  <View style={styles.listingVisualRow}>
+                    <View style={styles.listingImageWrap}>
+                      {listing.photoUrl ? (
+                        <Image source={{ uri: listing.photoUrl }} style={styles.listingThumb} />
+                      ) : (
+                        <View style={styles.listingThumbFallback}>
+                          <MaterialCommunityIcons name="flower-outline" size={30} color={colors.greenMuted} />
+                        </View>
+                      )}
+                      <View style={styles.deliveryBadge}>
+                        <MaterialCommunityIcons name="truck-delivery-outline" size={12} color={colors.white} />
+                        <Text style={styles.deliveryBadgeText}>Delivery</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.listingContent}>
+                      <View style={styles.listingHeader}>
+                        <View style={styles.flexItem}>
+                          <Text style={styles.listingName} numberOfLines={2}>{listing.name}</Text>
+                          <Text style={styles.listingCategory} numberOfLines={1}>{listing.category}</Text>
+                        </View>
+                        <View style={[styles.listingStatusBadge, { backgroundColor: statusStyle.bg }]}>
+                          <MaterialCommunityIcons name={statusStyle.icon} size={12} color={statusStyle.text} />
+                          <Text style={[styles.listingStatusText, { color: statusStyle.text }]}>{statusStyle.label}</Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.listingMetricGrid}>
+                        <View style={styles.listingMetric}>
+                          <MaterialCommunityIcons name="currency-php" size={14} color={colors.green} />
+                          <Text style={styles.listingMetricValue}>{listing.price.toLocaleString("en-PH")}</Text>
+                        </View>
+                        <View style={styles.listingMetric}>
+                          <MaterialCommunityIcons name="package-variant-closed" size={14} color={colors.green} />
+                          <Text style={styles.listingMetricValue}>{listing.quantity} {listing.unit}</Text>
+                        </View>
+                        <View style={styles.listingMetric}>
+                          <MaterialCommunityIcons name="map-marker-outline" size={14} color={colors.green} />
+                          <Text style={styles.listingMetricValue} numberOfLines={1}>{listing.location}</Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.stockRow}>
+                        <View style={[styles.stockPill, listing.quantity <= 2 && styles.stockPillLow]}>
+                          <Text style={[styles.stockText, listing.quantity <= 2 && styles.stockTextLow]}>{stockLevel}</Text>
+                        </View>
+                        <View style={styles.stockStepper}>
+                          <Pressable
+                            disabled={isUpdatingThisListing || listing.quantity <= 1}
+                            onPress={() => handleAdjustListingStock(listing, -1)}
+                            style={[styles.stockBtn, (isUpdatingThisListing || listing.quantity <= 1) && styles.stockBtnDisabled]}
+                          >
+                            <MaterialCommunityIcons name="minus" size={16} color={colors.green} />
+                          </Pressable>
+                          <Pressable
+                            disabled={isUpdatingThisListing}
+                            onPress={() => handleAdjustListingStock(listing, 1)}
+                            style={[styles.stockBtn, isUpdatingThisListing && styles.stockBtnDisabled]}
+                          >
+                            <MaterialCommunityIcons name="plus" size={16} color={colors.green} />
+                          </Pressable>
+                          {listing.status !== "archived" && (
+                            <Pressable onPress={() => handleDeleteListing(listing.id)} style={styles.archiveBtn}>
+                              <MaterialCommunityIcons name="archive-outline" size={17} color="#d14b4b" />
+                            </Pressable>
+                          )}
+                        </View>
+                      </View>
+                    </View>
                   </View>
                 </View>
-              )}
-              {scanResult && !isScanning && (
-                <View style={styles.scanBadgeOverlay}>
-                  <MaterialCommunityIcons color={colors.white} name="leaf" size={12} />
-                  <Text style={styles.scanBadgeOverlayText}>Leafy identified</Text>
-                </View>
-              )}
-            </>
-          ) : (
-            <Pressable onPress={handlePickPhoto} style={styles.photoPlaceholder}>
-              <MaterialCommunityIcons color={colors.greenMuted} name="image-plus" size={40} />
-              <Text style={styles.photoPlaceholderText}>Tap to add photo</Text>
-              <Text style={styles.photoPlaceholderSub}>Leafy AI will scan it automatically</Text>
-            </Pressable>
-          )}
-        </View>
+              );
+            })}
 
-        <View style={styles.photoActionRow}>
-          <View style={styles.photoActionBtn}>
-            <Button variant="secondary" onPress={handlePickPhoto}>
-              {photo ? "Change photo" : "Add listing photo"}
-            </Button>
-          </View>
-          {photo && (
-            <View style={styles.photoActionBtn}>
-              <Button
-                disabled={isScanning}
-                variant="secondary"
-                onPress={handleScanPhoto}
-              >
-                {isScanning ? "Scanning..." : "Re-scan"}
-              </Button>
-            </View>
-          )}
-        </View>
-
-        {/* Leafy scan result card */}
-        {scanResult && !isScanning && (
-          <View style={styles.scanCard}>
-            <View style={styles.scanHeader}>
-              <View style={styles.scanHeaderLeft}>
-                <MaterialCommunityIcons color={colors.green} name="leaf-circle" size={18} />
-                <Text style={styles.scanEyebrow}>Leafy AI Result</Text>
-              </View>
-              <Text style={[styles.scanStatusBadge, scanResult.saleStatus !== "safe_to_sell" && styles.scanStatusWarning]}>
-                {scanResult.saleStatus === "safe_to_sell" ? "Safe to sell" : "Needs review"}
-              </Text>
-            </View>
-            <Text style={styles.scanTitle}>{scanResult.bestMatch}</Text>
-            <Text style={styles.scanMeta}>
-              {scanResult.scientificName ?? "Scientific name unavailable"} · {scanResult.confidence}% match
-            </Text>
-            {scanResult.family && (
-              <Text style={styles.scanMeta}>Family: {scanResult.family}</Text>
-            )}
-            <Text style={styles.scanBody}>{scanResult.reviewReason}</Text>
-          </View>
-        )}
-
-        {/* Form fields — auto-filled by Leafy AI */}
-        <View style={styles.fieldGroup}>
-          {isScanning ? (
-            <View style={styles.fieldSkeleton}>
-              <ActivityIndicator color={colors.greenMuted} size="small" />
-              <Text style={styles.fieldSkeletonText}>Filling plant details...</Text>
-            </View>
-          ) : null}
-          <TextInput
-            onChangeText={setName}
-            placeholder="Plant name"
-            placeholderTextColor="#8a9583"
-            style={styles.input}
-            value={name}
-          />
-          <TextInput
-            onChangeText={setLocalName}
-            placeholder="Local name, optional"
-            placeholderTextColor="#8a9583"
-            style={styles.input}
-            value={localName}
-          />
-          <TextInput
-            onChangeText={setScientificName}
-            placeholder="Scientific name, optional"
-            placeholderTextColor="#8a9583"
-            style={styles.input}
-            value={scientificName}
-          />
-          <TextInput
-            onChangeText={setCategory}
-            placeholder="Category (e.g. Root Crops, Vegetables)"
-            placeholderTextColor="#8a9583"
-            style={styles.input}
-            value={category}
-          />
-        </View>
-
-        <View style={styles.formRow}>
-          <View style={styles.formColLarge}>
-            <Text style={styles.formLabel}>Price (PHP)</Text>
-            <TextInput
-              keyboardType="numeric"
-              onChangeText={setPrice}
-              placeholder="Price (PHP)"
-              placeholderTextColor="#8a9583"
-              style={styles.input}
-              value={price}
-            />
-          </View>
-          <View style={styles.formColSmall}>
-            <Text style={styles.formLabel}>Stock Qty</Text>
-            <TextInput
-              keyboardType="number-pad"
-              onChangeText={setQuantity}
-              placeholder="Qty"
-              placeholderTextColor="#8a9583"
-              style={styles.input}
-              value={quantity}
-            />
-          </View>
-        </View>
-
-        <View style={styles.unitRow}>
-          {units.map((unit, index) => (
-            <Button key={unit} variant={index === unitIndex ? "primary" : "secondary"} onPress={() => setUnitIndex(index)}>
-              {unit}
-            </Button>
-          ))}
-        </View>
-
-        <TextInput
-          onChangeText={setLocation}
-          placeholder="Location (e.g. Butuan City)"
-          placeholderTextColor="#8a9583"
-          style={styles.input}
-          value={location}
-        />
-        <TextInput
-          editable={false}
-          placeholder="Delivery"
-          placeholderTextColor="#8a9583"
-          style={styles.input}
-          value={deliveryOption}
-        />
-        <TextInput
-          multiline
-          onChangeText={setDescription}
-          placeholder="Description"
-          placeholderTextColor="#8a9583"
-          style={[styles.input, styles.textarea]}
-          value={description}
-        />
-
-        {message && (
-          <View style={styles.messageCard}>
-            <Text style={styles.success}>{message}</Text>
-          </View>
-        )}
-        {error && (
-          <View style={styles.errorCard}>
-            <Text style={styles.error}>{error}</Text>
-          </View>
-        )}
-
-        <Button disabled={isSaving || isScanning} onPress={handleCreateListing}>
-          {isSaving ? "Submitting..." : "Submit for review"}
-        </Button>
-      </View>
-    </Card>
-
-    <Card>
-      <View style={styles.sectionHeaderRow}>
-        <View>
-          <Text style={styles.subtitle}>My listings</Text>
-          <Text style={styles.sectionHint}>{filteredListings.length} of {listings.length} shown</Text>
-        </View>
-        <View style={styles.sectionIconBadge}>
-          <MaterialCommunityIcons name="storefront-outline" size={18} color={colors.green} />
-        </View>
-      </View>
-      <View style={styles.listingTools}>
-        <View style={styles.searchBox}>
-          <MaterialCommunityIcons name="magnify" size={17} color={colors.greenMuted} />
-          <TextInput
-            onChangeText={setListingSearch}
-            placeholder="Search listings"
-            placeholderTextColor="#8a9583"
-            style={styles.searchInput}
-            value={listingSearch}
-          />
-        </View>
-        <View style={styles.statusFilterRow}>
-          {listingStatusFilters.map((filter) => (
+          {!isLoading && filteredListings.length > 3 && (
             <Pressable
-              key={filter}
-              onPress={() => setListingStatusFilter(filter)}
-              style={[styles.statusFilterChip, listingStatusFilter === filter && styles.statusFilterChipActive]}
+              onPress={() => setShowAllListings(!showAllListings)}
+              style={styles.showAllBtn}
             >
-              <Text style={[styles.statusFilterText, listingStatusFilter === filter && styles.statusFilterTextActive]}>
-                {filter === "all" ? "All" : filter.charAt(0).toUpperCase() + filter.slice(1)}
+              <Text style={styles.showAllBtnText}>
+                {showAllListings ? "Show Less" : `Show All (${filteredListings.length})`}
               </Text>
+              <MaterialCommunityIcons
+                name={showAllListings ? "chevron-up" : "chevron-down"}
+                size={16}
+                color={colors.green}
+              />
             </Pressable>
-          ))}
+          )}
+        </Card>
         </View>
-      </View>
-      {isLoading && <ActivityIndicator color={colors.green} style={styles.loader} />}
-      {!isLoading && listings.length === 0 && <Text style={styles.body}>No seller listings yet.</Text>}
-      {!isLoading && listings.length > 0 && filteredListings.length === 0 && <Text style={styles.body}>No listings match that filter.</Text>}
-      {!isLoading &&
-        displayedListings.map((listing) => {
-          const statusStyle = getListingStatusStyle(listing.status);
-          const stockLevel = listing.quantity <= 2 ? "Low" : "In stock";
-          const isUpdatingThisListing = updatingListingId === listing.id;
+      )}
 
-          return (
-            <View key={listing.id} style={styles.listingItem}>
-              <View style={styles.listingVisualRow}>
-                <View style={styles.listingImageWrap}>
-                  {listing.photoUrl ? (
-                    <Image source={{ uri: listing.photoUrl }} style={styles.listingThumb} />
-                  ) : (
-                    <View style={styles.listingThumbFallback}>
-                      <MaterialCommunityIcons name="flower-outline" size={30} color={colors.greenMuted} />
-                    </View>
-                  )}
-                  <View style={styles.deliveryBadge}>
-                    <MaterialCommunityIcons name="truck-delivery-outline" size={12} color={colors.white} />
-                    <Text style={styles.deliveryBadgeText}>Delivery</Text>
-                  </View>
-                </View>
+      {/* activeTab === "orders" */}
+      {activeTab === "orders" && (
+        <View style={styles.subTabViewContainer}>
+          <Card>
+            <Text style={styles.subtitle}>Incoming Sales Orders</Text>
+          {isLoading && <ActivityIndicator color={colors.green} style={styles.loader} />}
+          {!isLoading && salesOrders.length === 0 && <Text style={styles.body}>No incoming orders yet.</Text>}
+          {!isLoading &&
+            salesOrders.map((order) => {
+              const isPending = order.status === "pending";
+              const isAccepted = order.status === "accepted";
+              const isPaid = order.status === "paid";
+              const statusCol =
+                order.status === "pending"
+                  ? "#b45309"
+                  : order.status === "accepted"
+                  ? "#7c3aed"
+                  : order.status === "paid"
+                  ? "#0369a1"
+                  : order.status === "completed"
+                  ? colors.green
+                  : "#dc2626";
 
-                <View style={styles.listingContent}>
-                  <View style={styles.listingHeader}>
-                    <View style={styles.flexItem}>
-                      <Text style={styles.listingName} numberOfLines={2}>{listing.name}</Text>
-                      <Text style={styles.listingCategory} numberOfLines={1}>{listing.category}</Text>
-                    </View>
-                    <View style={[styles.listingStatusBadge, { backgroundColor: statusStyle.bg }]}>
-                      <MaterialCommunityIcons name={statusStyle.icon} size={12} color={statusStyle.text} />
-                      <Text style={[styles.listingStatusText, { color: statusStyle.text }]}>{statusStyle.label}</Text>
-                    </View>
-                  </View>
+              const statusText = 
+                order.status === "paid"
+                  ? "Ready"
+                  : order.status.charAt(0).toUpperCase() + order.status.slice(1);
+              const safetyFee = order.platformFee || Math.round(order.subtotal * 0.1 * 100) / 100;
+              const sellerPayout = Math.max(order.subtotal - safetyFee, 0);
 
-                  <View style={styles.listingMetricGrid}>
-                    <View style={styles.listingMetric}>
-                      <MaterialCommunityIcons name="currency-php" size={14} color={colors.green} />
-                      <Text style={styles.listingMetricValue}>{listing.price.toLocaleString("en-PH")}</Text>
-                    </View>
-                    <View style={styles.listingMetric}>
-                      <MaterialCommunityIcons name="package-variant-closed" size={14} color={colors.green} />
-                      <Text style={styles.listingMetricValue}>{listing.quantity} {listing.unit}</Text>
-                    </View>
-                    <View style={styles.listingMetric}>
-                      <MaterialCommunityIcons name="map-marker-outline" size={14} color={colors.green} />
-                      <Text style={styles.listingMetricValue} numberOfLines={1}>{listing.location}</Text>
+              return (
+                <View key={order.id} style={styles.orderCard}>
+                  <View style={styles.orderHeader}>
+                    <Text style={styles.orderListingName} numberOfLines={1}>{order.listingName}</Text>
+                    <View style={[styles.orderStatusBadge, { backgroundColor: `${statusCol}18` }]}>
+                      <Text style={[styles.orderStatusText, { color: statusCol }]}>
+                        {statusText}
+                      </Text>
                     </View>
                   </View>
-
-                  <View style={styles.stockRow}>
-                    <View style={[styles.stockPill, listing.quantity <= 2 && styles.stockPillLow]}>
-                      <Text style={[styles.stockText, listing.quantity <= 2 && styles.stockTextLow]}>{stockLevel}</Text>
+                  <Text style={styles.orderBuyerName}>Buyer: {order.buyerName}</Text>
+                  <Text style={styles.orderInfo}>
+                    Qty: {order.quantity} · Total: {formatCurrency(order.subtotal)}
+                  </Text>
+                  <Text style={styles.orderInfo}>Method: {order.meetupOrDelivery || "Delivery"}</Text>
+                  <View style={styles.payoutBox}>
+                    <View style={styles.payoutRow}>
+                      <Text style={styles.payoutLabel}>Item Price</Text>
+                      <Text style={styles.payoutValue}>{formatCurrency(order.subtotal)}</Text>
                     </View>
-                    <View style={styles.stockStepper}>
-                      <Pressable
-                        disabled={isUpdatingThisListing || listing.quantity <= 1}
-                        onPress={() => handleAdjustListingStock(listing, -1)}
-                        style={[styles.stockBtn, (isUpdatingThisListing || listing.quantity <= 1) && styles.stockBtnDisabled]}
-                      >
-                        <MaterialCommunityIcons name="minus" size={16} color={colors.green} />
-                      </Pressable>
-                      <Pressable
-                        disabled={isUpdatingThisListing}
-                        onPress={() => handleAdjustListingStock(listing, 1)}
-                        style={[styles.stockBtn, isUpdatingThisListing && styles.stockBtnDisabled]}
-                      >
-                        <MaterialCommunityIcons name="plus" size={16} color={colors.green} />
-                      </Pressable>
-                      {listing.status !== "archived" && (
-                        <Pressable onPress={() => handleDeleteListing(listing.id)} style={styles.archiveBtn}>
-                          <MaterialCommunityIcons name="archive-outline" size={17} color="#d14b4b" />
+                    <View style={styles.payoutRow}>
+                      <Text style={styles.payoutLabel}>GrowMate Safety Fee (10%)</Text>
+                      <Text style={styles.payoutFee}>-{formatCurrency(safetyFee)}</Text>
+                    </View>
+                    <View style={[styles.payoutRow, styles.payoutTotalRow]}>
+                      <Text style={styles.payoutTotalLabel}>Estimated Seller Payout</Text>
+                      <Text style={styles.payoutTotalValue}>{formatCurrency(sellerPayout)}</Text>
+                    </View>
+                  </View>
+
+                  {/* Order actions */}
+                  {(isPending || isPaid) && (
+                    <View style={styles.orderActionsRow}>
+                      {isPending && (
+                        <>
+                          <Pressable
+                            onPress={() => handleUpdateSalesOrderStatus(order.id, "accepted")}
+                            style={styles.orderBtnAccept}
+                          >
+                            <Text style={styles.orderBtnAcceptText}>Accept Order</Text>
+                          </Pressable>
+                          <Pressable
+                            onPress={() => handleUpdateSalesOrderStatus(order.id, "cancelled")}
+                            style={styles.orderBtnCancel}
+                          >
+                            <Text style={styles.orderBtnCancelText}>Reject</Text>
+                          </Pressable>
+                        </>
+                      )}
+                      {isPaid && (
+                        <Pressable
+                          onPress={() => handleUpdateSalesOrderStatus(order.id, "completed")}
+                          style={styles.orderBtnComplete}
+                        >
+                          <Text style={styles.orderBtnCompleteText}>Mark Completed</Text>
                         </Pressable>
                       )}
                     </View>
-                  </View>
-                </View>
-              </View>
-            </View>
-          );
-        })}
+                  )}
 
-      {!isLoading && filteredListings.length > 3 && (
-        <Pressable
-          onPress={() => setShowAllListings(!showAllListings)}
-          style={styles.showAllBtn}
-        >
-          <Text style={styles.showAllBtnText}>
-            {showAllListings ? "Show Less" : `Show All (${filteredListings.length})`}
-          </Text>
-          <MaterialCommunityIcons
-            name={showAllListings ? "chevron-up" : "chevron-down"}
-            size={16}
-            color={colors.green}
-          />
-        </Pressable>
+                  {isAccepted && (
+                    <View style={{ marginTop: 8, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <MaterialCommunityIcons name="clock-outline" size={14} color="#7c3aed" />
+                      <Text style={{ fontSize: 12, color: "#7c3aed", fontWeight: "700" }}>
+                        Awaiting buyer payment...
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+        </Card>
+        </View>
       )}
-    </Card>
-
-    <Card>
-      <Text style={styles.subtitle}>Incoming Sales Orders</Text>
-      {isLoading && <ActivityIndicator color={colors.green} style={styles.loader} />}
-      {!isLoading && salesOrders.length === 0 && <Text style={styles.body}>No incoming orders yet.</Text>}
-      {!isLoading &&
-        salesOrders.map((order) => {
-          const isPending = order.status === "pending";
-          const isAccepted = order.status === "accepted";
-          const isPaid = order.status === "paid";
-          const statusCol =
-            order.status === "pending"
-              ? "#b45309"
-              : order.status === "accepted"
-              ? "#7c3aed"
-              : order.status === "paid"
-              ? "#0369a1"
-              : order.status === "completed"
-              ? colors.green
-              : "#dc2626";
-
-          const statusText = 
-            order.status === "paid"
-              ? "Ready"
-              : order.status.charAt(0).toUpperCase() + order.status.slice(1);
-          const safetyFee = order.platformFee || Math.round(order.subtotal * 0.1 * 100) / 100;
-          const sellerPayout = Math.max(order.subtotal - safetyFee, 0);
-
-          return (
-            <View key={order.id} style={styles.orderCard}>
-              <View style={styles.orderHeader}>
-                <Text style={styles.orderListingName} numberOfLines={1}>{order.listingName}</Text>
-                <View style={[styles.orderStatusBadge, { backgroundColor: `${statusCol}18` }]}>
-                  <Text style={[styles.orderStatusText, { color: statusCol }]}>
-                    {statusText}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.orderBuyerName}>Buyer: {order.buyerName}</Text>
-              <Text style={styles.orderInfo}>
-                Qty: {order.quantity} · Total: {formatCurrency(order.subtotal)}
-              </Text>
-              <Text style={styles.orderInfo}>Method: {order.meetupOrDelivery || "Delivery"}</Text>
-              <View style={styles.payoutBox}>
-                <View style={styles.payoutRow}>
-                  <Text style={styles.payoutLabel}>Item Price</Text>
-                  <Text style={styles.payoutValue}>{formatCurrency(order.subtotal)}</Text>
-                </View>
-                <View style={styles.payoutRow}>
-                  <Text style={styles.payoutLabel}>GrowMate Safety Fee (10%)</Text>
-                  <Text style={styles.payoutFee}>-{formatCurrency(safetyFee)}</Text>
-                </View>
-                <View style={[styles.payoutRow, styles.payoutTotalRow]}>
-                  <Text style={styles.payoutTotalLabel}>Estimated Seller Payout</Text>
-                  <Text style={styles.payoutTotalValue}>{formatCurrency(sellerPayout)}</Text>
-                </View>
-              </View>
-
-              {/* Order actions */}
-              {(isPending || isPaid) && (
-                <View style={styles.orderActionsRow}>
-                  {isPending && (
-                    <>
-                      <Pressable
-                        onPress={() => handleUpdateSalesOrderStatus(order.id, "accepted")}
-                        style={styles.orderBtnAccept}
-                      >
-                        <Text style={styles.orderBtnAcceptText}>Accept Order</Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => handleUpdateSalesOrderStatus(order.id, "cancelled")}
-                        style={styles.orderBtnCancel}
-                      >
-                        <Text style={styles.orderBtnCancelText}>Reject</Text>
-                      </Pressable>
-                    </>
-                  )}
-                  {isPaid && (
-                    <Pressable
-                      onPress={() => handleUpdateSalesOrderStatus(order.id, "completed")}
-                      style={styles.orderBtnComplete}
-                    >
-                      <Text style={styles.orderBtnCompleteText}>Mark Completed</Text>
-                    </Pressable>
-                  )}
-                </View>
-              )}
-
-              {isAccepted && (
-                <View style={{ marginTop: 8, flexDirection: "row", alignItems: "center", gap: 4 }}>
-                  <MaterialCommunityIcons name="clock-outline" size={14} color="#7c3aed" />
-                  <Text style={{ fontSize: 12, color: "#7c3aed", fontWeight: "700" }}>
-                    Awaiting buyer payment...
-                  </Text>
-                </View>
-              )}
-            </View>
-          );
-        })}
-    </Card>
-    </>
+    </View>
   );
 }
 
@@ -1404,5 +1493,133 @@ const styles = StyleSheet.create({
     color: colors.green,
     fontSize: 13,
     fontWeight: "900",
+  },
+  dashboardContainer: {
+    paddingBottom: 40,
+  },
+  subTabViewContainer: {
+    paddingBottom: 32,
+  },
+  tabContainer: {
+    flexDirection: "row",
+    backgroundColor: colors.surface1,
+    borderRadius: 14,
+    padding: 4,
+    marginTop: 16,
+    gap: 4,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  tabButtonActive: {
+    backgroundColor: colors.green,
+  },
+  tabButtonText: {
+    color: colors.greenMuted,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  tabButtonTextActive: {
+    color: colors.white,
+  },
+  dropdownSelector: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: colors.surface1,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 10,
+  },
+  dropdownLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  dropdownText: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  dropdownOptionsContainer: {
+    backgroundColor: colors.white,
+    borderColor: colors.line,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 6,
+    marginBottom: 10,
+    gap: 2,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  dropdownOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  dropdownOptionActive: {
+    backgroundColor: "#dcfce7",
+  },
+  dropdownOptionText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  dropdownOptionTextActive: {
+    color: colors.green,
+    fontWeight: "800",
+  },
+  deliverySelectorStatic: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#f0fdf4",
+    borderColor: "#bbf7d0",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  deliverySelectorText: {
+    color: colors.green,
+    fontSize: 13,
+    fontWeight: "800",
+    flex: 1,
+    paddingRight: 64,
+  },
+  deliveryBadgeStatic: {
+    backgroundColor: colors.green,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  deliveryBadgeStaticText: {
+    color: colors.white,
+    fontSize: 8,
+    fontWeight: "900",
+  },
+  fieldLabelContainer: {
+    alignSelf: "flex-start",
+    marginBottom: 4,
+    paddingLeft: 4,
   },
 });
