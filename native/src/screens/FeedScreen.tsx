@@ -155,6 +155,7 @@ export function FeedScreen({
   const [commentsMap, setCommentsMap] = useState<Record<string, PostComment[]>>({});
   const [newCommentTexts, setNewCommentTexts] = useState<Record<string, string>>({});
   const [isLoadingComments, setIsLoadingComments] = useState<Record<string, boolean>>({});
+  const [replyingToComment, setReplyingToComment] = useState<PostComment | null>(null);
 
   // Options sheet state
   const [showOptionsModal, setShowOptionsModal] = useState(false);
@@ -448,6 +449,7 @@ export function FeedScreen({
   }
 
   async function handleOpenCommentsModal(post: FeedPost) {
+    setReplyingToComment(null);
     setCommentModalPost(post);
     setIsLoadingComments((prev) => ({ ...prev, [post.id]: true }));
     try {
@@ -465,10 +467,13 @@ export function FeedScreen({
     const text = newCommentTexts[postId]?.trim();
     if (!text) return;
 
+    const parentId = replyingToComment ? (replyingToComment.parentId || replyingToComment.id) : null;
+
     setNewCommentTexts((prev) => ({ ...prev, [postId]: "" }));
+    setReplyingToComment(null);
 
     try {
-      const newComment = await addPostComment(postId, user.id, text);
+      const newComment = await addPostComment(postId, user.id, text, parentId);
       setCommentsMap((prev) => ({
         ...prev,
         [postId]: [...(prev[postId] || []), newComment],
@@ -485,6 +490,22 @@ export function FeedScreen({
       }
     } catch (error) {
       // Silent error
+    }
+  }
+
+  function handleReplyTo(comment: PostComment) {
+    setReplyingToComment(comment);
+    if (commentModalPost) {
+      const username = comment.authorName.replace(/\s+/g, "").toLowerCase();
+      setNewCommentTexts((prev) => {
+        const currentText = prev[commentModalPost.id] || "";
+        const mention = `@${username} `;
+        if (currentText.includes(mention)) return prev;
+        return {
+          ...prev,
+          [commentModalPost.id]: mention + currentText,
+        };
+      });
     }
   }
 
@@ -983,7 +1004,10 @@ export function FeedScreen({
       <Modal
         visible={commentModalPost !== null}
         animationType="slide"
-        onRequestClose={() => setCommentModalPost(null)}
+        onRequestClose={() => {
+          setCommentModalPost(null);
+          setReplyingToComment(null);
+        }}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -991,7 +1015,14 @@ export function FeedScreen({
         >
           {/* Header */}
           <View style={styles.commentModalHeader}>
-            <Pressable onPress={() => setCommentModalPost(null)} style={styles.commentModalCloseBtn} hitSlop={10}>
+            <Pressable
+              onPress={() => {
+                setCommentModalPost(null);
+                setReplyingToComment(null);
+              }}
+              style={styles.commentModalCloseBtn}
+              hitSlop={10}
+            >
               <MaterialCommunityIcons name="chevron-down" size={26} color={colors.textPrimary} />
             </Pressable>
             <Text style={styles.commentModalTitle}>Comments</Text>
@@ -1033,23 +1064,66 @@ export function FeedScreen({
                   </View>
                 ) : (
                   <>
-                    {/* List of comments */}
-                    {(commentsMap[commentModalPost.id] ?? []).map((comment) => (
-                      <View key={comment.id} style={styles.commentRowModal}>
-                        <View style={styles.commentAvatar}>
-                          <Text style={styles.commentAvatarText}>
-                            {(comment.authorName?.[0] ?? "?").toUpperCase()}
-                          </Text>
-                        </View>
-                        <View style={styles.commentBodyWrap}>
-                          <Text style={styles.commentAuthor}>
-                            {comment.authorName}{" "}
-                            <Text style={styles.commentText}>{comment.body}</Text>
-                          </Text>
-                          <Text style={styles.commentTime}>{getRelativeTime(comment.createdAt)}</Text>
-                        </View>
-                      </View>
-                    ))}
+                    {/* Threaded list of comments */}
+                    {(() => {
+                      const allComments = commentsMap[commentModalPost.id] ?? [];
+                      const parentComments = allComments.filter(c => !c.parentId);
+                      
+                      return parentComments.map((comment) => {
+                        const replies = allComments.filter(r => r.parentId === comment.id);
+                        
+                        return (
+                          <View key={comment.id} style={{ marginBottom: 16 }}>
+                            {/* Parent Comment */}
+                            <View style={styles.commentRowModal}>
+                              <View style={styles.commentAvatar}>
+                                <Text style={styles.commentAvatarText}>
+                                  {(comment.authorName?.[0] ?? "?").toUpperCase()}
+                                </Text>
+                              </View>
+                              <View style={styles.commentBodyWrap}>
+                                <Text style={styles.commentAuthor}>
+                                  {comment.authorName}{" "}
+                                  <Text style={styles.commentText}>{comment.body}</Text>
+                                </Text>
+                                <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 4 }}>
+                                  <Text style={styles.commentTime}>{getRelativeTime(comment.createdAt)}</Text>
+                                  <Pressable onPress={() => handleReplyTo(comment)} hitSlop={6}>
+                                    <Text style={styles.replyButtonText}>Reply</Text>
+                                  </Pressable>
+                                </View>
+                              </View>
+                            </View>
+
+                            {/* Replies List */}
+                            {replies.map((reply) => (
+                              <View key={reply.id} style={styles.replyRowModal}>
+                                {/* Left thread line */}
+                                <View style={styles.replyThreadLine} />
+                                
+                                <View style={styles.replyCommentAvatar}>
+                                  <Text style={styles.replyCommentAvatarText}>
+                                    {(reply.authorName?.[0] ?? "?").toUpperCase()}
+                                  </Text>
+                                </View>
+                                <View style={styles.commentBodyWrap}>
+                                  <Text style={styles.commentAuthor}>
+                                    {reply.authorName}{" "}
+                                    <Text style={styles.commentText}>{reply.body}</Text>
+                                  </Text>
+                                  <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 4 }}>
+                                    <Text style={styles.commentTime}>{getRelativeTime(reply.createdAt)}</Text>
+                                    <Pressable onPress={() => handleReplyTo(reply)} hitSlop={6}>
+                                      <Text style={styles.replyButtonText}>Reply</Text>
+                                    </Pressable>
+                                  </View>
+                                </View>
+                              </View>
+                            ))}
+                          </View>
+                        );
+                      });
+                    })()}
 
                     {(!commentsMap[commentModalPost.id] || commentsMap[commentModalPost.id].length === 0) && (
                       <View style={styles.noCommentsWrap}>
@@ -1066,30 +1140,44 @@ export function FeedScreen({
 
           {/* Comment input at the bottom */}
           {commentModalPost && (
-            <View style={styles.commentModalInputBar}>
-              <View style={styles.commentModalAvatar}>
-                <Text style={styles.commentModalAvatarText}>
-                  {(user?.email?.[0] ?? "U").toUpperCase()}
-                </Text>
+            <View>
+              {/* Replying banner */}
+              {replyingToComment && (
+                <View style={styles.replyingBanner}>
+                  <Text style={styles.replyingBannerText}>
+                    Replying to <Text style={{ fontWeight: "700" }}>@{replyingToComment.authorName}</Text>
+                  </Text>
+                  <Pressable onPress={() => setReplyingToComment(null)} hitSlop={10}>
+                    <MaterialCommunityIcons name="close" size={16} color={colors.textTertiary} />
+                  </Pressable>
+                </View>
+              )}
+
+              <View style={styles.commentModalInputBar}>
+                <View style={styles.commentModalAvatar}>
+                  <Text style={styles.commentModalAvatarText}>
+                    {(user?.email?.[0] ?? "U").toUpperCase()}
+                  </Text>
+                </View>
+                <TextInput
+                  onChangeText={(val) => setNewCommentTexts((prev) => ({ ...prev, [commentModalPost.id]: val }))}
+                  placeholder={replyingToComment ? `Reply to ${replyingToComment.authorName}...` : `Comment as ${user?.email?.split("@")[0]}...`}
+                  placeholderTextColor={colors.textTertiary}
+                  style={styles.commentModalInput}
+                  value={newCommentTexts[commentModalPost.id] || ""}
+                  multiline
+                />
+                <Pressable
+                  disabled={!(newCommentTexts[commentModalPost.id] || "").trim()}
+                  style={[
+                    styles.commentModalSend,
+                    !(newCommentTexts[commentModalPost.id] || "").trim() && styles.commentModalSendDisabled
+                  ]}
+                  onPress={() => handleSubmitComment(commentModalPost.id)}
+                >
+                  <Text style={styles.commentModalSendText}>Post</Text>
+                </Pressable>
               </View>
-              <TextInput
-                onChangeText={(val) => setNewCommentTexts((prev) => ({ ...prev, [commentModalPost.id]: val }))}
-                placeholder={`Comment as ${user?.email?.split("@")[0]}...`}
-                placeholderTextColor={colors.textTertiary}
-                style={styles.commentModalInput}
-                value={newCommentTexts[commentModalPost.id] || ""}
-                multiline
-              />
-              <Pressable
-                disabled={!(newCommentTexts[commentModalPost.id] || "").trim()}
-                style={[
-                  styles.commentModalSend,
-                  !(newCommentTexts[commentModalPost.id] || "").trim() && styles.commentModalSendDisabled
-                ]}
-                onPress={() => handleSubmitComment(commentModalPost.id)}
-              >
-                <Text style={styles.commentModalSendText}>Post</Text>
-              </Pressable>
             </View>
           )}
         </KeyboardAvoidingView>
@@ -2637,5 +2725,53 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 14,
     fontWeight: "900",
+  },
+  replyRowModal: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "flex-start",
+    marginLeft: 36,
+    marginBottom: 12,
+    position: "relative",
+  },
+  replyThreadLine: {
+    position: "absolute",
+    left: -22,
+    top: -16,
+    bottom: 12,
+    width: 1.5,
+    backgroundColor: colors.line,
+  },
+  replyCommentAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.surface2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  replyCommentAvatarText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.green,
+  },
+  replyButtonText: {
+    fontSize: 12,
+    color: colors.green,
+    fontWeight: "700",
+  },
+  replyingBanner: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: colors.surface1,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  replyingBannerText: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
 });

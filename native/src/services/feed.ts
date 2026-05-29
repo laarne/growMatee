@@ -53,6 +53,7 @@ export type PostComment = {
   id: string;
   postId: string;
   userId: string;
+  parentId?: string | null;
   body: string;
   createdAt: string;
   authorName: string;
@@ -63,6 +64,7 @@ type JoinCommentRow = {
   id: string;
   post_id: string;
   user_id: string;
+  parent_id?: string | null;
   body: string;
   created_at: string;
   profiles: {
@@ -226,6 +228,7 @@ export async function getPostComments(postId: string): Promise<PostComment[]> {
       id,
       post_id,
       user_id,
+      parent_id,
       body,
       created_at,
       profiles:user_id (
@@ -246,6 +249,7 @@ export async function getPostComments(postId: string): Promise<PostComment[]> {
     id: row.id,
     postId: row.post_id,
     userId: row.user_id,
+    parentId: row.parent_id ?? null,
     body: row.body,
     createdAt: row.created_at,
     authorName: row.profiles?.display_name ?? "GrowMate User",
@@ -253,7 +257,12 @@ export async function getPostComments(postId: string): Promise<PostComment[]> {
   }));
 }
 
-export async function addPostComment(postId: string, userId: string, body: string): Promise<PostComment> {
+export async function addPostComment(
+  postId: string,
+  userId: string,
+  body: string,
+  parentId: string | null = null
+): Promise<PostComment> {
   if (!supabase) throw new Error("Supabase is not configured.");
   const sanitizedBody = sanitizeUserInput(body, { maxLength: 500 });
   if (!sanitizedBody) throw new Error("Comment cannot be empty.");
@@ -264,11 +273,13 @@ export async function addPostComment(postId: string, userId: string, body: strin
       post_id: postId,
       user_id: userId,
       body: sanitizedBody,
+      parent_id: parentId,
     })
     .select(`
       id,
       post_id,
       user_id,
+      parent_id,
       body,
       created_at,
       profiles:user_id (
@@ -288,6 +299,7 @@ export async function addPostComment(postId: string, userId: string, body: strin
     id: row.id,
     postId: row.post_id,
     userId: row.user_id,
+    parentId: row.parent_id ?? null,
     body: row.body,
     createdAt: row.created_at,
     authorName: row.profiles?.display_name ?? "GrowMate User",

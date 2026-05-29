@@ -3,6 +3,7 @@ import type { PickedImage } from "./storage";
 
 export type PlantCareProfile = {
   provider: "Perenual" | "GrowMate";
+  perenualId: number | null;
   scientificName: string;
   commonName: string | null;
   summary: string | null;

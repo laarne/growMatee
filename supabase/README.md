@@ -97,7 +97,41 @@ PERENUAL_API_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY` is used only inside the Edge Function to cache Perenual care profiles in `plant_care_profiles`. Do not put it in the Expo app.
+`SUPABASE_SERVICE_ROLE_KEY` is used only inside Edge Functions to cache Perenual care profiles in `plant_care_cache`. Do not put it in the Expo app.
+
+## Perenual Quota Strategy
+
+GrowMate should use one Perenual account and keep Perenual calls backend-only.
+
+Flow:
+
+```text
+User searches or scans a plant
+-> Supabase checks plant_care_cache first
+-> Perenual is called only when the cache is missing
+-> The normalized result is saved to plant_care_cache
+-> Future users reuse Supabase data
+```
+
+`plant-care-lookup` is the user-facing Edge Function for cache-first plant care lookups.
+`plant-care-seed` is admin-only and can preload up to 100 common plants per run into `plant_care_cache`.
+
+Example admin seed request body:
+
+```json
+{
+  "limit": 50
+}
+```
+
+Optional dry run:
+
+```json
+{
+  "limit": 50,
+  "dryRun": true
+}
+```
 
 Optional model override:
 
