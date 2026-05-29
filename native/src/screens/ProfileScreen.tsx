@@ -654,6 +654,8 @@ export function ProfileScreen({
                 resizeMode="cover"
               />
             )}
+            {/* Subtle dark gradient scrim overlay */}
+            <View style={styles.coverScrim} />
             {/* Uploading overlay */}
             {isUploadingCover && (
               <View style={styles.coverUploadingOverlay}>
@@ -716,11 +718,20 @@ export function ProfileScreen({
 
         {/* ══ User info block ══════════════════════════════ */}
         <View style={styles.infoBlock}>
-          {/* Name + level */}
-          <View style={styles.nameRow}>
-            <Text style={styles.displayName}>{displayName}</Text>
-            <View style={styles.levelBadge}>
-              <Text style={styles.levelText}>{levelTitle}</Text>
+          {/* Grouped Name, Level tag, and XP bar for tight layout alignment */}
+          <View style={styles.userIdentityGroup}>
+            <View style={styles.nameRow}>
+              <Text style={styles.displayName}>{displayName}</Text>
+              <View style={styles.levelBadge}>
+                <Text style={styles.levelText}>{levelTitle}</Text>
+              </View>
+            </View>
+
+            <View style={styles.xpMiniRow}>
+              <View style={styles.xpTrack}>
+                <View style={[styles.xpFill, { width: `${Math.round(xpPct * 100)}%` as any }]} />
+              </View>
+              <Text style={styles.xpLabel}>Lvl {level} · {Math.round(xpPct * 100)}% XP</Text>
             </View>
           </View>
 
@@ -729,26 +740,18 @@ export function ProfileScreen({
             {username}{location ? ` · ${location}` : ""}
           </Text>
 
-          {/* XP bar */}
-          <View style={styles.xpRow}>
-            <View style={styles.xpTrack}>
-              <View style={[styles.xpFill, { width: `${Math.round(xpPct * 100)}%` as any }]} />
-            </View>
-            <Text style={styles.xpLabel}>Lvl {level} · {Math.round(xpPct * 100)}% XP</Text>
-          </View>
-
           {/* Bio */}
           {bio ? <Text style={styles.bioText}>{bio}</Text> : null}
 
-          {/* Stats row */}
+          {/* Stats row with dividers removed, using whitespace instead */}
           <View style={styles.statsRow}>
             {[
               { label: "Plants", value: plantsCount },
               { label: "Posts",  value: postsCount },
               { label: "Score",  value: score >= 1000 ? `${(score / 1000).toFixed(1)}k` : score },
               { label: "Followers", value: followers },
-            ].map(({ label, value }, i) => (
-              <View key={label} style={[styles.statCell, i < 3 && styles.statCellBorder]}>
+            ].map(({ label, value }) => (
+              <View key={label} style={styles.statCell}>
                 <Text style={styles.statValue}>{value}</Text>
                 <Text style={styles.statLabel}>{label}</Text>
               </View>
@@ -898,17 +901,21 @@ export function ProfileScreen({
         {/* ══ Collection Trackers ══════════════════════════ */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Collection Trackers</Text>
-          <View style={styles.trackersGrid}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.trackersScroll}
+          >
             {collections.map((col) => (
-              <View key={col.name} style={styles.trackerCard}>
+              <View key={col.name} style={styles.trackerCardHorizontal}>
                 <View style={styles.trackerHeader}>
                   <MaterialCommunityIcons
                     name={col.icon as any}
-                    size={22}
+                    size={20}
                     color={col.count > 0 ? colors.green : colors.greenMuted}
                   />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.trackerTitle}>{col.name}</Text>
+                    <Text style={styles.trackerTitle} numberOfLines={1}>{col.name}</Text>
                     <Text style={styles.trackerRank}>
                       {col.details.title !== "None" ? col.details.title : "Not Started"}
                     </Text>
@@ -925,7 +932,7 @@ export function ProfileScreen({
                 </View>
               </View>
             ))}
-          </View>
+          </ScrollView>
         </View>
 
         {/* ══ My Market Listings ══════════════════════════ */}
@@ -975,117 +982,6 @@ export function ProfileScreen({
             <SellerDashboard />
           </View>
         )}
-
-        {/* ══ My Orders ═══════════════════════════════════ */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>My Orders</Text>
-            <Pressable onPress={loadOrders} hitSlop={8}>
-              <MaterialCommunityIcons name="refresh" size={18} color={colors.greenMuted} />
-            </Pressable>
-          </View>
-
-          {ordersError && (
-            <View style={styles.errorRow}>
-              <MaterialCommunityIcons name="alert-circle-outline" size={14} color={colors.errorText} />
-              <Text style={styles.errorText}>{ordersError}</Text>
-            </View>
-          )}
-
-          {isLoadingOrders ? (
-            <ActivityIndicator color={colors.green} style={{ marginVertical: 16 }} />
-          ) : orders.length === 0 ? (
-            <View style={styles.emptyState}>
-              <MaterialCommunityIcons name="receipt-text-outline" size={36} color={colors.line} />
-              <Text style={styles.emptyText}>No transactions yet</Text>
-            </View>
-          ) : (
-            orders.map((order) => {
-              const isBuyer = order.buyerId === user?.id;
-              const hasReviewed = reviewedOrdersMap[order.id] ?? false;
-              const statusCol = statusColor[order.status] ?? colors.greenMuted;
-              const safetyFee = order.platformFee || Math.round(order.subtotal * 0.1 * 100) / 100;
-              const sellerPayout = Math.max(order.subtotal - safetyFee, 0);
-
-              return (
-                <View key={order.id} style={styles.orderCard}>
-                  <View style={styles.orderTop}>
-                    <View style={styles.orderRoleBadge}>
-                      <Text style={styles.orderRoleText}>{isBuyer ? "Purchase" : "Sale"}</Text>
-                    </View>
-                    <View style={[styles.orderStatusBadge, { backgroundColor: `${statusCol}18` }]}>
-                      <Text style={[styles.orderStatusText, { color: statusCol }]}>{order.status}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.orderTitle}>{order.listingName}</Text>
-                  <Text style={styles.orderMeta}>
-                    {isBuyer ? `From: ${order.sellerName}` : `To: ${order.buyerName}`}
-                  </Text>
-                  <Text style={styles.orderMeta}>{formatCurrency(order.subtotal)} · {order.quantity} unit</Text>
-
-                  {!isBuyer && (
-                    <View style={styles.payoutBox}>
-                      <View style={styles.payoutRow}>
-                        <Text style={styles.payoutLabel}>Item Price</Text>
-                        <Text style={styles.payoutValue}>{formatCurrency(order.subtotal)}</Text>
-                      </View>
-                      <View style={styles.payoutRow}>
-                        <Text style={styles.payoutLabel}>GrowMate Safety Fee (10%)</Text>
-                        <Text style={styles.payoutFee}>-{formatCurrency(safetyFee)}</Text>
-                      </View>
-                      <View style={[styles.payoutRow, styles.payoutTotalRow]}>
-                        <Text style={styles.payoutTotalLabel}>Estimated Seller Payout</Text>
-                        <Text style={styles.payoutTotalValue}>{formatCurrency(sellerPayout)}</Text>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Order actions */}
-                  {order.status === "pending" && (
-                    <View style={styles.orderActions}>
-                      <Pressable
-                        onPress={() => handleUpdateOrderStatus(order.id, "cancelled")}
-                        style={styles.orderBtnSecondary}
-                      >
-                        <Text style={styles.orderBtnSecondaryText}>Cancel</Text>
-                      </Pressable>
-                    </View>
-                  )}
-                  {order.status === "accepted" && isBuyer && (
-                    <View style={styles.orderActions}>
-                      <Pressable
-                        onPress={() => handleUpdateOrderStatus(order.id, "paid")}
-                        style={styles.orderBtnPrimary}
-                      >
-                        <Text style={styles.orderBtnPrimaryText}>Pay Now</Text>
-                      </Pressable>
-                    </View>
-                  )}
-                  {order.status === "paid" && !isBuyer && (
-                    <View style={styles.orderActions}>
-                      <Pressable
-                        onPress={() => handleUpdateOrderStatus(order.id, "completed")}
-                        style={styles.orderBtnPrimary}
-                      >
-                        <Text style={styles.orderBtnPrimaryText}>Complete Sale</Text>
-                      </Pressable>
-                    </View>
-                  )}
-                  {order.status === "completed" && isBuyer && !hasReviewed && (
-                    <View style={styles.orderActions}>
-                      <Pressable
-                        onPress={() => handleOpenReviewModal(order.id, order.sellerId)}
-                        style={styles.orderBtnPrimary}
-                      >
-                        <Text style={styles.orderBtnPrimaryText}>Leave Review</Text>
-                      </Pressable>
-                    </View>
-                  )}
-                </View>
-              );
-            })
-          )}
-        </View>
 
         {/* ══ Saved Listings ══════════════════════════════ */}
         {savedListings.length > 0 && (
@@ -1356,6 +1252,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  coverScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.22)", // Fallback dark tint
+    ...Platform.select({
+      web: {
+        backgroundImage: "linear-gradient(to bottom, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.1) 40%, rgba(0, 0, 0, 0.45) 100%)",
+      } as any,
+    }),
+  },
   coverImage: {
     position: "absolute",
     top: 0,
@@ -1378,12 +1283,17 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 12,
     right: 14,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(0,0,0,0.35)",
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(0,0,0,0.45)", // semi-transparent container
     alignItems: "center",
     justifyContent: "center",
+    ...Platform.select({
+      web: {
+        backdropFilter: "blur(6px)",
+      } as any,
+    }),
   },
   coverSaveBtn: {
     position: "absolute",
@@ -1417,7 +1327,21 @@ const styles = StyleSheet.create({
     borderRadius: (AVATAR_SIZE + AVATAR_BORDER * 2) / 2,
     backgroundColor: colors.cream,
     padding: AVATAR_BORDER,
-    ...shadow.md,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.22,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+      web: {
+        boxShadow: "0 6px 20px rgba(0,0,0,0.22)",
+      },
+    }),
+    zIndex: 10,
   },
   avatarInner: {
     width: AVATAR_SIZE,
@@ -1443,7 +1367,15 @@ const styles = StyleSheet.create({
 
   // ── Info block ────────────────────────────────────────
   infoBlock: { paddingHorizontal: 20, paddingTop: AVATAR_SIZE / 2 + 10 },
-
+  userIdentityGroup: {
+    gap: 4,
+    marginBottom: 6,
+  },
+  xpMiniRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 4 },
   displayName: { fontSize: 24, fontWeight: "800", color: colors.textPrimary, letterSpacing: -0.5, flex: 1 },
   levelBadge: {
@@ -1456,7 +1388,7 @@ const styles = StyleSheet.create({
   },
   levelText: { fontSize: 12, fontWeight: "800", color: colors.greenMid },
 
-  handleText: { fontSize: 13, color: colors.textSecondary, fontWeight: "600", marginBottom: 10 },
+  handleText: { fontSize: 13, color: colors.textSecondary, fontWeight: "600", marginBottom: 12 },
 
   xpRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
   xpTrack: {
@@ -1467,7 +1399,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   xpFill: { height: "100%", backgroundColor: colors.leaf, borderRadius: radius.full },
-  xpLabel: { fontSize: 11, fontWeight: "800", color: colors.greenMid },
+  xpLabel: { fontSize: 12, fontWeight: "800", color: colors.greenMid },
 
   bioText: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, fontWeight: "500", marginBottom: 16 },
 
@@ -1483,9 +1415,9 @@ const styles = StyleSheet.create({
     ...shadow.sm,
   },
   statCell: { flex: 1, alignItems: "center", paddingVertical: 12 },
-  statCellBorder: { borderRightWidth: 1, borderRightColor: colors.line },
+  statCellBorder: { borderRightWidth: 0 },
   statValue: { fontSize: 18, fontWeight: "800", color: colors.textPrimary },
-  statLabel: { fontSize: 11, color: colors.textSecondary, fontWeight: "600", marginTop: 2 },
+  statLabel: { fontSize: 12, color: colors.textSecondary, fontWeight: "600", marginTop: 2 },
 
   // Buttons
   actionBtns: { flexDirection: "row", gap: 10, marginBottom: 8 },
@@ -1544,12 +1476,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     ...shadow.sm,
   },
-  friendTabText: { color: colors.textSecondary, fontSize: 11, fontWeight: "900" },
+  friendTabText: { color: colors.textSecondary, fontSize: 12, fontWeight: "900" },
   friendTabTextActive: { color: colors.green },
   friendEmpty: { alignItems: "center", gap: 8, paddingVertical: 18 },
   friendEmptyText: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     lineHeight: 17,
     textAlign: "center",
@@ -1574,7 +1506,7 @@ const styles = StyleSheet.create({
   friendAvatarText: { color: colors.green, fontSize: 14, fontWeight: "900" },
   friendInfo: { flex: 1 },
   friendName: { color: colors.textPrimary, fontSize: 13, fontWeight: "900" },
-  friendMeta: { color: colors.textSecondary, fontSize: 11, fontWeight: "700", marginTop: 2 },
+  friendMeta: { color: colors.textSecondary, fontSize: 12, fontWeight: "700", marginTop: 2 },
   friendActions: { flexDirection: "row", gap: 6 },
   friendAcceptBtn: {
     alignItems: "center",
@@ -1602,7 +1534,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 32,
   },
-  friendPendingText: { color: colors.greenMuted, fontSize: 11, fontWeight: "900" },
+  friendPendingText: { color: colors.greenMuted, fontSize: 12, fontWeight: "900" },
 
   // ── Sections ──────────────────────────────────────────
   section: { paddingHorizontal: 20, marginTop: 20 },
@@ -1627,13 +1559,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: colors.surface0,
+    backgroundColor: "#e8f7f0", // distinct mint green background tint
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.line,
-    padding: 14,
+    borderColor: "rgba(26, 77, 46, 0.18)", // custom dark green border outline
+    padding: 16,
     marginTop: 10,
-    ...shadow.sm,
+    ...shadow.md, // premium drop shadow/elevation
   },
   sellerSignupCardPressed: { opacity: 0.75 },
   sellerSignupCopy: { flex: 1, gap: 2 },
@@ -1899,10 +1831,11 @@ const styles = StyleSheet.create({
     ...shadow.sm,
   },
   badgeTitle: { fontSize: 12, fontWeight: "800", color: colors.textPrimary, textAlign: "center", marginBottom: 2 },
-  badgeDesc: { fontSize: 10, color: colors.textSecondary, textAlign: "center", fontWeight: "600", lineHeight: 12 },
+  badgeDesc: { fontSize: 11, color: colors.textSecondary, textAlign: "center", fontWeight: "600", lineHeight: 13 },
 
   // ── Trackers ──────────────────────────────────────────
   trackersGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 },
+  trackersScroll: { marginTop: 10, paddingBottom: 6 },
   trackerCard: {
     width: "48%",
     flexGrow: 1,
@@ -1913,10 +1846,20 @@ const styles = StyleSheet.create({
     padding: 12,
     ...shadow.sm,
   },
+  trackerCardHorizontal: {
+    width: 170,
+    backgroundColor: colors.surface0,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 12,
+    marginRight: 10,
+    ...shadow.sm,
+  },
   trackerHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
   trackerIcon: { fontSize: 22 },
   trackerTitle: { fontSize: 13, fontWeight: "800", color: colors.textPrimary },
-  trackerRank: { fontSize: 10, fontWeight: "800", color: colors.greenMid, marginTop: 1 },
+  trackerRank: { fontSize: 12, fontWeight: "800", color: colors.greenMid, marginTop: 1 },
   trackerCount: { fontSize: 18, fontWeight: "900", color: colors.textPrimary },
   trackerProgressWrap: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
   trackerTrack: {
@@ -1927,5 +1870,5 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   trackerFill: { height: "100%", backgroundColor: colors.leaf, borderRadius: radius.full },
-  trackerProgressText: { fontSize: 9, fontWeight: "800", color: colors.textSecondary, width: 22, textAlign: "right" },
+  trackerProgressText: { fontSize: 11, fontWeight: "800", color: colors.textSecondary, width: 36, textAlign: "right" },
 });
