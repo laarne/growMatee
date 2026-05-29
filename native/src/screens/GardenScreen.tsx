@@ -40,6 +40,37 @@ import { RankingsScreen } from "./RankingsScreen";
 import { supabase } from "../services/supabase";
 import { readFastCache, writeFastCache } from "../utils/fastCache";
 
+type ParsedCareNote = {
+  emoji: string;
+  label: string;
+  value: string;
+};
+
+function parseCareNotes(notes?: string): ParsedCareNote[] {
+  if (!notes) return [];
+  const sentences = notes
+    .split(/[.\n;]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  return sentences.map((sentence) => {
+    const lower = sentence.toLowerCase();
+    if (lower.includes("water") || lower.includes("watering") || lower.includes("wet")) {
+      return { emoji: "💧", label: "Water", value: sentence };
+    }
+    if (lower.includes("light") || lower.includes("sun") || lower.includes("shade") || lower.includes("indirect") || lower.includes("direct")) {
+      return { emoji: "☀️", label: "Light", value: sentence };
+    }
+    if (lower.includes("listed") || lower.includes("php") || lower.includes("price") || lower.includes("sell") || lower.includes("cutting") || lower.includes("cost") || lower.includes("buy")) {
+      return { emoji: "💰", label: "Market", value: sentence };
+    }
+    if (lower.includes("wipe") || lower.includes("clean") || lower.includes("dust") || lower.includes("monthly") || lower.includes("mist") || lower.includes("fertiliz") || lower.includes("feed")) {
+      return { emoji: "🌱", label: "Care", value: sentence };
+    }
+    return { emoji: "📋", label: "General", value: sentence };
+  });
+}
+
 const { width: SCREEN_W } = Dimensions.get("window");
 const COVER_HEIGHT = 220;
 const CARD_GAP = 10;
@@ -458,12 +489,20 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
               ))}
             </ScrollView>
 
-            {/* Pagination indicator */}
-            <View style={styles.paginationBadge}>
-              <Text style={styles.paginationText}>
-                {coverIndex + 1}/{coverImages.length}
-              </Text>
-            </View>
+            {/* Carousel Pagination Dots */}
+            {coverImages.length > 1 && (
+              <View style={styles.dotsContainer}>
+                {coverImages.map((_, idx) => (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.dot,
+                      idx === coverIndex ? styles.dotActive : styles.dotInactive
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
 
             {/* Camera button */}
             <Pressable
@@ -478,19 +517,8 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
               )}
             </Pressable>
 
-            {/* Prev arrow */}
-            {coverIndex > 0 && (
-              <Pressable onPress={() => scrollCover(-1)} style={[styles.coverArrow, styles.coverArrowLeft]}>
-                <MaterialCommunityIcons name="chevron-left" size={20} color={colors.white} />
-              </Pressable>
-            )}
-
-            {/* Next arrow */}
-            {coverIndex < coverImages.length - 1 && (
-              <Pressable onPress={() => scrollCover(1)} style={[styles.coverArrow, styles.coverArrowRight]}>
-                <MaterialCommunityIcons name="chevron-right" size={20} color={colors.white} />
-              </Pressable>
-            )}
+            {/* Scrim gradient overlay for text protection */}
+            <View style={styles.scrimOverlay} />
 
             {/* Title overlay */}
             <View style={styles.coverTitle}>
@@ -633,7 +661,7 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
                     onPress={() => setDetailModalPlant(plant)}
                   >
                     {plant.photoUrl ? (
-                      <Image source={{ uri: plant.photoUrl }} style={styles.plantPhoto} />
+                      <Image source={{ uri: plant.photoUrl }} style={styles.plantPhoto} resizeMode="cover" />
                     ) : (
                       <View style={[styles.plantPhoto, styles.plantPhotoFallback]}>
                         <MaterialCommunityIcons name="flower-outline" size={36} color={colors.greenMuted} />
@@ -1164,15 +1192,15 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
 
             <View style={styles.detailBody}>
               <Text style={styles.detailName}>{detailModalPlant?.name}</Text>
-              {detailModalPlant?.scientificName ? (
-                <Text style={styles.detailSci}>{detailModalPlant.scientificName}</Text>
+              {detailModalPlant?.category ? (
+                <Text style={styles.detailSubtext}>{detailModalPlant.category}</Text>
               ) : null}
 
               <View style={styles.detailChipRow}>
-                {detailModalPlant?.category ? (
+                {detailModalPlant?.scientificName ? (
                   <View style={styles.detailChip}>
-                    <MaterialCommunityIcons name="tag-outline" size={13} color={colors.green} />
-                    <Text style={styles.detailChipText}>{detailModalPlant.category}</Text>
+                    <MaterialCommunityIcons name="microscope" size={13} color={colors.green} />
+                    <Text style={styles.detailChipText}>Scientific: {detailModalPlant.scientificName}</Text>
                   </View>
                 ) : null}
                 {detailModalPlant?.condition ? (
@@ -1186,7 +1214,15 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
               {detailModalPlant?.careNotes ? (
                 <View style={styles.detailNotesBox}>
                   <Text style={styles.detailNotesLabel}>Care Notes</Text>
-                  <Text style={styles.detailNotesText}>{detailModalPlant.careNotes}</Text>
+                  {parseCareNotes(detailModalPlant.careNotes).map((item, idx) => (
+                    <View key={idx} style={styles.careNoteRow}>
+                      <Text style={styles.careNoteEmoji}>{item.emoji}</Text>
+                      <View style={styles.careNoteContent}>
+                        <Text style={styles.careNoteLabel}>{item.label}</Text>
+                        <Text style={styles.careNoteValue}>{item.value}</Text>
+                      </View>
+                    </View>
+                  ))}
                 </View>
               ) : null}
 
@@ -1381,7 +1417,7 @@ const styles = StyleSheet.create({
   coverArrowRight: { right: 10 },
   coverTitle: {
     position: "absolute",
-    bottom: 16,
+    bottom: 24,
     left: 16,
     right: 60,
     zIndex: 10,
@@ -1409,7 +1445,7 @@ const styles = StyleSheet.create({
   },
   publicPill: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.16)",
+    backgroundColor: "rgba(255,255,255,0.2)",
     borderColor: "rgba(255,255,255,0.22)",
     borderRadius: radius.full,
     borderWidth: 1,
@@ -1425,7 +1461,7 @@ const styles = StyleSheet.create({
   },
   editGardenPill: {
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.28)",
+    backgroundColor: "rgba(0,0,0,0.45)",
     borderRadius: radius.full,
     flexDirection: "row",
     gap: 5,
@@ -1436,6 +1472,47 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 11,
     fontWeight: "800",
+  },
+  scrimOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "55%",
+    zIndex: 9,
+    elevation: 9,
+    ...Platform.select({
+      web: {
+        backgroundImage: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)",
+      },
+      default: {
+        backgroundColor: "rgba(0,0,0,0.5)",
+      }
+    })
+  },
+  dotsContainer: {
+    position: "absolute",
+    bottom: 8,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 5,
+    zIndex: 10,
+    elevation: 10,
+  },
+  dot: {
+    height: 6,
+    borderRadius: 3,
+  },
+  dotActive: {
+    backgroundColor: colors.white,
+    width: 14,
+  },
+  dotInactive: {
+    backgroundColor: "rgba(255, 255, 255, 0.45)",
+    width: 6,
   },
 
   // ── Stats card ────────────────────────────────────────
@@ -1582,6 +1659,8 @@ const styles = StyleSheet.create({
     width: "100%",
     aspectRatio: 0.9,
     backgroundColor: colors.surface1,
+    resizeMode: "cover",
+    ...(Platform.OS === "web" ? { objectFit: "cover" as any } : {}),
   },
   plantPhotoFallback: {
     alignItems: "center",
@@ -2160,26 +2239,56 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.green,
   },
+  detailSubtext: {
+    fontSize: 14,
+    color: colors.textTertiary,
+    fontWeight: "700",
+    marginTop: 2,
+    marginBottom: 4,
+  },
   detailNotesBox: {
-    backgroundColor: colors.surface1,
-    borderRadius: radius.md,
-    padding: 14,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: colors.line,
+    backgroundColor: "transparent",
+    padding: 0,
+    marginTop: 8,
   },
   detailNotesLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "800",
     color: colors.textSecondary,
     textTransform: "uppercase",
     letterSpacing: 0.8,
+    marginBottom: 10,
   },
-  detailNotesText: {
-    fontSize: 14,
-    fontWeight: "500",
+  careNoteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.line,
+    ...shadow.sm,
+  },
+  careNoteEmoji: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  careNoteContent: {
+    flex: 1,
+  },
+  careNoteLabel: {
+    fontSize: 10,
+    fontWeight: "900",
+    color: colors.greenMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  careNoteValue: {
+    fontSize: 13,
+    fontWeight: "600",
     color: colors.textPrimary,
-    lineHeight: 22,
+    marginTop: 2,
   },
   detailEditBtn: {
     flexDirection: "row",

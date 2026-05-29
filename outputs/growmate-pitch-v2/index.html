@@ -651,6 +651,512 @@
       
       .sdg-pills { flex-wrap: wrap; justify-content: center; }
     }
+
+    /* ─── Redesign Custom CSS ────────────────────────────── */
+    .download-badges {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 24px;
+      z-index: 5;
+    }
+    .badge-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--green);
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: var(--r-sm);
+      text-decoration: none;
+      border: 1px solid rgba(255,255,255,0.12);
+      transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: var(--shadow-sm);
+      min-width: 165px;
+      text-align: left;
+    }
+    .badge-btn:hover {
+      background: var(--green-mid);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: rgba(255,255,255,0.25);
+      color: #fff;
+    }
+    .badge-btn svg {
+      width: 24px;
+      height: 24px;
+      fill: currentColor;
+      flex-shrink: 0;
+    }
+    .badge-txt {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.25;
+    }
+    .badge-txt .b-sub {
+      font-size: 9px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: rgba(255,255,255,0.65);
+    }
+    .badge-txt .b-main {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+
+    /* CSS Phone Mockup */
+    .phone-container {
+      perspective: 1000px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+    }
+    .phone-mockup {
+      width: 285px;
+      height: 575px;
+      background: var(--green);
+      border-radius: 40px;
+      padding: 11px;
+      box-shadow: var(--shadow-lg), 0 0 0 4px rgba(26,58,34,0.15);
+      position: relative;
+      transform: rotateY(-8deg) rotateX(4deg);
+      transition: transform 0.5s ease;
+    }
+    .phone-mockup:hover {
+      transform: rotateY(0deg) rotateX(0deg) translateY(-8px);
+    }
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      background: var(--cream);
+      border-radius: 32px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .phone-notch {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 110px;
+      height: 24px;
+      background: var(--green);
+      border-bottom-left-radius: 16px;
+      border-bottom-right-radius: 16px;
+      z-index: 100;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+    }
+    .notch-camera {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #102a18;
+    }
+    .notch-speaker {
+      width: 32px;
+      height: 3px;
+      border-radius: 2px;
+      background: #102a18;
+    }
+
+    /* Screen UI elements */
+    .mock-header {
+      height: 145px;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      padding: 16px;
+      overflow: hidden;
+    }
+    .mock-header-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .mock-scrim {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(17,44,25,0.92) 0%, rgba(17,44,25,0.4) 60%, transparent 100%);
+      z-index: 1;
+    }
+    .mock-header-info {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+    }
+    .mock-avatar-ring {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f59e0b, #fbbf24);
+      padding: 2px;
+      position: relative;
+    }
+    .mock-avatar {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: var(--green-mid);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .mock-rank {
+      position: absolute;
+      bottom: -3px;
+      right: -3px;
+      background: #f59e0b;
+      color: #fff;
+      font-size: 8px;
+      font-weight: 800;
+      padding: 1px 4px;
+      border-radius: 6px;
+      border: 1px solid var(--green);
+    }
+    .mock-user-meta {
+      flex: 1;
+      text-align: left;
+    }
+    .mock-user-name {
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    .mock-user-stats {
+      color: var(--green-light);
+      font-size: 9px;
+      font-weight: 600;
+      margin-top: 1px;
+    }
+    
+    /* Plant Grid in mockup */
+    .mock-content-scroll {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+      background: var(--cream);
+    }
+    .mock-section-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--green-mid);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .mock-view-btn {
+      font-size: 9px;
+      color: var(--green-leaf);
+      font-weight: 700;
+    }
+    .mock-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .mock-plant-card {
+      background: #fff;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(26,58,34,0.04);
+      transition: transform 0.22s;
+      text-align: left;
+    }
+    .mock-plant-card:hover {
+      transform: translateY(-2px);
+    }
+    .mock-plant-photo {
+      height: 76px;
+      width: 100%;
+      object-fit: cover;
+      background: var(--beige);
+    }
+    .mock-plant-photo-wrap {
+      position: relative;
+    }
+    .mock-plant-badge {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      background: rgba(0,0,0,0.55);
+      color: #fff;
+      font-size: 8px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+    .mock-plant-badge.verified {
+      background: var(--green-leaf);
+    }
+    .mock-plant-details {
+      padding: 8px;
+    }
+    .mock-plant-title {
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--green);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mock-plant-desc {
+      font-size: 8px;
+      color: var(--text-2);
+      margin-top: 2px;
+      font-weight: 600;
+    }
+
+    /* Badges List in mockup */
+    .mock-badge-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      margin-bottom: 8px;
+      box-shadow: 0 2px 6px rgba(26,58,34,0.04);
+      text-align: left;
+    }
+    .mock-badge-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #fffbeb;
+      border: 1px solid #fde047;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+    .mock-badge-icon.locked {
+      background: var(--cream);
+      border-color: var(--line);
+      opacity: 0.6;
+    }
+    .mock-badge-meta {
+      flex: 1;
+    }
+    .mock-badge-title {
+      font-size: 9px;
+      font-weight: 800;
+      color: var(--green);
+    }
+    .mock-badge-desc {
+      font-size: 7px;
+      color: var(--text-3);
+    }
+    .mock-badge-status {
+      font-size: 8px;
+      font-weight: 800;
+      color: #d97706;
+      background: #fff7ed;
+      padding: 2px 6px;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+    .mock-badge-status.locked {
+      color: var(--text-3);
+      background: var(--cream);
+    }
+
+    /* Onboarding Split Section */
+    #onboarding {
+      background: var(--surface);
+      padding: 90px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .onb-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      margin-bottom: 48px;
+    }
+    .onb-tab-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 24px;
+      background: var(--cream-warm);
+      border: 1.5px solid var(--line);
+      color: var(--text-2);
+      font-family: 'Outfit', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+    .onb-tab-btn:hover {
+      background: var(--beige);
+      color: var(--green);
+    }
+    .onb-tab-btn.active {
+      background: var(--green-pale);
+      border-color: var(--green-leaf);
+      color: var(--green-mid);
+      box-shadow: 0 4px 14px rgba(76,175,80,0.12);
+    }
+    .onb-pane {
+      display: none;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 56px;
+      align-items: center;
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    .onb-pane.active {
+      display: grid;
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .onb-benefits-header {
+      font-size: clamp(24px, 3vw, 36px);
+      font-weight: 800;
+      color: var(--green);
+      line-height: 1.2;
+      margin-bottom: 18px;
+    }
+    .onb-benefits-desc {
+      font-size: 15px;
+      color: var(--text-2);
+      line-height: 1.7;
+      margin-bottom: 30px;
+    }
+    .onb-list {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      text-align: left;
+    }
+    .onb-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    .onb-item-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--green-pale);
+      color: var(--green-mid);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .onb-item-txt strong {
+      display: block;
+      font-size: 15px;
+      color: var(--green);
+      margin-bottom: 4px;
+      font-weight: 700;
+    }
+    .onb-item-txt span {
+      font-size: 13px;
+      color: var(--text-2);
+      line-height: 1.6;
+    }
+
+    /* Social Proof ribbon adjustment */
+    .stats-strip {
+      background: #112c19;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .stat-desc {
+      font-size: 11px;
+      color: rgba(255,255,255,0.45);
+      margin-top: 2px;
+      font-weight: 600;
+    }
+
+    /* Leafy Chat Console simulator */
+    .chat-prompts-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: rgba(255,255,255,0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 18px;
+      margin-bottom: 8px;
+      text-align: left;
+    }
+    .chat-prompts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .prompt-chip {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.9);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .prompt-chip:hover {
+      background: rgba(255,255,255,0.16);
+      border-color: var(--green-light);
+      transform: translateY(-1px);
+    }
+    .typing-bubble {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255,255,255,0.1);
+      padding: 8px 14px;
+      border-radius: 4px 14px 14px 14px;
+      margin-bottom: 10px;
+      align-self: flex-start;
+    }
+    .dot-pulse {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.5);
+      animation: pulse 1.2s infinite ease-in-out;
+    }
+    .dot-pulse:nth-child(2) { animation-delay: 0.2s; }
+    .dot-pulse:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes pulse {
+      0%, 100% { transform: scale(0.8); opacity: 0.4; }
+      50% { transform: scale(1.2); opacity: 1; }
+    }
   </style>
 </head>
 <body>
@@ -706,19 +1212,35 @@
           Now Live — Plants Near You
         </div>
         <h1 class="hero-title">
-          Buy &amp; Sell Plants<br/>
-          with <em>Confidence</em>
+          The Marketplace &amp; Community for<br/>
+          <em>Local Plant Growers</em>
         </h1>
         <p class="hero-sub">
-          GrowMate is the Philippines' safest, smartest plant marketplace and community app. Powered by Leafy AI — your personal plant expert for identification, care, and safe trading.
+          GrowMate is the safest, smartest way to buy, sell, and track plants. Scan species, trade with verified local growers, and expand your green collection.
         </p>
-        <div class="hero-ctas" style="margin-bottom: 12px;">
-          <a href="growmate.apk" class="btn btn-dark btn-lg" id="hero-primary-cta" download>Download App (APK)</a>
-          <a href="#screens" class="btn btn-outline btn-lg" id="hero-secondary-cta">See the App</a>
+        
+        <div class="download-badges">
+          <a href="growmate.apk" class="badge-btn" download>
+            <!-- Android Icon SVG -->
+            <svg viewBox="0 0 24 24"><path d="M17.52 2.14a.75.75 0 0 1 .7-.04c.23.11.4.32.48.57l1 3h3.55a.75.75 0 0 1 0 1.5h-1.07l-2.92 8.76a4.75 4.75 0 0 1-9.02 0L6.33 7.17H5.25a.75.75 0 0 1 0-1.5h3.55l1-3c.08-.25.25-.46.48-.57a.75.75 0 0 1 .7.04c.21.14.34.37.37.62l.85 2.56h4.6l.85-2.56c.03-.25.16-.48.37-.62zM9.8 11.25a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5zm6.9 0a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5z"/></svg>
+            <div class="badge-txt">
+              <span class="b-sub">Download Android</span>
+              <span class="b-main">APK Installation</span>
+            </div>
+          </a>
+          <a href="#onboarding" class="badge-btn btn-outline" style="color: var(--green); border-color: rgba(26,58,34,0.22); background: transparent;">
+            <!-- Info Icon SVG -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14h-2v-4h2zm0-6h-2V8h2z"/></svg>
+            <div class="badge-txt">
+              <span class="b-sub">Explore Features</span>
+              <span class="b-main">Interactive Tour</span>
+            </div>
+          </a>
         </div>
-        <div style="font-size: 13px; color: var(--text-3); font-weight: 500; display: flex; align-items: center; gap: 6px; margin-top: 4px; margin-bottom: 24px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--green);"><path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 002-2v-4M17 9l-5 5-5-5M12 12.8V2.5"/></svg>
-          Direct APK Download &nbsp;•&nbsp; <span>Google Play Store soon</span>
+
+        <div style="font-size: 13px; color: var(--text-3); font-weight: 500; display: flex; align-items: center; gap: 6px; margin-top: 18px; margin-bottom: 24px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--green-leaf);"><path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 002-2v-4M17 9l-5 5-5-5M12 12.8V2.5"/></svg>
+          Direct APK Download &nbsp;•&nbsp; <span>Google Play &amp; App Store soon</span>
         </div>
         <div class="hero-social-proof">
           <div class="proof-avatars">
@@ -727,30 +1249,93 @@
             <div class="proof-av av3">A</div>
             <div class="proof-av av4">L</div>
           </div>
-          <span>Trusted by <strong>1,200+ plant lovers</strong> across Mindanao</span>
+          <span>Trusted by <strong>5,000+ gardeners</strong> across the Philippines</span>
         </div>
       </div>
 
       <div class="hero-visual reveal d2">
-        <!-- Frame that crops the pitch slide to show only phones -->
-        <div class="hero-img-frame">
-          <!-- Chips overlaid inside the cropped frame -->
-          <div class="hero-chip hero-chip-1" id="chip-verified">
-            <div class="chip-dot"></div>
-            <div>
-              <div class="chip-lbl">Leafy AI verified</div>
-              <div class="chip-val">Monstera deliciosa</div>
+        <div class="phone-container">
+          <div class="phone-mockup">
+            <div class="phone-screen">
+              <div class="phone-notch">
+                <div class="notch-speaker"></div>
+                <div class="notch-camera"></div>
+              </div>
+              
+              <!-- Mock App My Garden Screen -->
+              <div class="mock-header">
+                <img src="hero_bg.png" class="mock-header-img" alt="Garden Cover" />
+                <div class="mock-scrim"></div>
+                <div class="mock-header-info">
+                  <div class="mock-avatar-ring">
+                    <div class="mock-avatar">S</div>
+                    <span class="mock-rank">#2</span>
+                  </div>
+                  <div class="mock-user-meta">
+                    <h4 class="mock-user-name">Sarah's Sanctuary</h4>
+                    <p class="mock-user-stats">8 plants &bull; Rank #2</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="mock-content-scroll">
+                <div class="mock-section-title">
+                  <span>My Plant Collection</span>
+                  <span class="mock-view-btn">View All</span>
+                </div>
+                
+                <div class="mock-grid">
+                  <!-- Plant 1 -->
+                  <div class="mock-plant-card">
+                    <div class="mock-plant-photo-wrap">
+                      <img src="app-slide-02.png" class="mock-plant-photo" alt="Monstera" />
+                      <span class="mock-plant-badge verified">Verified</span>
+                    </div>
+                    <div class="mock-plant-details">
+                      <h5 class="mock-plant-title">Monstera Deliciosa</h5>
+                      <p class="mock-plant-desc">Indoor &bull; 💧 Weekly</p>
+                    </div>
+                  </div>
+                  <!-- Plant 2 -->
+                  <div class="mock-plant-card">
+                    <div class="mock-plant-photo-wrap">
+                      <img src="app-slide-06.png" class="mock-plant-photo" alt="Pothos" />
+                      <span class="mock-plant-badge">Listed</span>
+                    </div>
+                    <div class="mock-plant-details">
+                      <h5 class="mock-plant-title">Golden Pothos</h5>
+                      <p class="mock-plant-desc">Hanging &bull; 💧 5 Days</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mock-section-title" style="margin-top: 6px;">
+                  <span>Recent Badges</span>
+                </div>
+                
+                <!-- Badge Row 1 -->
+                <div class="mock-badge-row">
+                  <div class="mock-badge-icon">👑</div>
+                  <div class="mock-badge-meta">
+                    <div class="mock-badge-title">Rare Shelf</div>
+                    <div class="mock-badge-desc">3+ rare plants added</div>
+                  </div>
+                  <span class="mock-badge-status">UNLOCKED</span>
+                </div>
+                
+                <!-- Badge Row 2 -->
+                <div class="mock-badge-row">
+                  <div class="mock-badge-icon locked">💧</div>
+                  <div class="mock-badge-meta">
+                    <div class="mock-badge-title">Bloom Keeper</div>
+                    <div class="mock-badge-desc">5+ flowering plants</div>
+                  </div>
+                  <span class="mock-badge-status locked">1/5</span>
+                </div>
+                
+              </div>
             </div>
           </div>
-          <div class="hero-chip hero-chip-2" id="chip-rating">
-            <img src="growmate-logo.png" alt="" class="chip-icon" />
-            <div>
-              <div class="chip-lbl">Seller trust score</div>
-              <div class="chip-val">4.7 trust</div>
-            </div>
-          </div>
-          <!-- slide-05 used: clean 4-phone showcase, no slide title text -->
-          <img src="app-slide-05.png" alt="GrowMate app — Market, Feed, Garden, Rankings screens" class="hero-app-img" id="hero-app-img" />
         </div>
       </div>
 
@@ -763,24 +1348,174 @@
   <div class="container">
     <div class="stats-grid">
       <div class="reveal">
-        <div class="stat-num" data-target="38000" data-suffix="+">38,000+</div>
-        <div class="stat-lbl">Plant Species Covered</div>
+        <div class="stat-num" data-target="5000" data-suffix="+">5,000+</div>
+        <div class="stat-lbl">Active Gardeners</div>
+        <div class="stat-desc">Philippines &amp; Mindanao</div>
       </div>
       <div class="reveal d1">
-        <div class="stat-num" data-target="90" data-suffix="%">90%+</div>
-        <div class="stat-lbl">Matching Confidence</div>
+        <div class="stat-num" data-target="12000" data-suffix="+">12,000+</div>
+        <div class="stat-lbl">Plants Tracked</div>
+        <div class="stat-desc">Growth logs recorded</div>
       </div>
       <div class="reveal d2">
-        <div class="stat-num" data-target="5" data-suffix="">5</div>
-        <div class="stat-lbl">Identifies by Leaf, Flower, Fruit, Bark, Habit</div>
+        <div class="stat-num" data-target="250000" data-prefix="PHP " data-suffix="+">PHP 250,000+</div>
+        <div class="stat-lbl">Successful Sales</div>
+        <div class="stat-desc">Secure peer trading</div>
       </div>
       <div class="reveal d3">
-        <div class="stat-num" data-target="100" data-suffix="%">100%</div>
-        <div class="stat-lbl">Leafy AI Health Diagnosis</div>
+        <div class="stat-num" data-target="4.9" data-suffix="★" data-decimal="1">4.9★</div>
+        <div class="stat-lbl">Community Rating</div>
+        <div class="stat-desc">Verified Trust Score</div>
       </div>
     </div>
   </div>
 </div>
+
+
+<!-- ONBOARDING REDESIGN ──────────────────────────────────── -->
+<section id="onboarding">
+  <div class="container">
+    <div class="sec-head reveal">
+      <span class="tag tag-green">Choose Your Pathway</span>
+      <h2 class="sec-title">Two Roles. One Thriving Community.</h2>
+      <p class="sec-sub">Whether you are looking for rare local cuttings or wanting to track and sell your propagations, GrowMate is tailored for you.</p>
+    </div>
+    
+    <div class="onb-tabs reveal d1">
+      <button class="onb-tab-btn active" id="tab-buyer" onclick="switchOnbTab('buyer')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        I Want to Buy &amp; Discover
+      </button>
+      <button class="onb-tab-btn" id="tab-seller" onclick="switchOnbTab('seller')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        I Want to Track &amp; Sell
+      </button>
+    </div>
+
+    <!-- Buyer Pane -->
+    <div class="onb-pane active" id="pane-buyer">
+      <div class="reveal d2">
+        <h3 class="onb-benefits-header">Discover local plant collections and buy with absolute confidence.</h3>
+        <p class="onb-benefits-desc">Connect directly with hobbyists in your city. Browse verified listings and discover lush public gardens right in your neighborhood.</p>
+        <div class="onb-list">
+          <div class="onb-item">
+            <span class="onb-item-icon">🔍</span>
+            <div class="onb-item-txt">
+              <strong>Local Garden Discovery</strong>
+              <span>Explore public collections, follow neighboring plant lovers, and see what they are growing.</span>
+            </div>
+          </div>
+          <div class="onb-item">
+            <span class="onb-item-icon">🛡️</span>
+            <div class="onb-item-txt">
+              <strong>AI Listing Protection</strong>
+              <span>Leafy AI scans listings to ensure species accuracy and flags endangered or protected plants.</span>
+            </div>
+          </div>
+          <div class="onb-item">
+            <span class="onb-item-icon">💬</span>
+            <div class="onb-item-txt">
+              <strong>Secure In-App Chat</strong>
+              <span>Message sellers directly, check their community trust score, and complete trades safely.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="reveal d3" style="display: flex; justify-content: center;">
+        <!-- Buyer Visual Card -->
+        <div class="feat-card" style="width: 100%; max-width: 360px; padding: 20px; box-shadow: var(--shadow-md); background: #ffffff;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+            <div class="mock-avatar-ring" style="width:30px; height:30px;">
+              <div class="mock-avatar" style="font-size:11px; background:var(--green-mid);">JM</div>
+            </div>
+            <div style="text-align: left;">
+              <h5 style="font-size:12px; font-weight:800; color:var(--green); margin:0;">JM Beringuel</h5>
+              <p style="font-size:9px; color:var(--text-3); font-weight:600; margin:0;">Butuan City &bull; 4.7 Trust Rating</p>
+            </div>
+            <span class="tag tag-green" style="margin-left:auto; font-size:8px; padding:3px 8px;">Active</span>
+          </div>
+          <img src="app-slide-06.png" style="width:100%; height:160px; object-fit:cover; border-radius:12px; margin-bottom:12px;" alt="Monstera Variegated" />
+          <h4 style="font-size:14px; font-weight:800; color:var(--green); margin-bottom:4px; text-align:left;">Variegated Monstera Cutting</h4>
+          <p style="font-size:11px; color:var(--text-2); line-height:1.4; margin-bottom:12px; text-align:left;">Healthy established single-leaf cutting with strong aerial root. Verified by Leafy AI.</p>
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:15px; font-weight:900; color:var(--terracotta);">PHP 1,200</span>
+            <button class="btn btn-dark" style="padding:6px 14px; font-size:11px;">Message Seller</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seller Pane -->
+    <div class="onb-pane" id="pane-seller">
+      <div style="text-align: left;">
+        <h3 class="onb-benefits-header">Track your personal growth and monetize your extra cuttings.</h3>
+        <p class="onb-benefits-desc">Gamify your gardening habit. Keep structured care logs, climb the local rankings, and set up your digital shop to earn from your hobby.</p>
+        <div class="onb-list">
+          <div class="onb-item">
+            <span class="onb-item-icon">📈</span>
+            <div class="onb-item-txt">
+              <strong>Structured Care Tracker</strong>
+              <span>Log watering schedules, soil conditions, and milestones. Never forget a watering cycle again.</span>
+            </div>
+          </div>
+          <div class="onb-item">
+            <span class="onb-item-icon">🏆</span>
+            <div class="onb-item-txt">
+              <strong>Climb the Leaderboards</strong>
+              <span>Earn XP for care streaks, collect illustrative gardening badges, and gain neighborhood visibility.</span>
+            </div>
+          </div>
+          <div class="onb-item">
+            <span class="onb-item-icon">💰</span>
+            <div class="onb-item-txt">
+              <strong>2-Tap Marketplace Listing</strong>
+              <span>List your plants directly from your digital collection. Leafy AI auto-generates tags and prices.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div style="display: flex; justify-content: center;">
+        <!-- Seller Visual Card -->
+        <div class="feat-card" style="width: 100%; max-width: 360px; padding: 20px; box-shadow: var(--shadow-md); background: #faf8f4;">
+          <h4 style="font-size:13px; font-weight:800; color:var(--green); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.05em; text-align:left;">Seller Dashboard</h4>
+          
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+            <div style="background:#fff; padding:12px; border-radius:10px; border:1px solid var(--line); text-align:center;">
+              <div style="font-size:18px; font-weight:900; color:var(--green);">PHP 4,800</div>
+              <div style="font-size:9px; color:var(--text-3); font-weight:700; margin-top:2px; text-transform:uppercase;">This Month's Sales</div>
+            </div>
+            <div style="background:#fff; padding:12px; border-radius:10px; border:1px solid var(--line); text-align:center;">
+              <div style="font-size:18px; font-weight:900; color:var(--green);">Level 5</div>
+              <div style="font-size:9px; color:var(--text-3); font-weight:700; margin-top:2px; text-transform:uppercase;">Plant Level</div>
+            </div>
+          </div>
+
+          <div style="font-size:11px; font-weight:800; color:var(--green-mid); margin-bottom:8px; text-transform:uppercase; text-align:left;">Active Badges</div>
+          
+          <div class="mock-badge-row" style="margin-bottom:8px;">
+            <div class="mock-badge-icon">🌿</div>
+            <div class="mock-badge-meta">
+              <div class="mock-badge-title">Green Streak</div>
+              <div class="mock-badge-desc">7-day plant care logs completed</div>
+            </div>
+            <span class="mock-badge-status" style="background:var(--green-pale); color:var(--green-mid);">ACTIVE</span>
+          </div>
+          
+          <div class="mock-badge-row" style="margin-bottom:0;">
+            <div class="mock-badge-icon">🛒</div>
+            <div class="mock-badge-meta">
+              <div class="mock-badge-title">Market Explorer</div>
+              <div class="mock-badge-desc">Sold 3+ propagations in app</div>
+            </div>
+            <span class="mock-badge-status" style="background:#fffbeb; color:#d97706;">2/3 SOLD</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
 <!-- SCREENS ──────────────────────────────────────────────── -->
 <section id="screens">
@@ -900,7 +1635,7 @@
       </div>
 
       <div class="ai-visual reveal d2">
-        <div class="chat-box">
+        <div class="chat-box" style="text-align: left;">
           <div class="chat-header">
             <img src="leafy-ai.png" alt="Leafy AI mascot" class="chat-avatar" id="leafy-avatar" />
             <div>
@@ -909,12 +1644,16 @@
             </div>
             <div class="chat-status-dot"></div>
           </div>
-          <div class="chat-msgs">
-            <div class="bubble bot">I identified your plant as <strong>Monstera deliciosa</strong> — 94% confidence. Safe to sell. Bright indirect light, water weekly. Want me to auto-fill your listing?</div>
-            <div class="bubble user">Yes! List it at PHP 450 with delivery available.</div>
-            <div class="bubble bot">Done — your Monstera listing is live. I will notify you the moment a buyer sends an order request.</div>
-            <div class="bubble user">Can you check if my pitcher plant is okay to sell?</div>
-            <div class="bubble bot"><strong>Heads up</strong> — Nepenthes pitcher plants may be protected under RA 9147. I have added a safety warning to your draft and recommend verifying the plant's origin before listing.</div>
+          <div class="chat-msgs" id="chat-msgs-container" style="height: 230px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; padding-right: 4px;">
+            <div class="bubble bot">Hi! I am <strong>Leafy AI</strong>, your personal plant assistant. Ask me to identify a plant, diagnose health issues, or verify marketplace compliance!</div>
+          </div>
+          
+          <div class="chat-prompts-title">Test Leafy's Intelligence:</div>
+          <div class="chat-prompts">
+            <button class="prompt-chip" onclick="simulateLeafyChat('identify')">🔍 Identify Species</button>
+            <button class="prompt-chip" onclick="simulateLeafyChat('diagnose')">🍂 Diagnose Leaves</button>
+            <button class="prompt-chip" onclick="simulateLeafyChat('wildlife')">⚖️ Check Legal Safety</button>
+            <button class="prompt-chip" onclick="simulateLeafyChat('autofill')">📝 Auto-generate Listing</button>
           </div>
         </div>
         <img src="leafy-ai.png" alt="Leafy AI mascot character" class="leafy-mascot" id="leafy-mascot" />
@@ -1146,17 +1885,33 @@
 </section>
 
 <!-- CTA ──────────────────────────────────────────────────── -->
-<section id="cta">
+<section id="cta" style="background: linear-gradient(135deg, #112c19 0%, #1a3a22 100%); padding: 90px 0;">
   <div class="container">
     <div class="cta-inner reveal">
-      <img src="growmate-logo.png" alt="GrowMate" class="cta-logo" id="cta-logo" />
-      <h2 class="cta-title">Ready to Grow Something Beautiful?</h2>
-      <p class="cta-sub">Get direct access to the Philippines' smartest plant scanner and community. Instantly download the secure Android APK today.</p>
-      <div class="cta-btns">
-        <a href="growmate.apk" class="btn btn-white btn-lg" id="cta-download" download>Download GrowMate (APK)</a>
-        <a href="#screens" class="btn btn-ghost-white btn-lg" id="cta-learn">See the App</a>
+      <img src="growmate-logo.png" alt="GrowMate" class="cta-logo" id="cta-logo" style="width: 72px; border-radius: 16px; margin-bottom: 20px;" />
+      <h2 class="cta-title" style="font-size: clamp(30px, 4vw, 48px); font-weight: 900; color: #fff; line-height: 1.15;">Ready to Grow Something Beautiful?</h2>
+      <p class="cta-sub" style="color: rgba(255,255,255,0.78); font-size: 16px; max-width: 540px; margin: 0 auto 32px;">Get instant access to the Philippines' smartest plant assistant, marketplace, and community feed today.</p>
+      
+      <div class="download-badges" style="justify-content: center; margin-top: 0;">
+        <a href="growmate.apk" class="badge-btn" download style="background: var(--green-leaf); border-color: rgba(255,255,255,0.25);">
+          <!-- Android Icon SVG -->
+          <svg viewBox="0 0 24 24"><path d="M17.52 2.14a.75.75 0 0 1 .7-.04c.23.11.4.32.48.57l1 3h3.55a.75.75 0 0 1 0 1.5h-1.07l-2.92 8.76a4.75 4.75 0 0 1-9.02 0L6.33 7.17H5.25a.75.75 0 0 1 0-1.5h3.55l1-3c.08-.25.25-.46.48-.57a.75.75 0 0 1 .7.04c.21.14.34.37.37.62l.85 2.56h4.6l.85-2.56c.03-.25.16-.48.37-.62zM9.8 11.25a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5zm6.9 0a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5z"/></svg>
+          <div class="badge-txt">
+            <span class="b-sub">Download Android</span>
+            <span class="b-main">APK Installation</span>
+          </div>
+        </a>
+        <a href="#onboarding" class="badge-btn btn-ghost-white" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.25); color: #fff;">
+          <!-- Info Icon SVG -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14h-2v-4h2zm0-6h-2V8h2z"/></svg>
+          <div class="badge-txt">
+            <span class="b-sub">Explore Features</span>
+            <span class="b-main">Interactive Tour</span>
+          </div>
+        </a>
       </div>
-      <p class="cta-note">Direct APK Installation &nbsp;•&nbsp; Google Play Store soon &nbsp;•&nbsp; Free forever for buyers</p>
+      
+      <p class="cta-note" style="color: rgba(255,255,255,0.45); margin-top: 24px;">Direct APK Installation &nbsp;•&nbsp; Google Play &amp; App Store soon &nbsp;•&nbsp; Free forever for buyers</p>
     </div>
   </div>
 </section>
@@ -1255,24 +2010,108 @@
     });
   });
 
-  // Counter animation
+  // Onboarding tab switcher
+  function switchOnbTab(role) {
+    document.querySelectorAll('.onb-tab-btn').forEach(btn => btn.classList.remove('active'));
+    if (role === 'buyer') {
+      document.getElementById('tab-buyer').classList.add('active');
+      document.getElementById('pane-buyer').classList.add('active');
+      document.getElementById('pane-seller').classList.remove('active');
+    } else {
+      document.getElementById('tab-seller').classList.add('active');
+      document.getElementById('pane-seller').classList.add('active');
+      document.getElementById('pane-buyer').classList.remove('active');
+    }
+  }
+
+  // Leafy Chat Simulator
+  const chatResponses = {
+    identify: {
+      user: "Can you identify this green leaf with split patterns?",
+      bot: "I identified it as a <strong>Monstera deliciosa</strong> (94% confidence). It is a popular indoor plant that thrives in bright indirect sunlight. Watch out for overwatering!"
+    },
+    diagnose: {
+      user: "Why are the tips of my spider plant turning brown and yellow?",
+      bot: "This is usually caused by <strong>mineral buildup</strong> (from tap water) or inconsistent watering. Try using distilled or rainwater, and keep the soil evenly moist but not waterlogged!"
+    },
+    wildlife: {
+      user: "Is it legal to sell a pitcher plant harvested from the wild?",
+      bot: "⚠️ <strong>Heads up!</strong> Nepenthes pitcher plants are protected under Philippine law (RA 9147). Selling wild-collected specimens is illegal. Ensure your plant is nursery-propagated before listing."
+    },
+    autofill: {
+      user: "Draft a listing for my nursery-grown Golden Pothos for PHP 350.",
+      bot: "Done! I've drafted your listing:<br/><strong>Title:</strong> Golden Pothos (Epipremnum aureum)<br/><strong>Price:</strong> PHP 350<br/><strong>Care Tips:</strong> Easy care, low light tolerant. Water when top soil is dry."
+    }
+  };
+
+  let chatIsTyping = false;
+  function simulateLeafyChat(action) {
+    if (chatIsTyping) return;
+    const container = document.getElementById('chat-msgs-container');
+    const response = chatResponses[action];
+    if (!response) return;
+
+    chatIsTyping = true;
+
+    // Append User message bubble
+    const userBubble = document.createElement('div');
+    userBubble.className = 'bubble user';
+    userBubble.textContent = response.user;
+    container.appendChild(userBubble);
+    container.scrollTop = container.scrollHeight;
+
+    // Disable prompts briefly
+    document.querySelectorAll('.prompt-chip').forEach(c => c.disabled = true);
+
+    // Append Typing indicator bubble
+    setTimeout(() => {
+      const typingBubble = document.createElement('div');
+      typingBubble.className = 'typing-bubble';
+      typingBubble.id = 'leafy-typing';
+      typingBubble.innerHTML = '<span class="dot-pulse"></span><span class="dot-pulse"></span><span class="dot-pulse"></span>';
+      container.appendChild(typingBubble);
+      container.scrollTop = container.scrollHeight;
+
+      // Append Bot response bubble
+      setTimeout(() => {
+        const typingEl = document.getElementById('leafy-typing');
+        if (typingEl) typingEl.remove();
+
+        const botBubble = document.createElement('div');
+        botBubble.className = 'bubble bot';
+        botBubble.innerHTML = response.bot;
+        container.appendChild(botBubble);
+        container.scrollTop = container.scrollHeight;
+
+        chatIsTyping = false;
+        document.querySelectorAll('.prompt-chip').forEach(c => c.disabled = false);
+      }, 1500);
+    }, 800);
+  }
+
+  // Improved Counter animation
   function animCounter(el, target, suffix, dur = 1800) {
     let start;
+    const prefix = el.dataset.prefix || '';
+    const hasDecimal = el.dataset.decimal ? parseInt(el.dataset.decimal) : 0;
     const tick = ts => {
       if (!start) start = ts;
       const p = Math.min((ts - start) / dur, 1);
       const ease = 1 - Math.pow(1 - p, 3);
-      el.textContent = Math.floor(ease * target).toLocaleString() + suffix;
+      let val = ease * target;
+      let valStr = hasDecimal ? val.toFixed(hasDecimal) : Math.floor(val).toLocaleString();
+      el.textContent = prefix + valStr + suffix;
       if (p < 1) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
   }
+
   const statEls = document.querySelectorAll('.stat-num[data-target]');
   const so = new IntersectionObserver((entries) => {
     entries.forEach(e => {
       if (e.isIntersecting) {
         const el = e.target;
-        animCounter(el, parseInt(el.dataset.target), el.dataset.suffix || '');
+        animCounter(el, parseFloat(el.dataset.target), el.dataset.suffix || '');
         so.unobserve(el);
       }
     });

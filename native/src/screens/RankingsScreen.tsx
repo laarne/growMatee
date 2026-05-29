@@ -336,8 +336,8 @@ export function RankingsScreen({
       progress: Math.min(loginStreak, 3),
       max: 3,
       unlocked: loginStreak >= 3,
-      iconLocked: "calendar-blank-outline",
-      iconUnlocked: "calendar-check",
+      iconLocked: "watering-can-outline",
+      iconUnlocked: "watering-can",
     },
     {
       id: "green_streak",
@@ -346,8 +346,8 @@ export function RankingsScreen({
       progress: Math.min(loginStreak, 7),
       max: 7,
       unlocked: loginStreak >= 7,
-      iconLocked: "fire",
-      iconUnlocked: "fire",
+      iconLocked: "flower-sprout-outline",
+      iconUnlocked: "flower-sprout",
     },
     {
       id: "garden_regular",
@@ -366,7 +366,7 @@ export function RankingsScreen({
       progress: Math.min(weekendVisits, 4),
       max: 4,
       unlocked: weekendVisits >= 4,
-      iconLocked: "calendar-range-outline",
+      iconLocked: "calendar-heart",
       iconUnlocked: "calendar-heart",
     },
     {
@@ -376,8 +376,8 @@ export function RankingsScreen({
       progress: returnedAfterBreak ? 1 : 0,
       max: 1,
       unlocked: returnedAfterBreak,
-      iconLocked: "sync-off",
-      iconUnlocked: "sync",
+      iconLocked: "seed-outline",
+      iconUnlocked: "sprout",
     },
   ];
 
@@ -389,8 +389,8 @@ export function RankingsScreen({
       progress: displayIndoor,
       max: 5,
       unlocked: displayIndoor >= 5,
-      iconLocked: "home-outline",
-      iconUnlocked: "home",
+      iconLocked: "leaf-circle-outline",
+      iconUnlocked: "leaf-circle",
     },
     {
       id: "rare_shelf",
@@ -399,8 +399,8 @@ export function RankingsScreen({
       progress: displayRare,
       max: 3,
       unlocked: displayRare >= 3,
-      iconLocked: "diamond-outline",
-      iconUnlocked: "diamond-stone",
+      iconLocked: "crown-outline",
+      iconUnlocked: "crown",
     },
     {
       id: "bloom_keeper",
@@ -410,7 +410,7 @@ export function RankingsScreen({
       max: 5,
       unlocked: displayFlowering >= 5,
       iconLocked: "flower-outline",
-      iconUnlocked: "flower",
+      iconUnlocked: "flower-tulip",
     },
     {
       id: "herb_basket",
@@ -429,7 +429,7 @@ export function RankingsScreen({
       progress: displayVeggies,
       max: 5,
       unlocked: displayVeggies >= 5,
-      iconLocked: "basket-outline",
+      iconLocked: "carrot",
       iconUnlocked: "carrot",
     },
     {
@@ -449,8 +449,8 @@ export function RankingsScreen({
       progress: displayFruit,
       max: 3,
       unlocked: displayFruit >= 3,
-      iconLocked: "food-apple-outline",
-      iconUnlocked: "food-apple",
+      iconLocked: "fruit-cherries",
+      iconUnlocked: "fruit-cherries",
     },
   ];
 
@@ -482,8 +482,8 @@ export function RankingsScreen({
       progress: displayBeginnerProgress,
       max: 4,
       unlocked: displayBeginnerProgress >= 4,
-      iconLocked: "hand-heart-outline",
-      iconUnlocked: "hand-heart",
+      iconLocked: "seed-outline",
+      iconUnlocked: "sprout",
     },
     {
       id: "market_explorer",
@@ -492,8 +492,8 @@ export function RankingsScreen({
       progress: displayMarketProgress,
       max: 3,
       unlocked: displayMarketProgress >= 3,
-      iconLocked: "cart-outline",
-      iconUnlocked: "cart",
+      iconLocked: "storefront-outline",
+      iconUnlocked: "storefront",
     },
   ];
 
@@ -517,7 +517,7 @@ export function RankingsScreen({
       <View style={[styles.headerBlock, embedded && styles.headerBlockEmbedded]}>
         <View style={styles.headerLeft}>
           <Text style={styles.headerTitle}>
-            {activeView === "badges" ? "Plant Achievements" : "Garden Rankings"}
+            {activeView === "badges" ? "Plant Badges" : "Garden Rankings"}
           </Text>
         </View>
         {activeView === "leaderboard" && (
@@ -584,7 +584,7 @@ export function RankingsScreen({
             contentContainerStyle={styles.listScroll}
           >
             {currentBadges.map((badge) => (
-              <View key={badge.id} style={styles.badgeCard}>
+              <View key={badge.id} style={[styles.badgeCard, badge.unlocked && styles.badgeCardUnlocked]}>
                 {/* Left Icon Block */}
                 <View
                   style={[
@@ -595,25 +595,34 @@ export function RankingsScreen({
                   <MaterialCommunityIcons
                     name={(badge.unlocked ? badge.iconUnlocked : badge.iconLocked) as any}
                     size={24}
-                    color={badge.unlocked ? "#f97316" : "#84cc16"}
+                    color={badge.unlocked ? "#ffffff" : "#84cc16"}
                   />
                 </View>
 
                 {/* Middle Info Block */}
                 <View style={styles.cardMid}>
                   <Text style={styles.badgeTitleText}>{badge.title}</Text>
-                  <Text style={styles.badgeDescText}>{badge.desc}</Text>
-                  <View style={styles.progressBarTrack}>
-                    <View
-                      style={[
-                        styles.progressBarFill,
-                        {
-                          width: `${(badge.progress / badge.max) * 100}%` as any,
-                          backgroundColor: badge.unlocked ? "#f97316" : "#84cc16",
-                        },
-                      ]}
-                    />
-                  </View>
+                  <Text
+                    style={[
+                      styles.badgeDescText,
+                      (!badge.unlocked && badge.max > 1) ? { marginBottom: 8 } : { marginBottom: 0 }
+                    ]}
+                  >
+                    {badge.desc}
+                  </Text>
+                  {!badge.unlocked && badge.max > 1 && (
+                    <View style={styles.progressBarTrack}>
+                      <View
+                        style={[
+                          styles.progressBarFill,
+                          {
+                            width: `${(badge.progress / badge.max) * 100}%` as any,
+                            backgroundColor: "#84cc16",
+                          },
+                        ]}
+                      />
+                    </View>
+                  )}
                 </View>
 
                 {/* Right Status Badge */}
@@ -886,8 +895,8 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 18,
     borderBottomRightRadius: 18,
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === "ios" ? 50 : 24,
-    paddingBottom: 16,
+    paddingTop: Platform.OS === "ios" ? 44 : 16,
+    paddingBottom: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -926,7 +935,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 12,
-    marginVertical: 18,
+    marginVertical: 12,
     paddingHorizontal: 20,
   },
   tabBtn: {
@@ -968,6 +977,11 @@ const styles = StyleSheet.create({
     borderColor: "#eef2eb",
     ...shadow.sm,
   },
+  badgeCardUnlocked: {
+    backgroundColor: "#fffbeb",
+    borderColor: "#fde047",
+    borderWidth: 1.5,
+  },
   cardIconBox: {
     width: 50,
     height: 50,
@@ -977,7 +991,7 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
   cardIconBoxUnlocked: {
-    backgroundColor: "#fff7ed",
+    backgroundColor: "#f59e0b",
   },
   cardIconBoxLocked: {
     backgroundColor: "#f0fdf4",
@@ -995,7 +1009,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
     marginTop: 2,
-    marginBottom: 8,
   },
   progressBarTrack: {
     height: 6,
@@ -1017,7 +1030,7 @@ const styles = StyleSheet.create({
     minWidth: 54,
   },
   statusPillUnlocked: {
-    backgroundColor: "#ffedd5",
+    backgroundColor: "#f59e0b",
   },
   statusPillLocked: {
     backgroundColor: "#f0fdf4",
@@ -1027,7 +1040,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   statusPillTextUnlocked: {
-    color: "#f97316",
+    color: "#ffffff",
   },
   statusPillTextLocked: {
     color: "#84cc16",

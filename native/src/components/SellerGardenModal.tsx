@@ -24,6 +24,37 @@ import { colors } from "../theme/colors";
 import { EmptyState } from "./EmptyState";
 import { isFollowingGarden, toggleFollowGarden } from "../services/gardenFollows";
 
+type ParsedCareNote = {
+  emoji: string;
+  label: string;
+  value: string;
+};
+
+function parseCareNotes(notes?: string): ParsedCareNote[] {
+  if (!notes) return [];
+  const sentences = notes
+    .split(/[.\n;]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  return sentences.map((sentence) => {
+    const lower = sentence.toLowerCase();
+    if (lower.includes("water") || lower.includes("watering") || lower.includes("wet")) {
+      return { emoji: "💧", label: "Water", value: sentence };
+    }
+    if (lower.includes("light") || lower.includes("sun") || lower.includes("shade") || lower.includes("indirect") || lower.includes("direct")) {
+      return { emoji: "☀️", label: "Light", value: sentence };
+    }
+    if (lower.includes("listed") || lower.includes("php") || lower.includes("price") || lower.includes("sell") || lower.includes("cutting") || lower.includes("cost") || lower.includes("buy")) {
+      return { emoji: "💰", label: "Market", value: sentence };
+    }
+    if (lower.includes("wipe") || lower.includes("clean") || lower.includes("dust") || lower.includes("monthly") || lower.includes("mist") || lower.includes("fertiliz") || lower.includes("feed")) {
+      return { emoji: "🌱", label: "Care", value: sentence };
+    }
+    return { emoji: "📋", label: "General", value: sentence };
+  });
+}
+
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const CARD_GAP = 12;
 
@@ -286,28 +317,23 @@ export function SellerGardenModal({
                 <Text style={styles.backBtnText}>Back</Text>
               </Pressable>
 
-              {/* Pagination indicator */}
+              {/* Carousel Pagination Dots */}
               {coverImages.length > 1 && (
-                <View style={styles.paginationBadge}>
-                  <Text style={styles.paginationText}>
-                    {coverIndex + 1}/{coverImages.length}
-                  </Text>
+                <View style={styles.dotsContainer}>
+                  {coverImages.map((_, idx) => (
+                    <View
+                      key={idx}
+                      style={[
+                        styles.dot,
+                        idx === coverIndex ? styles.dotActive : styles.dotInactive
+                      ]}
+                    />
+                  ))}
                 </View>
               )}
 
-              {/* Prev arrow */}
-              {coverImages.length > 1 && coverIndex > 0 && (
-                <Pressable onPress={() => scrollCover(-1)} style={[styles.coverArrow, styles.coverArrowLeft]}>
-                  <MaterialCommunityIcons name="chevron-left" size={20} color={colors.white} />
-                </Pressable>
-              )}
-
-              {/* Next arrow */}
-              {coverImages.length > 1 && coverIndex < coverImages.length - 1 && (
-                <Pressable onPress={() => scrollCover(1)} style={[styles.coverArrow, styles.coverArrowRight]}>
-                  <MaterialCommunityIcons name="chevron-right" size={20} color={colors.white} />
-                </Pressable>
-              )}
+              {/* Scrim gradient overlay for text protection */}
+              <View style={styles.scrimOverlay} />
 
               {/* Title overlay */}
               <View style={styles.coverTitle}>
@@ -503,7 +529,12 @@ export function SellerGardenModal({
           <Pressable style={styles.detailModalBackdrop} onPress={() => setDetailPlant(null)} />
           <View style={styles.detailModalContent}>
             <View style={styles.detailHeader}>
-              <Text style={styles.detailTitle}>{detailPlant?.name}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.detailTitle}>{detailPlant?.name}</Text>
+                {detailPlant?.category ? (
+                  <Text style={styles.detailSubtext}>{detailPlant.category}</Text>
+                ) : null}
+              </View>
               <Pressable onPress={() => setDetailPlant(null)} style={styles.detailCloseBtn}>
                 <MaterialCommunityIcons name="close" size={20} color={colors.textPrimary} />
               </Pressable>
@@ -517,26 +548,44 @@ export function SellerGardenModal({
                 </View>
               )}
 
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Scientific Name</Text>
-                <Text style={styles.detailValueItalic}>{detailPlant?.scientificName || "Not specified"}</Text>
+              <View style={styles.detailChipRow}>
+                {detailPlant?.scientificName ? (
+                  <View style={styles.detailChip}>
+                    <MaterialCommunityIcons name="microscope" size={13} color={colors.green} />
+                    <Text style={styles.detailChipText}>Scientific: {detailPlant.scientificName}</Text>
+                  </View>
+                ) : null}
+                {detailPlant?.condition ? (
+                  <View style={[styles.detailChip, { backgroundColor: "#dcfce7" }]}>
+                    <MaterialCommunityIcons name="heart-pulse" size={13} color="#16a34a" />
+                    <Text style={[styles.detailChipText, { color: "#16a34a" }]}>{detailPlant.condition}</Text>
+                  </View>
+                ) : null}
               </View>
 
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Category & Condition</Text>
-                <Text style={styles.detailValue}>
-                  {detailPlant?.category || "General"} · {detailPlant?.condition || "Healthy"}
-                </Text>
-              </View>
-
-              <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Care & Observation Notes</Text>
-                <View style={styles.careNotesBox}>
-                  <Text style={styles.careNotesText}>
-                    {detailPlant?.careNotes || "No specific care guidelines recorded yet."}
-                  </Text>
+              {detailPlant?.careNotes ? (
+                <View style={styles.detailSection}>
+                  <Text style={styles.detailLabel}>Care & Observation Notes</Text>
+                  <View style={styles.careNotesBox}>
+                    {parseCareNotes(detailPlant.careNotes).map((item, idx) => (
+                      <View key={idx} style={styles.careNoteRow}>
+                        <Text style={styles.careNoteEmoji}>{item.emoji}</Text>
+                        <View style={styles.careNoteContent}>
+                          <Text style={styles.careNoteLabel}>{item.label}</Text>
+                          <Text style={styles.careNoteValue}>{item.value}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
                 </View>
-              </View>
+              ) : (
+                <View style={styles.detailSection}>
+                  <Text style={styles.detailLabel}>Care & Observation Notes</Text>
+                  <View style={styles.careNotesBox}>
+                    <Text style={styles.careNotesText}>No specific care guidelines recorded yet.</Text>
+                  </View>
+                </View>
+              )}
 
               {onOpenListingDetail && detailPlant && (() => {
                 const matchingListing = listings.find(
@@ -666,7 +715,7 @@ const styles = StyleSheet.create({
   },
   coverTitle: {
     position: "absolute",
-    bottom: 16,
+    bottom: 24,
     left: 16,
     right: 16,
   },
@@ -725,7 +774,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(255,255,255,0.22)",
+    backgroundColor: "rgba(255,255,255,0.2)",
     borderRadius: 8,
     paddingVertical: 3,
     paddingHorizontal: 8,
@@ -1019,17 +1068,113 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
   careNotesBox: {
-    backgroundColor: colors.cream,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: "transparent",
+    padding: 0,
   },
   careNotesText: {
     color: colors.textSecondary,
     fontSize: 13,
     lineHeight: 18,
     fontWeight: "600",
+  },
+  detailSubtext: {
+    fontSize: 12,
+    color: colors.greenMuted,
+    fontWeight: "800",
+    marginTop: 2,
+  },
+  detailChipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
+  detailChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.cream,
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  detailChipText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.green,
+  },
+  careNoteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  careNoteEmoji: {
+    fontSize: 16,
+    marginRight: 10,
+  },
+  careNoteContent: {
+    flex: 1,
+  },
+  careNoteLabel: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: colors.greenMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  careNoteValue: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textPrimary,
+    marginTop: 1,
+  },
+  scrimOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "55%",
+    zIndex: 9,
+    elevation: 9,
+    ...Platform.select({
+      web: {
+        backgroundImage: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)",
+      },
+      default: {
+        backgroundColor: "rgba(0,0,0,0.5)",
+      }
+    })
+  },
+  dotsContainer: {
+    position: "absolute",
+    bottom: 8,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 5,
+    zIndex: 10,
+    elevation: 10,
+  },
+  dot: {
+    height: 6,
+    borderRadius: 3,
+  },
+  dotActive: {
+    backgroundColor: colors.white,
+    width: 14,
+  },
+  dotInactive: {
+    backgroundColor: "rgba(255, 255, 255, 0.45)",
+    width: 6,
   },
   detailViewListingBtn: {
     backgroundColor: colors.green,

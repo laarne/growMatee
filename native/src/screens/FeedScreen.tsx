@@ -79,7 +79,7 @@ export function FeedScreen({
 }: {
   onOpenChat?: (convoId: string, title: string) => void;
 }) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const insets = useSafeAreaInsets();
   const { setActiveTab, setSearchQuery, unreadCount } = useNavigationContext();
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -623,6 +623,19 @@ export function FeedScreen({
             )}
           </Pressable>
           <Pressable
+            accessibilityLabel="Ask Leafy"
+            onPress={() => {
+              if (onOpenChat) {
+                onOpenChat("leafy-ai-assistant", "Leafy AI Assistant");
+              } else {
+                setActiveTab("Messages");
+              }
+            }}
+            style={({ pressed }) => [styles.circleHeaderBtn, pressed && styles.askLeafyFloatPressed]}
+          >
+            <Image source={leafyAvatar} style={styles.leafyHeaderLogo} />
+          </Pressable>
+          <Pressable
             onPress={() => setShowComposer((prev) => !prev)}
             style={styles.greenCircleHeaderBtn}
           >
@@ -748,8 +761,9 @@ export function FeedScreen({
         {/* ── Posts ── */}
         {!isLoading &&
           posts.map((post) => {
-            const subtitle = `${getRelativeTime(post.createdAt)} • ${post.authorLocation || "Plantita"}`;
             const careChips = getCareChips(post);
+            const careChipsText = careChips.map((c) => c.label).join(" • ");
+            const subtitle = `${getRelativeTime(post.createdAt)} • ${post.authorLocation || "Plantita"}${careChipsText ? ` • ${careChipsText}` : ""}`;
             const postTitle = getPostTitle(post);
 
             return (
@@ -817,17 +831,6 @@ export function FeedScreen({
                     </Pressable>
                   )}
                   <Text style={styles.captionText}>{post.body}</Text>
-
-                  {careChips.length > 0 && (
-                    <View style={styles.careChipRow}>
-                      {careChips.map((chip) => (
-                        <View key={`${post.id}-${chip.label}`} style={styles.careChip}>
-                          <MaterialCommunityIcons name={chip.icon} size={13} color={colors.green} />
-                          <Text style={styles.careChipText}>{chip.label}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
                 </View>
 
                 {/* 3. Image with Plant Progress Overlay Badge */}
@@ -892,20 +895,6 @@ export function FeedScreen({
         </Pressable>
       )}
         </ScrollView>
-
-        {/* ── Ask Leafy Floating Action Button ── */}
-        <Pressable
-          onPress={() => {
-            if (onOpenChat) {
-              onOpenChat("leafy-ai-assistant", "Leafy AI Assistant");
-            } else {
-              setActiveTab("Messages");
-            }
-          }}
-          style={({ pressed }) => [styles.askLeafyFloat, pressed && styles.askLeafyFloatPressed]}
-        >
-          <Image source={leafyAvatar} style={styles.askLeafyLogo} />
-        </Pressable>
 
       {/* Report Modal */}
       <Modal visible={showReportModal} animationType="fade" transparent={true}>
@@ -1156,12 +1145,12 @@ export function FeedScreen({
               <View style={styles.commentModalInputBar}>
                 <View style={styles.commentModalAvatar}>
                   <Text style={styles.commentModalAvatarText}>
-                    {(user?.email?.[0] ?? "U").toUpperCase()}
+                    {((profile?.display_name || user?.email)?.[0] ?? "U").toUpperCase()}
                   </Text>
                 </View>
                 <TextInput
                   onChangeText={(val) => setNewCommentTexts((prev) => ({ ...prev, [commentModalPost.id]: val }))}
-                  placeholder={replyingToComment ? `Reply to ${replyingToComment.authorName}...` : `Comment as ${user?.email?.split("@")[0]}...`}
+                  placeholder={replyingToComment ? `Reply to ${replyingToComment.authorName}...` : `Comment as ${profile?.display_name || user?.email?.split("@")[0] || "you"}...`}
                   placeholderTextColor={colors.textTertiary}
                   style={styles.commentModalInput}
                   value={newCommentTexts[commentModalPost.id] || ""}
@@ -1702,6 +1691,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  leafyHeaderLogo: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.surface1,
+  },
   headerBadge: {
     position: "absolute",
     right: -2,
@@ -1736,7 +1731,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(26,58,34,0.06)",
     borderWidth: 1,
     borderRadius: 24,
-    marginBottom: 16,
+    marginBottom: 12,
     overflow: "hidden",
     shadowColor: colors.green,
     shadowOffset: { width: 0, height: 4 },
@@ -1748,8 +1743,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     gap: 10,
   },
   postHeaderLeft: {
@@ -1831,12 +1826,12 @@ const styles = StyleSheet.create({
   postAction: { paddingHorizontal: 4 },
 
   postTextSection: {
-    paddingHorizontal: 14,
-    paddingBottom: 12,
+    paddingHorizontal: 12,
+    paddingBottom: 8,
   },
   photoGrid: {
-    paddingHorizontal: 14,
-    paddingBottom: 8,
+    paddingHorizontal: 12,
+    paddingBottom: 4,
   },
   imageContainer: {
     position: "relative",
@@ -1846,7 +1841,7 @@ const styles = StyleSheet.create({
   },
   postImage: {
     width: "100%",
-    aspectRatio: 1.25,
+    aspectRatio: 1.5,
     borderRadius: 24,
   },
   plantProgressBadge: {
@@ -1906,9 +1901,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 14,
-    paddingTop: 10,
-    paddingBottom: 16,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   postInteractionsLeft: {
     flexDirection: "row",
