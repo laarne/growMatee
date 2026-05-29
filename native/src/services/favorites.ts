@@ -47,6 +47,18 @@ export async function isFavorited(listingId: string, userId: string): Promise<bo
   return !!data;
 }
 
+export async function getUserFavoriteIds(userId: string): Promise<string[]> {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from("favorites")
+    .select("listing_id")
+    .eq("user_id", userId);
+
+  if (error) throw error;
+  return (data ?? []).map((row) => row.listing_id);
+}
+
 function checkIsProtected(name: string, category: string): boolean {
   const normalized = (name + " " + category).toLowerCase();
   return normalized.includes("protected") || 

@@ -169,10 +169,6 @@ export function SellerDashboard() {
     setMessage(null);
     setError(null);
 
-    // Leafy AI cleared it — go live immediately, no admin queue needed
-    const safeToSell = scanResult?.saleStatus === "safe_to_sell";
-    const initialStatus: "active" | "review" = safeToSell ? "active" : "review";
-
     try {
       const uploadedPhoto = photo ? await uploadPublicImage("listing-photos", user.id, "listings", photo) : null;
 
@@ -192,14 +188,10 @@ export function SellerDashboard() {
         aiProvider: scanResult?.provider ?? null,
         aiConfidence: scanResult?.confidence ?? null,
         aiResult: scanResult ?? null,
-        initialStatus,
+        initialStatus: "review",
       });
 
-      setMessage(
-        safeToSell
-          ? "✅ Listing is now live on the Marketplace!"
-          : "📋 Listing submitted for admin review before going live."
-      );
+      setMessage("Listing submitted for admin review before going live.");
       setName("");
       setLocalName("");
       setScientificName("");
@@ -499,11 +491,7 @@ export function SellerDashboard() {
         )}
 
         <Button disabled={isSaving || isScanning} onPress={handleCreateListing}>
-          {isSaving
-            ? "Publishing..."
-            : scanResult?.saleStatus === "safe_to_sell"
-            ? "Publish to Marketplace"
-            : "Submit for review"}
+          {isSaving ? "Submitting..." : "Submit for review"}
         </Button>
       </View>
     </Card>

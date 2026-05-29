@@ -116,7 +116,7 @@ User searches or scans a plant
 `get-or-create-plant-care` is the user-facing Edge Function for cache-first plant care lookups with per-user and global Perenual safety limits.
 It checks `plant_care_cache` again on the backend, calls Perenual at most once for a missing plant, saves the normalized result, and records fallback requests in `missing_plant_requests`.
 `api_usage_logs` tracks cache hits, fetched plants, limit blocks, and quota/pricing fallbacks.
-`plant-care-lookup` is kept for compatibility with older clients.
+`plant-care-lookup` is retired and returns HTTP 410. Use `get-or-create-plant-care`.
 `plant-care-seed` is admin-only and can preload up to 100 common plants per run into `plant_care_cache`.
 
 Example admin seed request body:

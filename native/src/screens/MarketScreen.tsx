@@ -60,7 +60,25 @@ export function MarketScreen({
 
   // Checkout sheet modal state
   const [showCheckout, setShowCheckout] = useState(false);
-  const [checkoutListing, setCheckoutListing] = useState<MarketListing | null>(null);
+  const [checkoutListing, setCheckoutListing] = useState<MarketListing | null>({
+    id: '22222222-2222-4222-8222-222222222205',
+    sellerId: '7b57538d-712b-40f6-922f-22db55ffd766',
+    name: 'Peace Lily Blooming Pot',
+    localName: 'Peace Lily',
+    scientificName: 'Spathiphyllum wallisii',
+    category: 'Flowering',
+    price: 260,
+    quantity: 2,
+    unit: 'Pot',
+    location: 'Butuan City',
+    deliveryOption: 'Delivery',
+    description: 'Blooming Peace Lily in a nursery pot. Glossy leaves, clean roots, and easy care for shaded indoor corners.',
+    sellerName: 'JM Plants & Co.',
+    photoUrl: 'https://images.unsplash.com/photo-1593696140826-c58b021acf8b?w=200&h=200&fit=crop',
+    trustScore: 4.8,
+    isAiChecked: true,
+    isProtected: false,
+  });
   const [checkoutQty, setCheckoutQty] = useState(1);
   const [deliveryMethod, setDeliveryMethod] = useState<"Delivery">("Delivery");
   const [buyerNote, setBuyerNote] = useState("");

@@ -964,6 +964,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "flex-end",
+    zIndex: 9999,
   },
   sheetDismiss: { flex: 1 },
   sheet: {
@@ -973,6 +974,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: Platform.OS === "ios" ? 40 : 24,
     maxHeight: "92%",
+    zIndex: 10000,
   },
   sheetScrollContent: {
     paddingBottom: 14,

@@ -5,6 +5,7 @@ import {
   Dimensions,
   Image,
   ImageBackground,
+  KeyboardAvoidingView,
   Platform,
   Modal,
   Pressable,
@@ -23,7 +24,7 @@ import { SellerDashboard } from "../components/SellerDashboard";
 import { useAuth } from "../context/AuthContext";
 import { useNavigationContext } from "../context/NavigationContext";
 import { updateProfileAvatar, updateProfile, updateProfileCover } from "../services/profile";
-import { pickImageFromLibrary, uploadPublicImage, type PickedImage } from "../services/storage";
+import { pickImageFromLibrary, uploadPrivateImage, uploadPublicImage, type PickedImage } from "../services/storage";
 import { getUserOrders, updateOrderStatus, type Order, type MarketListing } from "../services/listings";
 import { getUserFavorites } from "../services/favorites";
 import { createSellerApplication } from "../services/sellerApplications";
@@ -131,6 +132,7 @@ export function ProfileScreen({
   const [isApplyingSeller, setIsApplyingSeller] = useState(false);
   const [sellerAppMessage, setSellerAppMessage] = useState<string | null>(null);
   const [sellerAppError, setSellerAppError] = useState<string | null>(null);
+  const [sellerAppStep, setSellerAppStep] = useState(1);
   const [appShopName, setAppShopName] = useState("");
   const [appReason, setAppReason] = useState("");
   const [idFrontPhoto, setIdFrontPhoto] = useState<PickedImage | null>(null);
@@ -243,20 +245,21 @@ export function ProfileScreen({
       }
 
       const [idFrontUpload, idBackUpload, selfieWithIdUpload, selfieWithPlantUpload] = await Promise.all([
-        uploadPublicImage("verification-docs" as any, user.id, "verification/id-front", idFrontPhoto),
-        uploadPublicImage("verification-docs" as any, user.id, "verification/id-back", idBackPhoto),
-        uploadPublicImage("verification-docs" as any, user.id, "verification/selfie-id", selfieWithIdPhoto),
-        uploadPublicImage("verification-docs" as any, user.id, "verification/selfie-plant", selfieWithPlantPhoto),
+        uploadPrivateImage("verification-docs", user.id, "verification/id-front", idFrontPhoto),
+        uploadPrivateImage("verification-docs", user.id, "verification/id-back", idBackPhoto),
+        uploadPrivateImage("verification-docs", user.id, "verification/selfie-id", selfieWithIdPhoto),
+        uploadPrivateImage("verification-docs", user.id, "verification/selfie-plant", selfieWithPlantPhoto),
       ]);
 
       await createSellerApplication(user.id, appShopName.trim(), appReason.trim(), {
-        idFrontUrl: idFrontUpload.publicUrl,
-        idBackUrl: idBackUpload.publicUrl,
-        selfieWithIdUrl: selfieWithIdUpload.publicUrl,
-        selfieWithPlantUrl: selfieWithPlantUpload.publicUrl,
+        idFrontUrl: idFrontUpload.path,
+        idBackUrl: idBackUpload.path,
+        selfieWithIdUrl: selfieWithIdUpload.path,
+        selfieWithPlantUrl: selfieWithPlantUpload.path,
       });
       setSellerAppMessage("Seller application sent for admin review.");
       setShowSellerAppModal(false);
+      setSellerAppStep(1);
       setAppShopName("");
       setAppReason("");
       setIdFrontPhoto(null);
@@ -387,6 +390,13 @@ export function ProfileScreen({
     setReviewRating(5);
     setReviewComment("");
     setShowReviewModal(true);
+  }
+
+  function closeSellerApplicationModal() {
+    if (isApplyingSeller) return;
+    setShowSellerAppModal(false);
+    setSellerAppStep(1);
+    setSellerAppError(null);
   }
 
   async function handleSubmitReview() {
@@ -1114,86 +1124,157 @@ export function ProfileScreen({
       {/* ══════════════════════════════════════════════════
           REVIEW MODAL
       ══════════════════════════════════════════════════ */}
-      <Modal visible={showSellerAppModal} animationType="slide" transparent onRequestClose={() => setShowSellerAppModal(false)}>
-        <View style={styles.modalOverlay}>
-          <Pressable style={{ flex: 1 }} onPress={() => !isApplyingSeller && setShowSellerAppModal(false)} />
-          <View style={styles.modalSheet}>
-            <View style={styles.modalHandle} />
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Sign up as seller</Text>
-              <Pressable onPress={() => setShowSellerAppModal(false)} disabled={isApplyingSeller} hitSlop={8}>
-                <MaterialCommunityIcons name="close" size={22} color={colors.greenMuted} />
-              </Pressable>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <Text style={styles.sellerAppHelp}>
-                Submit your shop details and verification photos. Admin approval is required before listings go live.
-              </Text>
-
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Shop name</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  value={appShopName}
-                  onChangeText={setAppShopName}
-                  placeholder="e.g. Laarne's Plant Corner"
-                  placeholderTextColor={colors.textTertiary}
-                />
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Why do you want to sell?</Text>
-                <TextInput
-                  style={[styles.fieldInput, styles.fieldInputMulti]}
-                  value={appReason}
-                  onChangeText={setAppReason}
-                  placeholder="Tell us about your plants and selling experience..."
-                  placeholderTextColor={colors.textTertiary}
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                />
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Verification photos</Text>
-                <View style={styles.verificationGrid}>
-                  <Pressable onPress={() => handlePickSellerPhoto(setIdFrontPhoto)} disabled={isApplyingSeller} style={styles.verificationTile}>
-                    {idFrontPhoto ? <Image source={{ uri: idFrontPhoto.uri }} style={styles.verificationThumb} /> : <MaterialCommunityIcons name="camera-plus-outline" size={24} color={colors.greenMuted} />}
-                    <Text style={styles.verificationTileText}>Valid ID front</Text>
-                  </Pressable>
-                  <Pressable onPress={() => handlePickSellerPhoto(setIdBackPhoto)} disabled={isApplyingSeller} style={styles.verificationTile}>
-                    {idBackPhoto ? <Image source={{ uri: idBackPhoto.uri }} style={styles.verificationThumb} /> : <MaterialCommunityIcons name="camera-plus-outline" size={24} color={colors.greenMuted} />}
-                    <Text style={styles.verificationTileText}>Valid ID back</Text>
-                  </Pressable>
-                  <Pressable onPress={() => handlePickSellerPhoto(setSelfieWithIdPhoto)} disabled={isApplyingSeller} style={styles.verificationTile}>
-                    {selfieWithIdPhoto ? <Image source={{ uri: selfieWithIdPhoto.uri }} style={styles.verificationThumb} /> : <MaterialCommunityIcons name="camera-plus-outline" size={24} color={colors.greenMuted} />}
-                    <Text style={styles.verificationTileText}>Selfie with ID</Text>
-                  </Pressable>
-                  <Pressable onPress={() => handlePickSellerPhoto(setSelfieWithPlantPhoto)} disabled={isApplyingSeller} style={styles.verificationTile}>
-                    {selfieWithPlantPhoto ? <Image source={{ uri: selfieWithPlantPhoto.uri }} style={styles.verificationThumb} /> : <MaterialCommunityIcons name="camera-plus-outline" size={24} color={colors.greenMuted} />}
-                    <Text style={styles.verificationTileText}>Selfie with plant</Text>
-                  </Pressable>
+      <Modal visible={showSellerAppModal} animationType="slide" transparent onRequestClose={closeSellerApplicationModal}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
+          style={styles.modalKeyboardAvoider}
+        >
+          <View style={styles.modalOverlay}>
+            <Pressable style={{ flex: 1 }} onPress={closeSellerApplicationModal} />
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHandle} />
+              <View style={styles.modalHeader}>
+                <View>
+                  <Text style={styles.modalTitle}>Sign up as seller</Text>
+                  <Text style={styles.sellerStepText}>Step {sellerAppStep} of 3</Text>
                 </View>
-              </View>
-
-              {sellerAppError && <Text style={styles.errorText}>{sellerAppError}</Text>}
-
-              <View style={styles.modalBtns}>
-                <Pressable
-                  onPress={handleApplyAsSellerSubmit}
-                  disabled={isApplyingSeller || !appShopName.trim()}
-                  style={[styles.primaryBtn, { flex: 1 }, (isApplyingSeller || !appShopName.trim()) && { opacity: 0.4 }]}
-                >
-                  <Text style={styles.primaryBtnText}>{isApplyingSeller ? "Submitting..." : "Submit"}</Text>
-                </Pressable>
-                <Pressable onPress={() => setShowSellerAppModal(false)} disabled={isApplyingSeller} style={[styles.secondaryBtn, { flex: 1 }]}>
-                  <Text style={styles.secondaryBtnText}>Cancel</Text>
+                <Pressable onPress={closeSellerApplicationModal} disabled={isApplyingSeller} hitSlop={8}>
+                  <MaterialCommunityIcons name="close" size={22} color={colors.greenMuted} />
                 </Pressable>
               </View>
-            </ScrollView>
+              <View style={styles.stepTrack}>
+                {[1, 2, 3].map((step) => (
+                  <View key={step} style={[styles.stepDot, sellerAppStep >= step && styles.stepDotActive]} />
+                ))}
+              </View>
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.sellerAppScroll}
+              >
+                <Text style={styles.sellerAppHelp}>
+                  We verify sellers before listings go live. Complete one short step at a time.
+                </Text>
+
+                {sellerAppStep === 1 && (
+                  <>
+                    <View style={styles.fieldGroup}>
+                      <Text style={styles.fieldLabel}>Shop name</Text>
+                      <View style={styles.inputIconWrap}>
+                        <MaterialCommunityIcons name="storefront-outline" size={18} color={colors.greenMuted} />
+                        <TextInput
+                          style={styles.fieldInputWithIcon}
+                          value={appShopName}
+                          onChangeText={setAppShopName}
+                          placeholder="e.g. Laarne's Plant Corner"
+                          placeholderTextColor={colors.textTertiary}
+                        />
+                      </View>
+                    </View>
+
+                    <View style={styles.fieldGroup}>
+                      <Text style={styles.fieldLabel}>Why do you want to sell?</Text>
+                      <View style={[styles.inputIconWrap, styles.inputIconWrapMulti]}>
+                        <MaterialCommunityIcons name="sprout-outline" size={18} color={colors.greenMuted} style={{ marginTop: 2 }} />
+                        <TextInput
+                          style={[styles.fieldInputWithIcon, styles.fieldInputMulti]}
+                          value={appReason}
+                          onChangeText={setAppReason}
+                          placeholder="Tell us about your plants and selling experience..."
+                          placeholderTextColor={colors.textTertiary}
+                          multiline
+                          numberOfLines={4}
+                          textAlignVertical="top"
+                        />
+                      </View>
+                    </View>
+                  </>
+                )}
+
+                {sellerAppStep === 2 && (
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>ID upload</Text>
+                    <Text style={styles.sellerAppHelp}>Use clear, readable photos of your ID. This is only for admin verification.</Text>
+                    <View style={styles.verificationGrid}>
+                      <Pressable onPress={() => handlePickSellerPhoto(setIdFrontPhoto)} disabled={isApplyingSeller} style={styles.verificationTile}>
+                        {idFrontPhoto ? <Image source={{ uri: idFrontPhoto.uri }} style={styles.verificationThumb} /> : <MaterialCommunityIcons name="card-account-details-outline" size={24} color={colors.greenMuted} />}
+                        <Text style={styles.verificationTileText}>Valid ID front</Text>
+                      </Pressable>
+                      <Pressable onPress={() => handlePickSellerPhoto(setIdBackPhoto)} disabled={isApplyingSeller} style={styles.verificationTile}>
+                        {idBackPhoto ? <Image source={{ uri: idBackPhoto.uri }} style={styles.verificationThumb} /> : <MaterialCommunityIcons name="card-account-details-star-outline" size={24} color={colors.greenMuted} />}
+                        <Text style={styles.verificationTileText}>Valid ID back</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
+
+                {sellerAppStep === 3 && (
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>Trust photos</Text>
+                    <Text style={styles.sellerAppHelp}>These help confirm you are a real local seller with plant inventory.</Text>
+                    <View style={styles.verificationGrid}>
+                      <Pressable onPress={() => handlePickSellerPhoto(setSelfieWithIdPhoto)} disabled={isApplyingSeller} style={styles.verificationTile}>
+                        {selfieWithIdPhoto ? <Image source={{ uri: selfieWithIdPhoto.uri }} style={styles.verificationThumb} /> : <MaterialCommunityIcons name="account-badge-outline" size={24} color={colors.greenMuted} />}
+                        <Text style={styles.verificationTileText}>Selfie with ID</Text>
+                      </Pressable>
+                      <Pressable onPress={() => handlePickSellerPhoto(setSelfieWithPlantPhoto)} disabled={isApplyingSeller} style={styles.verificationTile}>
+                        {selfieWithPlantPhoto ? <Image source={{ uri: selfieWithPlantPhoto.uri }} style={styles.verificationThumb} /> : <MaterialCommunityIcons name="flower-outline" size={24} color={colors.greenMuted} />}
+                        <Text style={styles.verificationTileText}>Selfie with plant</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
+
+                {sellerAppError && <Text style={styles.errorText}>{sellerAppError}</Text>}
+
+                <View style={styles.modalBtns}>
+                  {sellerAppStep > 1 ? (
+                    <Pressable
+                      onPress={() => setSellerAppStep((step) => Math.max(1, step - 1))}
+                      disabled={isApplyingSeller}
+                      style={[styles.secondaryBtn, { flex: 1 }]}
+                    >
+                      <Text style={styles.secondaryBtnText}>Back</Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable onPress={closeSellerApplicationModal} disabled={isApplyingSeller} style={[styles.secondaryBtn, { flex: 1 }]}>
+                      <Text style={styles.secondaryBtnText}>Cancel</Text>
+                    </Pressable>
+                  )}
+
+                  {sellerAppStep < 3 ? (
+                    <Pressable
+                      onPress={() => setSellerAppStep((step) => Math.min(3, step + 1))}
+                      disabled={(sellerAppStep === 1 && !appShopName.trim()) || (sellerAppStep === 2 && (!idFrontPhoto || !idBackPhoto))}
+                      style={[
+                        styles.primaryBtn,
+                        styles.sellerPrimaryBtn,
+                        { flex: 1 },
+                        ((sellerAppStep === 1 && !appShopName.trim()) || (sellerAppStep === 2 && (!idFrontPhoto || !idBackPhoto))) && styles.sellerPrimaryBtnDisabled,
+                      ]}
+                    >
+                      <Text style={styles.primaryBtnText}>Continue</Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable
+                      onPress={handleApplyAsSellerSubmit}
+                      disabled={isApplyingSeller || !appShopName.trim() || !idFrontPhoto || !idBackPhoto || !selfieWithIdPhoto || !selfieWithPlantPhoto}
+                      style={[
+                        styles.primaryBtn,
+                        styles.sellerPrimaryBtn,
+                        { flex: 1 },
+                        (isApplyingSeller || !appShopName.trim() || !idFrontPhoto || !idBackPhoto || !selfieWithIdPhoto || !selfieWithPlantPhoto) && styles.sellerPrimaryBtnDisabled,
+                      ]}
+                    >
+                      <Text style={styles.primaryBtnText}>{isApplyingSeller ? "Submitting..." : "Submit"}</Text>
+                    </Pressable>
+                  )}
+                </View>
+              </ScrollView>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={showReviewModal} animationType="fade" transparent onRequestClose={() => setShowReviewModal(false)}>
@@ -1672,12 +1753,14 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "flex-end",
   },
+  modalKeyboardAvoider: { flex: 1 },
   modalSheet: {
     backgroundColor: colors.surface0,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     paddingHorizontal: 20,
-    paddingBottom: 32,
+    paddingBottom: 56,
+    marginBottom: -24,
     maxHeight: "85%",
   },
   modalHandle: {
@@ -1699,6 +1782,27 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: { fontSize: 18, fontWeight: "800", color: colors.textPrimary },
+  sellerStepText: {
+    color: colors.greenMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    marginTop: 2,
+    textTransform: "uppercase",
+  },
+  stepTrack: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 14,
+  },
+  stepDot: {
+    backgroundColor: colors.line,
+    borderRadius: 999,
+    flex: 1,
+    height: 5,
+  },
+  stepDotActive: {
+    backgroundColor: colors.green,
+  },
 
   reviewCard: {
     backgroundColor: colors.surface0,
@@ -1750,14 +1854,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
+  inputIconWrap: {
+    alignItems: "center",
+    backgroundColor: colors.surface1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 12,
+  },
+  inputIconWrapMulti: {
+    alignItems: "flex-start",
+    paddingTop: 12,
+  },
+  fieldInputWithIcon: {
+    color: colors.textPrimary,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    minHeight: 46,
+    paddingVertical: 10,
+  },
   fieldInputMulti: { minHeight: 80 },
   modalBtns: { flexDirection: "row", gap: 10, marginTop: 4 },
+  sellerPrimaryBtn: {
+    backgroundColor: colors.green,
+  },
+  sellerPrimaryBtnDisabled: {
+    backgroundColor: colors.green,
+    opacity: 0.48,
+  },
   sellerAppHelp: {
     color: colors.textSecondary,
     fontSize: 13,
     fontWeight: "600",
     lineHeight: 18,
     marginBottom: 14,
+  },
+  sellerAppScroll: {
+    paddingBottom: 28,
   },
   verificationGrid: {
     flexDirection: "row",

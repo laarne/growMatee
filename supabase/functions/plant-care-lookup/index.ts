@@ -242,6 +242,7 @@ async function getCurrentUserIsAdmin(client: ReturnType<typeof createClient>, us
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return jsonResponse({ error: "Method not allowed." }, 405);
+  return jsonResponse({ error: "This endpoint is retired. Use get-or-create-plant-care." }, 410);
 
   const authHeader = request.headers.get("Authorization");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");

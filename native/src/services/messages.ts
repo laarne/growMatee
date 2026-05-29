@@ -207,33 +207,9 @@ export async function markConversationAsRead(conversationId: string, userId: str
 
 export async function getUnreadMessagesCount(userId: string): Promise<number> {
   if (!supabase) return 0;
+  if (!userId) return 0;
 
-  const { data: members, error: membersError } = await supabase
-    .from("conversation_members")
-    .select("conversation_id, last_read_at")
-    .eq("user_id", userId);
-
-  if (membersError) throw membersError;
-  if (!members || members.length === 0) return 0;
-
-  let totalUnread = 0;
-
-  for (const member of members) {
-    let query = supabase
-      .from("messages")
-      .select("id", { count: "exact", head: true })
-      .eq("conversation_id", member.conversation_id)
-      .neq("sender_id", userId);
-
-    if (member.last_read_at) {
-      query = query.gt("created_at", member.last_read_at);
-    }
-
-    const { count, error } = await query;
-    if (!error && count !== null) {
-      totalUnread += count;
-    }
-  }
-
-  return totalUnread;
+  const { data, error } = await supabase.rpc("get_unread_messages_count");
+  if (error) throw error;
+  return Number(data ?? 0);
 }

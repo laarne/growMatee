@@ -1,6 +1,5 @@
 import { supabase } from "./supabase";
 import { sanitizeUserInput } from "../utils/sanitize";
-import { recordRankEvent } from "./rankings";
 
 type AuthorRow = {
   display_name: string;
@@ -175,10 +174,7 @@ export async function createFeedPost(
     throw error;
   }
 
-  // Record ranking event for XP/leveling
-  recordRankEvent(userId, "feed_post_created").catch((err) => {
-    console.warn("Failed to record feed post rank event:", err);
-  });
+  void userId;
 }
 
 export async function togglePostReaction(postId: string, userId: string): Promise<boolean> {

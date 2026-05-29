@@ -22,6 +22,7 @@ import { createReview, getReviewForOrder } from "../services/reviews";
 import { getOrCreateMarketConversation } from "../services/messages";
 import { colors } from "../theme/colors";
 import { readFastCache, writeFastCache } from "../utils/fastCache";
+import { formatCurrency } from "../utils/currency";
 
 const ORDERS_CACHE_MAX_AGE_MS = 1000 * 60 * 10;
 
@@ -285,6 +286,7 @@ export function OrdersScreen({
   const renderOrderItem = ({ item }: { item: Order }) => {
     const statusInfo = getStatusStyle(item.status);
     const hasBeenReviewed = reviewedOrders[item.id];
+    const hasTimeline = ["pending", "accepted", "paid", "completed"].includes(item.status);
 
     return (
       <View style={styles.card}>
@@ -304,11 +306,13 @@ export function OrdersScreen({
               <Text style={styles.sellerName}>Seller: {item.sellerName}</Text>
             </View>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: statusInfo.bg }]}>
-            <Text style={[styles.statusText, { color: statusInfo.text }]}>
-              {statusInfo.label}
-            </Text>
-          </View>
+          {!hasTimeline && (
+            <View style={[styles.statusBadge, { backgroundColor: statusInfo.bg }]}>
+              <Text style={[styles.statusText, { color: statusInfo.text }]}>
+                {statusInfo.label}
+              </Text>
+            </View>
+          )}
         </View>
 
         {renderPipeline(item.status)}
@@ -320,7 +324,7 @@ export function OrdersScreen({
           </View>
           <View style={styles.detailCol}>
             <Text style={styles.detailLabel}>Total Amount</Text>
-            <Text style={styles.detailValue}>${item.subtotal.toFixed(2)}</Text>
+            <Text style={styles.detailValue}>{formatCurrency(item.subtotal)}</Text>
           </View>
           <View style={styles.detailCol}>
             <Text style={styles.detailLabel}>Delivery Method</Text>
@@ -607,7 +611,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "900",
     color: colors.textPrimary,
-    maxWidth: 180,
   },
   sellerName: {
     fontSize: 12,

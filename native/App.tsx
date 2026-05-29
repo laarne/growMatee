@@ -24,6 +24,7 @@ type TabKey = "Market" | "Feed" | "Garden" | "Messages" | "Rankings" | "Orders" 
 const tabs: TabKey[] = ["Market", "Feed", "Garden", "Orders", "Profile"];
 
 const logoSource = require("./assets/growmate-logo.png");
+const splashLogoSource = require("./assets/growmate-logo-transparent.png");
 
 // Prototype-matching icons: outline for inactive, filled/solid for active
 const tabIconsInactive: Record<TabKey, keyof typeof MaterialCommunityIcons.glyphMap> = {
@@ -195,9 +196,8 @@ function AppContent() {
     return (
       <View style={styles.loading}>
         <StatusBar style={activeTheme === "dark" ? "light" : "dark"} />
-        <Image source={logoSource} style={styles.loadingLogo} />
+        <Image source={splashLogoSource} style={styles.loadingLogo} />
         <ActivityIndicator color={colors.green} size="large" />
-        <Text style={styles.loadingText}>Loading GrowMate</Text>
       </View>
     );
   }
@@ -306,16 +306,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
   },
-  loadingText: {
-    color: colors.green,
-    fontSize: 16,
-    fontWeight: "900",
-    marginTop: 14,
-  },
   loadingLogo: {
-    height: 86,
-    marginBottom: 18,
-    width: 86,
+    height: 112,
+    marginBottom: 24,
+    resizeMode: "contain",
+    width: 112,
   },
   nav: {
     flexDirection: "row",
@@ -398,24 +393,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#d14b4b",
     borderColor: colors.white,
-    borderRadius: 9,
-    borderWidth: 1.5,
-    height: 18,
+    borderRadius: 7.5,
+    borderWidth: 1,
+    height: 15,
     justifyContent: "center",
-    minWidth: 18,
-    paddingHorizontal: 4,
+    minWidth: 15,
+    paddingHorizontal: 3,
     position: "absolute",
-    right: -2,
-    top: -2,
+    right: -4,
+    top: -4,
     shadowColor: "#7f1d1d",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
   },
   navBadgeText: {
     color: colors.white,
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: "900",
   },
 });

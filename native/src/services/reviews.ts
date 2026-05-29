@@ -1,6 +1,5 @@
 import { supabase } from "./supabase";
 import { sanitizeNullableUserInput } from "../utils/sanitize";
-import { recordRankEvent } from "./rankings";
 
 export type Review = {
   id: string;
@@ -35,13 +34,8 @@ export async function createReview(
     throw error;
   }
 
-  // Record ranking events for XP/leveling
-  recordRankEvent(reviewerId, "review_created").catch((err) =>
-    console.warn("Failed to record review created rank event:", err)
-  );
-  recordRankEvent(revieweeId, "review_received").catch((err) =>
-    console.warn("Failed to record review received rank event:", err)
-  );
+  void reviewerId;
+  void revieweeId;
 }
 
 export async function getReviewsForUser(userId: string): Promise<Review[]> {

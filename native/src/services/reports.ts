@@ -92,10 +92,10 @@ export async function getReportsForAdmin(): Promise<Report[]> {
 export async function updateReportStatus(reportId: string, status: Report["status"]): Promise<void> {
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  const { error } = await supabase
-    .from("reports")
-    .update({ status })
-    .eq("id", reportId);
+  const { error } = await supabase.rpc("admin_update_report_status", {
+    p_report_id: reportId,
+    p_status: status,
+  });
 
   if (error) {
     throw error;

@@ -1,6 +1,5 @@
 import { supabase } from "./supabase";
 import { sanitizeNullableUserInput, sanitizeUserInput } from "../utils/sanitize";
-import { recordRankEvent } from "./rankings";
 
 export type Garden = {
   id: string;
@@ -164,10 +163,7 @@ export async function createGardenPlant(
     }
   }
 
-  // Record ranking event for XP/leveling
-  recordRankEvent(userId, "garden_plant_added").catch((err) => {
-    console.warn("Failed to record plant rank event:", err);
-  });
+  void userId;
 }
 
 export async function updateGardenPlant(

@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { createPrivateImageSignedUrl } from "./storage";
 
 type ProfileRow = {
   id: string;
@@ -95,7 +96,7 @@ export async function getPendingSellerApplications(): Promise<PendingSellerAppli
   const applications = (data ?? []) as SellerApplicationRow[];
   const profiles = await getProfilesByIds(applications.map((application) => application.user_id));
 
-  return applications.map((application) => {
+  return Promise.all(applications.map(async (application) => {
     const profile = profiles.get(application.user_id);
 
     return {
@@ -105,15 +106,15 @@ export async function getPendingSellerApplications(): Promise<PendingSellerAppli
       applicantLocation: profile?.location ?? null,
       shopName: application.shop_name,
       reason: application.reason,
-      proofPhotoUrl: application.proof_photo_url,
-      idFrontUrl: application.id_front_url,
-      idBackUrl: application.id_back_url,
-      selfieWithIdUrl: application.selfie_with_id_url,
-      selfieWithPlantUrl: application.selfie_with_plant_url,
+      proofPhotoUrl: await createPrivateImageSignedUrl("verification-docs", application.proof_photo_url),
+      idFrontUrl: await createPrivateImageSignedUrl("verification-docs", application.id_front_url),
+      idBackUrl: await createPrivateImageSignedUrl("verification-docs", application.id_back_url),
+      selfieWithIdUrl: await createPrivateImageSignedUrl("verification-docs", application.selfie_with_id_url),
+      selfieWithPlantUrl: await createPrivateImageSignedUrl("verification-docs", application.selfie_with_plant_url),
       status: application.status,
       createdAt: application.created_at,
     };
-  });
+  }));
 }
 
 export async function getPendingListingReviews(): Promise<PendingListingReview[]> {
@@ -155,79 +156,38 @@ export async function getPendingListingReviews(): Promise<PendingListingReview[]
 
 export async function approveSellerApplication(application: PendingSellerApplication, adminId: string) {
   if (!supabase) throw new Error("Supabase is not configured.");
-
-  const shopName = application.shopName || `${application.applicantName}'s Plant Shop`;
-
-  const { error: profileError } = await supabase.from("profiles").update({ seller_status: "verified" }).eq("id", application.userId);
-  if (profileError) throw profileError;
-
-  const { error: sellerProfileError } = await supabase.from("seller_profiles").upsert(
-    {
-      user_id: application.userId,
-      shop_name: shopName,
-      seller_bio: application.reason,
-    },
-    { onConflict: "user_id" },
-  );
-  if (sellerProfileError) throw sellerProfileError;
-
-  const { error: applicationError } = await supabase
-    .from("seller_applications")
-    .update({
-      status: "verified",
-      reviewed_by: adminId,
-      reviewed_at: new Date().toISOString(),
-      review_note: "Approved for seller access.",
-    })
-    .eq("id", application.id);
-
-  if (applicationError) throw applicationError;
+  void adminId;
+  const { error } = await supabase.rpc("admin_approve_seller_application", {
+    p_application_id: application.id,
+  });
+  if (error) throw error;
 }
 
 export async function rejectSellerApplication(application: PendingSellerApplication, adminId: string) {
   if (!supabase) throw new Error("Supabase is not configured.");
-
-  const { error: profileError } = await supabase.from("profiles").update({ seller_status: "rejected" }).eq("id", application.userId);
-  if (profileError) throw profileError;
-
-  const { error } = await supabase
-    .from("seller_applications")
-    .update({
-      status: "rejected",
-      reviewed_by: adminId,
-      reviewed_at: new Date().toISOString(),
-      review_note: "Seller application rejected by admin.",
-    })
-    .eq("id", application.id);
-
+  void adminId;
+  const { error } = await supabase.rpc("admin_reject_seller_application", {
+    p_application_id: application.id,
+  });
   if (error) throw error;
 }
 
 export async function approveListingReview(listingId: string) {
   if (!supabase) throw new Error("Supabase is not configured.");
-
-  const { error } = await supabase
-    .from("listings")
-    .update({
-      status: "active",
-      published_at: new Date().toISOString(),
-      review_note: "Approved for marketplace.",
-    })
-    .eq("id", listingId);
-
+  const { error } = await supabase.rpc("admin_set_listing_review_status", {
+    p_listing_id: listingId,
+    p_status: "active",
+    p_review_note: "Approved for marketplace.",
+  });
   if (error) throw error;
 }
 
 export async function rejectListingReview(listingId: string) {
   if (!supabase) throw new Error("Supabase is not configured.");
-
-  const { error } = await supabase
-    .from("listings")
-    .update({
-      status: "rejected",
-      review_note: "Listing rejected by admin.",
-    })
-    .eq("id", listingId);
-
+  const { error } = await supabase.rpc("admin_set_listing_review_status", {
+    p_listing_id: listingId,
+    p_status: "rejected",
+    p_review_note: "Listing rejected by admin.",
+  });
   if (error) throw error;
 }
