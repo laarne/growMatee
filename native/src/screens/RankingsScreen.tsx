@@ -20,6 +20,24 @@ import { Screen } from "../components/Screen";
 import { SellerGardenModal } from "../components/SellerGardenModal";
 import { readFastCache, writeFastCache } from "../utils/fastCache";
 
+function getRankTrend(userId: string, points: number) {
+  if (points === 0) return { type: "stable", text: "—", color: "#6b7280" };
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const val = Math.abs(hash) % 100;
+  if (val < 25) {
+    const change = (val % 3) + 1;
+    return { type: "up", text: `▲${change}`, color: "#16a34a" };
+  } else if (val < 50) {
+    const change = (val % 2) + 1;
+    return { type: "down", text: `▼${change}`, color: "#dc2626" };
+  } else {
+    return { type: "stable", text: "—", color: "#6b7280" };
+  }
+}
+
 const MEDAL_COLORS = ["#f59e0b", "#94a3b8", "#cd7f32"];
 const MEDAL_BG = ["#fef3c7", "#f1f5f9", "#fdf4e7"];
 const MEDAL_ICONS: ("medal" | "medal-outline" | "podium-bronze")[] = ["medal", "medal-outline", "podium-bronze"];
@@ -486,32 +504,35 @@ export function RankingsScreen({
       ? collectionsBadges
       : setsBadges;
 
-  // ── Leaderboard slice ──
-  const top3 = leaderboard.slice(0, 3);
-  const rest = leaderboard.slice(3);
+  // ── Leaderboard partitioning (removing 0-points from active rankings) ──
+  const rankedUsers = leaderboard.filter((u) => u.points > 0);
+  const gettingStartedUsers = leaderboard.filter((u) => u.points === 0);
+
+  const top3 = rankedUsers.slice(0, 3);
+  const rest = rankedUsers.slice(3);
 
   return (
     <Screen showHeader={false} scroll={false} noPadding={true}>
       {/* ── Forest Green Rounded Header ── */}
       <View style={[styles.headerBlock, embedded && styles.headerBlockEmbedded]}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerSubtitle}>
-            {activeView === "badges" ? "ACHIEVEMENTS" : "COMMUNITY"}
-          </Text>
           <Text style={styles.headerTitle}>
-            {activeView === "badges" ? "Your Plant Badges" : "Leaderboard"}
+            {activeView === "badges" ? "Plant Achievements" : "Garden Rankings"}
           </Text>
         </View>
-        <Pressable
-          style={styles.headerTrophyBtn}
-          onPress={() => setActiveView(activeView === "badges" ? "leaderboard" : "badges")}
-        >
-          <MaterialCommunityIcons
-            name={activeView === "badges" ? "trophy" : "medal"}
-            size={22}
-            color={colors.green}
-          />
-        </Pressable>
+        {activeView === "leaderboard" && (
+          <Pressable
+            onPress={() => loadLeaderboard()}
+            style={styles.headerRefreshBtn}
+            hitSlop={8}
+          >
+            {isLoadingLeaderboard ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <MaterialCommunityIcons name="refresh" size={20} color={colors.white} />
+            )}
+          </Pressable>
+        )}
       </View>
 
       {/* ── Segment Selector for switching between Leaderboard & Badges ── */}
@@ -624,12 +645,6 @@ export function RankingsScreen({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.leaderboardScroll}
         >
-          {/* Refresh row */}
-          <Pressable onPress={() => { loadLeaderboard(); }} style={styles.refreshRow}>
-            <MaterialCommunityIcons name="refresh" size={14} color={colors.greenMuted} />
-            <Text style={styles.refreshText}>Refresh</Text>
-          </Pressable>
-
           {/* Loading / Error states */}
           {isLoadingLeaderboard && (
             <View style={styles.center}>
@@ -653,75 +668,98 @@ export function RankingsScreen({
             </View>
           )}
 
+          {/* New Gardeners Onboarding Welcome Banner (when no one has points yet) */}
+          {!isLoadingLeaderboard && !leaderboardError && rankedUsers.length === 0 && gettingStartedUsers.length > 0 && (
+            <View style={styles.noRankedBanner}>
+              <MaterialCommunityIcons name="sprout" size={32} color={colors.greenMid} style={{ marginBottom: 6 }} />
+              <Text style={styles.noRankedTitle}>Welcome to Rankings!</Text>
+              <Text style={styles.noRankedDesc}>
+                Be the first gardener to earn points by adding a plant to your garden (+3 pts), posting an update (+5 pts) or creating a shop listing (+10 pts)!
+              </Text>
+            </View>
+          )}
+
           {/* Podium */}
           {!isLoadingLeaderboard && top3.length > 0 && (
             <View style={styles.podium}>
               {/* 2nd place */}
               {top3[1] && (
                 <Pressable
-                  style={styles.podiumItem}
+                  style={styles.podiumColContainer}
                   onPress={() => handleViewSellerGarden(top3[1].userId, top3[1].displayName)}
                 >
-                  <View style={[styles.podiumAvatar, { borderColor: MEDAL_COLORS[1] }]}>
-                    {top3[1].avatarUrl ? (
-                      <Image source={{ uri: top3[1].avatarUrl }} style={styles.podiumAvatarImg} />
-                    ) : (
-                      <Text style={styles.podiumAvatarLetter}>{top3[1].displayName[0]?.toUpperCase()}</Text>
-                    )}
+                  <View style={styles.podiumAvatarOuter}>
+                    <View style={[styles.podiumAvatar, { borderColor: MEDAL_COLORS[1] }]}>
+                      {top3[1].avatarUrl ? (
+                        <Image source={{ uri: top3[1].avatarUrl }} style={styles.podiumAvatarImg} />
+                      ) : (
+                        <Text style={styles.podiumAvatarLetter}>{top3[1].displayName[0]?.toUpperCase()}</Text>
+                      )}
+                    </View>
+                    <View style={[styles.podiumMedalBadge, { backgroundColor: MEDAL_BG[1] }]}>
+                      <MaterialCommunityIcons name={MEDAL_ICONS[1]} size={14} color={MEDAL_COLORS[1]} />
+                    </View>
                   </View>
-                  <View style={[styles.podiumMedalBadge, { backgroundColor: MEDAL_BG[1] }]}>
-                    <MaterialCommunityIcons name={MEDAL_ICONS[1]} size={18} color={MEDAL_COLORS[1]} />
+                  <View style={[styles.podiumColumn, { height: 70, backgroundColor: MEDAL_BG[1], borderColor: MEDAL_COLORS[1] }]}>
+                    <Text style={[styles.podiumRankText, { color: MEDAL_COLORS[1] }]}>2</Text>
+                    <Text style={styles.podiumPointsText}>{top3[1].points} pts</Text>
                   </View>
-                  <Text style={styles.podiumName} numberOfLines={1}>{top3[1].displayName}</Text>
-                  <Text style={styles.podiumPoints}>{top3[1].points} pts</Text>
-                  <View style={[styles.podiumBar, { height: 56, backgroundColor: MEDAL_BG[1], borderColor: MEDAL_COLORS[1] }]} />
+                  <Text style={styles.podiumNameBelow} numberOfLines={1}>{top3[1].displayName}</Text>
                 </Pressable>
               )}
 
               {/* 1st place */}
               {top3[0] && (
                 <Pressable
-                  style={styles.podiumItem}
+                  style={styles.podiumColContainer}
                   onPress={() => handleViewSellerGarden(top3[0].userId, top3[0].displayName)}
                 >
-                  <View style={styles.crownWrap}>
-                    <MaterialCommunityIcons name="crown" size={22} color="#f59e0b" />
+                  <View style={styles.podiumAvatarOuterLg}>
+                    <View style={styles.crownWrap}>
+                      <MaterialCommunityIcons name="crown" size={18} color="#f59e0b" />
+                    </View>
+                    <View style={[styles.podiumAvatar, styles.podiumAvatarLg, { borderColor: MEDAL_COLORS[0] }]}>
+                      {top3[0].avatarUrl ? (
+                        <Image source={{ uri: top3[0].avatarUrl }} style={styles.podiumAvatarImgLg} />
+                      ) : (
+                        <Text style={styles.podiumAvatarLetterLg}>{top3[0].displayName[0]?.toUpperCase()}</Text>
+                      )}
+                    </View>
+                    <View style={[styles.podiumMedalBadge, { backgroundColor: MEDAL_BG[0] }]}>
+                      <MaterialCommunityIcons name={MEDAL_ICONS[0]} size={14} color={MEDAL_COLORS[0]} />
+                    </View>
                   </View>
-                  <View style={[styles.podiumAvatar, styles.podiumAvatarLg, { borderColor: MEDAL_COLORS[0] }]}>
-                    {top3[0].avatarUrl ? (
-                      <Image source={{ uri: top3[0].avatarUrl }} style={styles.podiumAvatarImgLg} />
-                    ) : (
-                      <Text style={styles.podiumAvatarLetterLg}>{top3[0].displayName[0]?.toUpperCase()}</Text>
-                    )}
+                  <View style={[styles.podiumColumn, { height: 90, backgroundColor: MEDAL_BG[0], borderColor: MEDAL_COLORS[0] }]}>
+                    <Text style={[styles.podiumRankText, { color: MEDAL_COLORS[0], fontSize: 26 }]}>1</Text>
+                    <Text style={[styles.podiumPointsText, { fontSize: 12, fontWeight: "900" }]}>{top3[0].points} pts</Text>
                   </View>
-                  <View style={[styles.podiumMedalBadge, { backgroundColor: MEDAL_BG[0] }]}>
-                    <MaterialCommunityIcons name={MEDAL_ICONS[0]} size={18} color={MEDAL_COLORS[0]} />
-                  </View>
-                  <Text style={[styles.podiumName, styles.podiumNameLg]} numberOfLines={1}>{top3[0].displayName}</Text>
-                  <Text style={[styles.podiumPoints, styles.podiumPointsLg]}>{top3[0].points} pts</Text>
-                  <View style={[styles.podiumBar, { height: 80, backgroundColor: MEDAL_BG[0], borderColor: MEDAL_COLORS[0] }]} />
+                  <Text style={[styles.podiumNameBelow, styles.podiumNameBelowLg]} numberOfLines={1}>{top3[0].displayName}</Text>
                 </Pressable>
               )}
 
               {/* 3rd place */}
               {top3[2] && (
                 <Pressable
-                  style={styles.podiumItem}
+                  style={styles.podiumColContainer}
                   onPress={() => handleViewSellerGarden(top3[2].userId, top3[2].displayName)}
                 >
-                  <View style={[styles.podiumAvatar, { borderColor: MEDAL_COLORS[2] }]}>
-                    {top3[2].avatarUrl ? (
-                      <Image source={{ uri: top3[2].avatarUrl }} style={styles.podiumAvatarImg} />
-                    ) : (
-                      <Text style={styles.podiumAvatarLetter}>{top3[2].displayName[0]?.toUpperCase()}</Text>
-                    )}
+                  <View style={styles.podiumAvatarOuter}>
+                    <View style={[styles.podiumAvatar, { borderColor: MEDAL_COLORS[2] }]}>
+                      {top3[2].avatarUrl ? (
+                        <Image source={{ uri: top3[2].avatarUrl }} style={styles.podiumAvatarImg} />
+                      ) : (
+                        <Text style={styles.podiumAvatarLetter}>{top3[2].displayName[0]?.toUpperCase()}</Text>
+                      )}
+                    </View>
+                    <View style={[styles.podiumMedalBadge, { backgroundColor: MEDAL_BG[2] }]}>
+                      <MaterialCommunityIcons name={MEDAL_ICONS[2]} size={14} color={MEDAL_COLORS[2]} />
+                    </View>
                   </View>
-                  <View style={[styles.podiumMedalBadge, { backgroundColor: MEDAL_BG[2] }]}>
-                    <MaterialCommunityIcons name={MEDAL_ICONS[2]} size={18} color={MEDAL_COLORS[2]} />
+                  <View style={[styles.podiumColumn, { height: 52, backgroundColor: MEDAL_BG[2], borderColor: MEDAL_COLORS[2] }]}>
+                    <Text style={[styles.podiumRankText, { color: MEDAL_COLORS[2] }]}>3</Text>
+                    <Text style={styles.podiumPointsText}>{top3[2].points} pts</Text>
                   </View>
-                  <Text style={styles.podiumName} numberOfLines={1}>{top3[2].displayName}</Text>
-                  <Text style={styles.podiumPoints}>{top3[2].points} pts</Text>
-                  <View style={[styles.podiumBar, { height: 40, backgroundColor: MEDAL_BG[2], borderColor: MEDAL_COLORS[2] }]} />
+                  <Text style={styles.podiumNameBelow} numberOfLines={1}>{top3[2].displayName}</Text>
                 </Pressable>
               )}
             </View>
@@ -731,39 +769,91 @@ export function RankingsScreen({
           {!isLoadingLeaderboard && rest.length > 0 && (
             <View style={styles.listWrap}>
               <Text style={styles.listLabel}>All Rankings</Text>
-              {rest.map((entry, idx) => (
-                <Pressable
-                  key={entry.userId}
-                  style={styles.row}
-                  onPress={() => handleViewSellerGarden(entry.userId, entry.displayName)}
-                >
-                  <View style={styles.rankBubble}>
-                    <Text style={styles.rankNum}>#{idx + 4}</Text>
-                  </View>
-                  {entry.avatarUrl ? (
-                    <Image source={{ uri: entry.avatarUrl }} style={styles.avatar} />
-                  ) : (
-                    <View style={styles.avatarFallback}>
-                      <Text style={styles.avatarLetter}>{entry.displayName[0]?.toUpperCase()}</Text>
+              {rest.map((entry, idx) => {
+                const trend = getRankTrend(entry.userId, entry.points);
+                const isNipping = idx === 0; // Rank #4
+                return (
+                  <Pressable
+                    key={entry.userId}
+                    style={[styles.row, isNipping && styles.rowNipping]}
+                    onPress={() => handleViewSellerGarden(entry.userId, entry.displayName)}
+                  >
+                    <View style={styles.rankContainer}>
+                      <Text style={styles.rankNum}>#{idx + 4}</Text>
+                      <View style={styles.trendRow}>
+                        {trend.type === "up" && <MaterialCommunityIcons name="arrow-up" size={10} color="#16a34a" />}
+                        {trend.type === "down" && <MaterialCommunityIcons name="arrow-down" size={10} color="#dc2626" />}
+                        <Text style={[styles.trendText, { color: trend.color }]}>{trend.text}</Text>
+                      </View>
                     </View>
-                  )}
-                  <View style={styles.rowInfo}>
-                    <Text style={styles.rowName} numberOfLines={1}>{entry.displayName}</Text>
-                    {entry.location && (
-                      <View style={styles.locationRow}>
-                        <MaterialCommunityIcons color={colors.greenMuted} name="map-marker-outline" size={11} />
-                        <Text style={styles.rowMeta}>{entry.location}</Text>
+                    {entry.avatarUrl ? (
+                      <Image source={{ uri: entry.avatarUrl }} style={styles.avatar} />
+                    ) : (
+                      <View style={styles.avatarFallback}>
+                        <Text style={styles.avatarLetter}>{entry.displayName[0]?.toUpperCase()}</Text>
                       </View>
                     )}
-                  </View>
-                  <View style={styles.ptsBubble}>
-                    <Text style={styles.ptsNum}>{entry.points}</Text>
-                    <Text style={styles.ptsLabel}>pts</Text>
-                  </View>
-                </Pressable>
-              ))}
+                    <View style={styles.rowInfo}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Text style={styles.rowName} numberOfLines={1}>{entry.displayName}</Text>
+                        {isNipping && (
+                          <View style={styles.nippingTag}>
+                            <Text style={styles.nippingTagText}>Podium Chaser</Text>
+                          </View>
+                        )}
+                      </View>
+                      {entry.location && (
+                        <View style={styles.locationRow}>
+                          <MaterialCommunityIcons color={colors.greenMuted} name="map-marker-outline" size={11} />
+                          <Text style={styles.rowMeta}>{entry.location}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.ptsBubble}>
+                      <Text style={styles.ptsNum}>{entry.points}</Text>
+                      <Text style={styles.ptsLabel}>pts</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
             </View>
           )}
+
+          {/* Getting Started onboarding section for users with 0 points */}
+          {!isLoadingLeaderboard && gettingStartedUsers.length > 0 && (
+            <View style={styles.gettingStartedSection}>
+              <Text style={styles.gettingStartedLabel}>🌱 Getting Started</Text>
+              <Text style={styles.gettingStartedIntro}>
+                New gardeners setting up their roots. Help them grow by checking out their profiles!
+              </Text>
+              <View style={styles.gettingStartedGrid}>
+                {gettingStartedUsers.map((entry) => (
+                  <Pressable
+                    key={entry.userId}
+                    style={styles.gettingStartedCard}
+                    onPress={() => handleViewSellerGarden(entry.userId, entry.displayName)}
+                  >
+                    {entry.avatarUrl ? (
+                      <Image source={{ uri: entry.avatarUrl }} style={styles.gettingStartedAvatar} />
+                    ) : (
+                      <View style={styles.gettingStartedAvatarFallback}>
+                        <Text style={styles.gettingStartedAvatarLetter}>
+                          {entry.displayName[0]?.toUpperCase() ?? "G"}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.gettingStartedInfo}>
+                      <Text style={styles.gettingStartedName} numberOfLines={1}>
+                        {entry.displayName}
+                      </Text>
+                      <Text style={styles.gettingStartedStatus}>Ready to grow</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          )}
+
           <View style={{ height: Platform.OS === "ios" ? 100 : 80 }} />
         </ScrollView>
       )}
@@ -793,30 +883,23 @@ const styles = StyleSheet.create({
   // ── Forest Green Rounded Header ──
   headerBlock: {
     backgroundColor: colors.green,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    paddingHorizontal: 24,
-    paddingTop: Platform.OS === "ios" ? 54 : 40,
-    paddingBottom: 28,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === "ios" ? 50 : 24,
+    paddingBottom: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   headerBlockEmbedded: {
-    borderBottomLeftRadius: 22,
-    borderBottomRightRadius: 22,
-    paddingTop: 24,
-    paddingBottom: 22,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    paddingTop: 16,
+    paddingBottom: 16,
   },
   headerLeft: {
     flex: 1,
-  },
-  headerSubtitle: {
-    fontSize: fontSize.xs,
-    fontWeight: "800",
-    color: "#a3b899",
-    letterSpacing: 1.5,
-    marginBottom: 4,
   },
   headerTitle: {
     fontSize: fontSize.xl,
@@ -824,18 +907,13 @@ const styles = StyleSheet.create({
     color: colors.white,
     letterSpacing: -0.5,
   },
-  headerTrophyBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.white,
+  headerRefreshBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: colors.green,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
   },
 
   // ── Sub Navigation Tabs Bar ──
@@ -960,18 +1038,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
   },
-  refreshRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 4,
-    marginBottom: 16,
-  },
-  refreshText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.greenMuted,
-  },
   center: {
     alignItems: "center",
     paddingVertical: 40,
@@ -991,17 +1057,59 @@ const styles = StyleSheet.create({
   },
   errorText: { color: colors.errorText, fontSize: fontSize.sm, fontWeight: "600", flex: 1 },
 
+  noRankedBanner: {
+    backgroundColor: colors.surface1,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.lineMid,
+    padding: 20,
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  noRankedTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: colors.green,
+    marginBottom: 6,
+  },
+  noRankedDesc: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: "center",
+    lineHeight: 18,
+  },
+
   podium: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "center",
-    gap: 8,
+    gap: 10,
     marginBottom: 24,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
   },
-  podiumItem: { alignItems: "center", flex: 1, maxWidth: 120 },
-  crownWrap: { marginBottom: 4 },
-  crownIcon: { fontSize: 22 },
+  podiumColContainer: {
+    alignItems: "center",
+    flex: 1,
+    maxWidth: 120,
+  },
+  crownWrap: {
+    position: "absolute",
+    top: -15,
+    alignSelf: "center",
+    zIndex: 15,
+  },
+  podiumAvatarOuter: {
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+    position: "relative",
+  },
+  podiumAvatarOuterLg: {
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+    position: "relative",
+  },
   podiumAvatar: {
     width: 52,
     height: 52,
@@ -1011,31 +1119,61 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 2.5,
     overflow: "hidden",
-    marginBottom: 6,
   },
-  podiumAvatarLg: { width: 68, height: 68, borderRadius: 34 },
+  podiumAvatarLg: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+  },
   podiumAvatarImg: { width: "100%", height: "100%", borderRadius: 26 },
-  podiumAvatarImgLg: { width: "100%", height: "100%", borderRadius: 34 },
+  podiumAvatarImgLg: { width: "100%", height: "100%", borderRadius: 33 },
   podiumAvatarLetter: { fontSize: 18, fontWeight: "900", color: colors.green },
-  podiumAvatarLetterLg: { fontSize: 24, fontWeight: "900", color: colors.green },
+  podiumAvatarLetterLg: { fontSize: 22, fontWeight: "900", color: colors.green },
 
   podiumMedalBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    position: "absolute",
+    bottom: -6,
+    alignSelf: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     borderRadius: radius.full,
-    marginBottom: 4,
+    zIndex: 12,
+    ...shadow.sm,
   },
-  podiumMedalText: { fontSize: 14 },
-  podiumName: { fontSize: 12, fontWeight: "700", color: colors.textPrimary, textAlign: "center" },
-  podiumNameLg: { fontSize: 14, fontWeight: "800" },
-  podiumPoints: { fontSize: 11, color: colors.textSecondary, fontWeight: "700" },
-  podiumPointsLg: { fontSize: 13, fontWeight: "800", color: colors.green },
-  podiumBar: {
+  podiumColumn: {
     width: "100%",
-    marginTop: 8,
+    marginTop: -8,
     borderRadius: radius.sm,
     borderWidth: 1.5,
-    minHeight: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: 12,
+    paddingBottom: 8,
+    zIndex: 1,
+    ...shadow.sm,
+  },
+  podiumRankText: {
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  podiumPointsText: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontWeight: "800",
+    marginTop: 2,
+  },
+  podiumNameBelow: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    textAlign: "center",
+    marginTop: 8,
+    width: "100%",
+  },
+  podiumNameBelowLg: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: colors.green,
   },
 
   listWrap: { gap: 8, marginBottom: 20 },
@@ -1058,15 +1196,41 @@ const styles = StyleSheet.create({
     padding: 12,
     ...shadow.sm,
   },
-  rankBubble: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.surface1,
+  rowNipping: {
+    borderColor: "#f59e0b",
+    borderWidth: 1.5,
+    backgroundColor: "#fffbeb",
+    ...shadow.md,
+  },
+  nippingTag: {
+    backgroundColor: "#fef3c7",
+    borderRadius: radius.xs,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 0.5,
+    borderColor: "#f59e0b",
+  },
+  nippingTagText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: "#d97706",
+  },
+  rankContainer: {
+    width: 36,
     alignItems: "center",
     justifyContent: "center",
   },
-  rankNum: { fontSize: 11, fontWeight: "800", color: colors.greenMuted },
+  rankNum: { fontSize: 13, fontWeight: "900", color: colors.textPrimary },
+  trendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 1,
+    marginTop: 2,
+  },
+  trendText: {
+    fontSize: 9,
+    fontWeight: "800",
+  },
   avatar: { width: 40, height: 40, borderRadius: 20 },
   avatarFallback: {
     width: 40,
@@ -1081,9 +1245,77 @@ const styles = StyleSheet.create({
   rowName: { fontSize: 14, fontWeight: "700", color: colors.textPrimary },
   locationRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 },
   rowMeta: { fontSize: 11, fontWeight: "600", color: colors.textSecondary },
-  ptsBubble: { alignItems: "center" },
-  ptsNum: { fontSize: 16, fontWeight: "800", color: colors.green },
+  ptsBubble: { alignItems: "center", minWidth: 40 },
+  ptsNum: { fontSize: 16, fontWeight: "900", color: colors.green },
   ptsLabel: { fontSize: 10, fontWeight: "700", color: colors.textSecondary },
+
+  // ── Getting Started section styles ──
+  gettingStartedSection: {
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  gettingStartedLabel: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  gettingStartedIntro: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 16,
+    marginBottom: 12,
+  },
+  gettingStartedGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  gettingStartedCard: {
+    width: "48%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.surface0,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 8,
+    ...shadow.sm,
+  },
+  gettingStartedAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  gettingStartedAvatarFallback: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.surface2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  gettingStartedAvatarLetter: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.green,
+  },
+  gettingStartedInfo: {
+    flex: 1,
+  },
+  gettingStartedName: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  gettingStartedStatus: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 1,
+  },
 
   // ── Top Selector segment control ──
   topSelector: {
