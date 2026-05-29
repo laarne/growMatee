@@ -26,6 +26,8 @@ const marketFonts = {
   body: Platform.OS === "ios" ? "Avenir Next" : "sans-serif",
 };
 const MARKET_CACHE_MAX_AGE_MS = 1000 * 60 * 15;
+const MARKET_LISTINGS_CACHE_KEY = "market:listings:v3";
+const MARKET_DELIVERY_LABEL = "Delivery";
 
 export function MarketScreen({
   onOpenChat,
@@ -104,7 +106,7 @@ export function MarketScreen({
       } else {
         setListings(data);
         if (!nextSearch.trim()) {
-          writeFastCache("market:listings:v1", data).catch(() => {});
+          writeFastCache(MARKET_LISTINGS_CACHE_KEY, data).catch(() => {});
         }
       }
       setHasMore(data.length === 10);
@@ -138,7 +140,7 @@ export function MarketScreen({
     let isMounted = true;
 
     async function hydrateThenRefresh() {
-      const cached = await readFastCache<MarketListing[]>("market:listings:v1", MARKET_CACHE_MAX_AGE_MS);
+      const cached = await readFastCache<MarketListing[]>(MARKET_LISTINGS_CACHE_KEY, MARKET_CACHE_MAX_AGE_MS);
       if (cached && cached.length > 0 && isMounted) {
         setListings(cached);
         setHasMore(cached.length >= 10);
@@ -408,14 +410,6 @@ export function MarketScreen({
 
       <View style={styles.sectionRow}>
         <Text style={styles.section}>Listings</Text>
-        <Pressable
-          onPress={() => loadListings(search)}
-          style={styles.refreshBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Refresh listings"
-        >
-          <MaterialCommunityIcons color={colors.greenMuted} name="refresh" size={18} />
-        </Pressable>
       </View>
 
       {/* ── States ── */}
@@ -460,14 +454,6 @@ export function MarketScreen({
                 </View>
               )}
 
-              {/* AI Checked Badge Overlaid */}
-              {listing.isAiChecked && (
-                <View style={styles.aiCheckedImageOverlay}>
-                  <MaterialCommunityIcons name="check-decagram" size={10} color={colors.white} />
-                  <Text style={styles.aiCheckedImageOverlayText}>AI Checked</Text>
-                </View>
-              )}
-
               {/* Favorite heart — absolute top-right */}
               <Pressable
                 onPress={(e) => { e.stopPropagation?.(); handleToggleFavorite(listing.id); }}
@@ -491,7 +477,15 @@ export function MarketScreen({
                 </View>
 
                 <Text style={styles.listingTitle} numberOfLines={2}>{listing.name}</Text>
-                <Text style={styles.price}>{formatCurrency(listing.price)}</Text>
+                <View style={styles.priceRow}>
+                  <Text style={styles.price}>{formatCurrency(listing.price)}</Text>
+                  {listing.isAiChecked && (
+                    <View style={styles.inlineCheckedBadge}>
+                      <MaterialCommunityIcons name="check-decagram" size={11} color={stylesConst.forest} />
+                      <Text style={styles.inlineCheckedText}>Checked</Text>
+                    </View>
+                  )}
+                </View>
 
                 <Pressable
                   onPress={(e) => {
@@ -515,11 +509,13 @@ export function MarketScreen({
                   </View>
                 </Pressable>
 
-                <Text style={styles.metaSmall} numberOfLines={1}>
-                  📍 {listing.location} · Delivery
-                </Text>
+                <View style={styles.listingMetaRow}>
+                  <MaterialCommunityIcons color={colors.greenMuted} name="map-marker-outline" size={11} />
+                  <Text style={styles.metaSmall} numberOfLines={2}>
+                    {listing.location} - {MARKET_DELIVERY_LABEL}
+                  </Text>
+                </View>
 
-                <View style={styles.cardSpacer} />
               </View>
             </Pressable>
           ))}
@@ -545,6 +541,8 @@ export function MarketScreen({
       {/* ══════════════════════════════════════════════
           CHECKOUT BOTTOM SHEET MODAL
       ══════════════════════════════════════════════ */}
+      <View style={styles.marketBottomSpacer} />
+
       <Modal visible={showCart} animationType="slide" transparent onRequestClose={() => setShowCart(false)}>
         <View style={styles.sheetOverlay}>
           <Pressable style={styles.sheetDismiss} onPress={() => setShowCart(false)} />
@@ -1107,16 +1105,6 @@ const styles = StyleSheet.create({
     fontSize: 25,
     fontWeight: "900",
   },
-  refreshBtn: {
-    alignItems: "center",
-    backgroundColor: "#fffaf1",
-    borderColor: "#e3d6bc",
-    borderRadius: 16,
-    borderWidth: 1,
-    height: 34,
-    justifyContent: "center",
-    width: 34,
-  },
   // ── States ───────────────────────────────────────────────
   centerState: { alignItems: "center", paddingVertical: 32, gap: 10 },
   stateText: { color: colors.greenMuted, fontSize: 13, fontWeight: "700", textAlign: "center" },
@@ -1184,8 +1172,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  listingBody: { padding: 11, gap: 4, flex: 1 },
-  cardSpacer: { flex: 1 },
+  listingBody: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 14, gap: 6 },
   categoryChip: {
     alignSelf: "flex-start",
     backgroundColor: "#efe5cc",
@@ -1211,10 +1198,30 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   localName: { color: colors.greenMuted, fontSize: 11, fontWeight: "700" },
-  price: { color: stylesConst.forest, fontFamily: marketFonts.body, fontSize: 16, fontWeight: "900", marginTop: 2 },
+  priceRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: 2 },
+  price: { color: stylesConst.gold, fontFamily: marketFonts.body, fontSize: 18, fontWeight: "900" },
+  inlineCheckedBadge: {
+    flexShrink: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "#eef5df",
+    borderColor: "#d8e8bf",
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  inlineCheckedText: {
+    color: stylesConst.forest,
+    fontFamily: marketFonts.body,
+    fontSize: 9,
+    fontWeight: "900",
+  },
   meta: { color: colors.greenMuted, fontSize: 11, fontWeight: "800" },
   sellerRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 1 },
-  metaSmall: { color: colors.greenMuted, fontFamily: marketFonts.body, fontSize: 11, fontWeight: "700", flex: 1 },
+  listingMetaRow: { flexDirection: "row", alignItems: "flex-start", gap: 3, marginTop: 1 },
+  metaSmall: { color: colors.greenMuted, fontFamily: marketFonts.body, fontSize: 11, fontWeight: "700", flex: 1, lineHeight: 15 },
   gridOrderBtn: {
     flex: 1,
     flexDirection: "row",
@@ -1306,6 +1313,7 @@ const styles = StyleSheet.create({
   loadMoreWrap: { marginVertical: 12 },
   orderMsgCard: { backgroundColor: colors.sage, borderRadius: 14, padding: 14, marginBottom: 8 },
   orderMsgText: { color: colors.green, fontSize: 13, fontWeight: "800", textAlign: "center" },
+  marketBottomSpacer: { height: 32 },
 
   // ── Checkout / sheet styles ──────────────────────────────
   cardActionsRow: {
@@ -1612,26 +1620,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   // New Marketplace Redesign Styles
-  aiCheckedImageOverlay: {
-    position: "absolute",
-    top: 8,
-    left: 8,
-    backgroundColor: "rgba(26,51,37,0.82)",
-    borderColor: "rgba(255,255,255,0.18)",
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-  },
-  aiCheckedImageOverlayText: {
-    color: colors.white,
-    fontFamily: marketFonts.body,
-    fontSize: 9,
-    fontWeight: "900",
-  },
   sellerTrustRow: {
     flexDirection: "row",
     alignItems: "center",

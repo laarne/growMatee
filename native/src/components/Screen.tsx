@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   },
   scroll: {
     // Extra padding so content is never hidden behind anything at the bottom
-    paddingBottom: Platform.OS === "ios" ? 16 : 16,
+    paddingBottom: Platform.OS === "ios" ? 44 : 48,
   },
   fill: {
     flex: 1,

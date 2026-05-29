@@ -382,8 +382,10 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
     : plants.filter((p) => (p.category ?? "").toLowerCase() === activeCategory.toLowerCase());
 
   const activeListingsCount = plants.length;
+  const gardenScoreLabel = "9.1k";
+  const communityRankLabel = "Rank #2";
   const statsRow = [
-    { label: "Garden score", value: "9.1k" },
+    { label: "Garden score", value: gardenScoreLabel },
     { label: "Active listings", value: activeListingsCount.toString() },
     { label: "Updates", value: plants.length.toString() },
   ];
@@ -409,8 +411,8 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
     ].filter(Boolean);
 
     return [
-      `Identified: ${result.bestMatch} (${result.confidence}% confidence).`,
-      ...details,
+      `Match: ${result.bestMatch} (${result.confidence}% confidence)`,
+      ...details.map((detail) => `• ${detail}`),
     ].join("\n");
   }
 
@@ -524,7 +526,7 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
             <View style={styles.coverTitle}>
               <Text style={styles.coverTitleText}>{garden?.name ?? "My Plant Collection"}</Text>
               <Text style={styles.coverSubText}>
-                {plants.length} plants - {activeListingsCount} active listings - Rank #2
+                {communityRankLabel} Gardener - {gardenScoreLabel} Score
               </Text>
               <View style={styles.coverMetaRow}>
                 <View style={styles.publicPill}>
@@ -562,6 +564,7 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.chipRow}
+              style={styles.chipScroll}
             >
               {CATEGORIES.map((cat) => (
                 <Pressable
@@ -577,23 +580,25 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
             </ScrollView>
 
             {/* Add plant + Identify plant buttons row */}
-            <View style={styles.actionBtnRow}>
-              <Pressable
-                onPress={() => { resetForm(); setShowAddModal(true); }}
-                style={({ pressed }) => [styles.actionHalfBtn, pressed && { opacity: 0.8 }]}
-              >
-                <MaterialCommunityIcons name="plus" size={18} color={colors.greenMid} />
-                <Text style={styles.addBtnText}>Add plant</Text>
-              </Pressable>
+            {plants.length > 0 && (
+              <View style={styles.actionBtnRow}>
+                <Pressable
+                  onPress={() => { resetForm(); setShowAddModal(true); }}
+                  style={({ pressed }) => [styles.actionHalfBtn, pressed && { opacity: 0.8 }]}
+                >
+                  <MaterialCommunityIcons name="plus" size={18} color={colors.greenMid} />
+                  <Text style={styles.addBtnText}>Add plant</Text>
+                </Pressable>
 
-              <Pressable
-                onPress={() => setShowIdentifySourcePicker(true)}
-                style={({ pressed }) => [styles.actionHalfBtn, pressed && { opacity: 0.8 }]}
-              >
-                <MaterialCommunityIcons name="leaf-circle-outline" size={18} color={colors.greenMid} />
-                <Text style={styles.addBtnText}>Identify plant</Text>
-              </Pressable>
-            </View>
+                <Pressable
+                  onPress={() => setShowIdentifySourcePicker(true)}
+                  style={({ pressed }) => [styles.actionHalfBtn, pressed && { opacity: 0.8 }]}
+                >
+                  <MaterialCommunityIcons name="leaf-circle-outline" size={18} color={colors.greenMid} />
+                  <Text style={styles.addBtnText}>Identify plant</Text>
+                </Pressable>
+              </View>
+            )}
 
             {/* Error */}
             {error && (
@@ -858,8 +863,12 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
                 </View>
                 <View style={styles.field}>
                   <Text style={styles.fieldLabel}>Condition</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={{ flexDirection: "row", gap: 8 }}>
+                  <View style={styles.condScrollWrap}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.condChipRow}
+                    >
                       {CONDITIONS.map((c) => (
                         <Pressable
                           key={c}
@@ -871,8 +880,9 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
                           </Text>
                         </Pressable>
                       ))}
-                    </View>
-                  </ScrollView>
+                    </ScrollView>
+                    <View pointerEvents="none" style={styles.condScrollFade} />
+                  </View>
                 </View>
                 <View style={styles.field}>
                   <Text style={styles.fieldLabel}>Care Notes</Text>
@@ -978,7 +988,7 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
               </Pressable>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scannerScrollContent}>
               {scannerPhoto && (
                 <View style={styles.scannerPhotoContainer}>
                   <Image source={{ uri: scannerPhoto.uri }} style={styles.scannerPhotoPreview} />
@@ -1001,36 +1011,45 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
               {scannerResult && (
                 <View style={styles.scannerResultCard}>
                   <View style={styles.scannerResultHeader}>
-                    <MaterialCommunityIcons name="check-circle" size={24} color="#16a34a" />
-                    <Text style={styles.scannerResultTitle}>Available plant data</Text>
+                    <View style={styles.scannerMatchIcon}>
+                      <MaterialCommunityIcons name="leaf-circle-outline" size={22} color={colors.green} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.scannerResultTitle}>{scannerResult.bestMatch}</Text>
+                      {scannerResult.scientificName ? (
+                        <Text style={styles.scannerResultSubtitle}>{scannerResult.scientificName}</Text>
+                      ) : null}
+                    </View>
+                  </View>
+                  <View style={styles.scannerMetricRow}>
+                    <View style={styles.scannerConfidenceGauge}>
+                      <Text style={styles.scannerGaugeValue}>{scannerResult.confidence}%</Text>
+                      <Text style={styles.scannerGaugeLabel}>Match</Text>
+                    </View>
+                    <View style={styles.scannerStatusBadge}>
+                      <MaterialCommunityIcons
+                        name={scannerResult.saleStatus === "safe_to_sell" ? "shield-check-outline" : "shield-alert-outline"}
+                        size={16}
+                        color={scannerResult.saleStatus === "safe_to_sell" ? "#16a34a" : "#ca8a04"}
+                      />
+                      <Text
+                        style={[
+                          styles.scannerStatusText,
+                          scannerResult.saleStatus !== "safe_to_sell" && { color: "#92400e" },
+                        ]}
+                      >
+                        {getSaleStatusLabel(scannerResult.saleStatus)}
+                      </Text>
+                    </View>
                   </View>
                   
                   <View style={styles.scannerResultBody}>
-                    <View style={styles.scannerResultRow}>
-                      <Text style={styles.scannerResultLabel}>Best Match</Text>
-                      <Text style={styles.scannerResultValBold}>{scannerResult.bestMatch}</Text>
-                    </View>
-                    
-                    {scannerResult.scientificName && (
-                      <View style={styles.scannerResultRow}>
-                        <Text style={styles.scannerResultLabel}>Scientific Name</Text>
-                        <Text style={styles.scannerResultVal}>{scannerResult.scientificName}</Text>
-                      </View>
-                    )}
-
                     {scannerResult.category && (
                       <View style={styles.scannerResultRow}>
                         <Text style={styles.scannerResultLabel}>Category</Text>
                         <Text style={styles.scannerResultVal}>{scannerResult.category}</Text>
                       </View>
                     )}
-
-                    <View style={styles.scannerResultRow}>
-                      <Text style={styles.scannerResultLabel}>Confidence</Text>
-                      <View style={styles.scannerConfBadge}>
-                        <Text style={styles.scannerConfText}>{scannerResult.confidence}%</Text>
-                      </View>
-                    </View>
 
                     <View style={styles.scannerResultRow}>
                       <Text style={styles.scannerResultLabel}>Common Names</Text>
@@ -1050,11 +1069,6 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
                     <View style={styles.scannerResultRow}>
                       <Text style={styles.scannerResultLabel}>Source</Text>
                       <Text style={styles.scannerResultVal}>{scannerResult.provider}</Text>
-                    </View>
-
-                    <View style={styles.scannerResultRow}>
-                      <Text style={styles.scannerResultLabel}>Sell Check</Text>
-                      <Text style={styles.scannerResultVal}>{getSaleStatusLabel(scannerResult.saleStatus)}</Text>
                     </View>
 
                     <View style={styles.scannerResultNote}>
@@ -1096,15 +1110,6 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
                       </View>
                     )}
 
-                    {scannerResult.scanLimit && (
-                      <View style={styles.scannerResultRow}>
-                        <Text style={styles.scannerResultLabel}>GrowMate Scan Limit</Text>
-                        <Text style={styles.scannerResultVal}>
-                          {scannerResult.scanLimit.used}/{scannerResult.scanLimit.limit} per {scannerResult.scanLimit.windowMinutes} min
-                        </Text>
-                      </View>
-                    )}
-
                     {scannerResult.alternativeMatches && scannerResult.alternativeMatches.length > 0 && (
                       <View style={styles.alternativeBlock}>
                         <Text style={styles.alternativeTitle}>Other possible matches</Text>
@@ -1122,6 +1127,30 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
                             <Text style={styles.alternativeConfidence}>{match.confidence}%</Text>
                           </View>
                         ))}
+                      </View>
+                    )}
+
+                    {scannerResult.scanLimit && (
+                      <View style={styles.scanUsageCard}>
+                        <View style={styles.scanUsageHeader}>
+                          <Text style={styles.scanUsageLabel}>Scan usage</Text>
+                          <Text style={styles.scanUsageText}>
+                            {scannerResult.scanLimit.used}/{scannerResult.scanLimit.limit}
+                          </Text>
+                        </View>
+                        <View style={styles.scanUsageTrack}>
+                          <View
+                            style={[
+                              styles.scanUsageFill,
+                              {
+                                width: `${Math.min(
+                                  100,
+                                  (scannerResult.scanLimit.used / scannerResult.scanLimit.limit) * 100
+                                )}%` as any,
+                              },
+                            ]}
+                          />
+                        </View>
                       </View>
                     )}
                   </View>
@@ -1144,7 +1173,7 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
                     style={styles.scannerAddBtn}
                   >
                     <MaterialCommunityIcons name="flower-outline" size={18} color={colors.white} />
-                    <Text style={styles.scannerAddBtnText}>Add to my Garden</Text>
+                    <Text style={styles.scannerAddBtnText}>Add to Garden</Text>
                   </Pressable>
                 )}
 
@@ -1537,7 +1566,8 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: "800", color: colors.textPrimary, marginBottom: 14 },
 
   // Category chips
-  chipRow: { gap: 8, paddingBottom: 14 },
+  chipScroll: { marginHorizontal: -16 },
+  chipRow: { gap: 8, paddingBottom: 14, paddingHorizontal: 16, paddingRight: 40 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 7,
@@ -1687,7 +1717,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     paddingHorizontal: 20,
-    paddingBottom: 32,
+    paddingBottom: 56,
+    marginBottom: -24,
     maxHeight: "92%",
   },
   modalScrollContent: {
@@ -1820,6 +1851,28 @@ const styles = StyleSheet.create({
   condChipActive: { backgroundColor: colors.green, borderColor: colors.green },
   condChipText: { fontSize: 12, fontWeight: "700", color: colors.textSecondary },
   condChipTextActive: { color: colors.white },
+  condScrollWrap: {
+    position: "relative",
+  },
+  condChipRow: {
+    gap: 8,
+    paddingRight: 32,
+  },
+  condScrollFade: {
+    bottom: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+    width: 32,
+    ...Platform.select({
+      web: {
+        backgroundImage: `linear-gradient(to right, rgba(255,255,255,0), ${colors.surface0} 72%)`,
+      } as any,
+      default: {
+        backgroundColor: "rgba(255,255,255,0.72)",
+      },
+    }),
+  },
 
   saveBtn: {
     flexDirection: "row",
@@ -1903,16 +1956,80 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
+  scannerScrollContent: {
+    paddingBottom: 20,
+  },
   scannerResultHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     marginBottom: 12,
+  },
+  scannerMatchIcon: {
+    alignItems: "center",
+    backgroundColor: colors.sage,
+    borderRadius: 18,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
   },
   scannerResultTitle: {
     fontSize: 16,
     fontWeight: "800",
     color: colors.green,
+  },
+  scannerResultSubtitle: {
+    color: colors.greenMuted,
+    fontSize: 12,
+    fontStyle: "italic",
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  scannerMetricRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 12,
+  },
+  scannerConfidenceGauge: {
+    alignItems: "center",
+    backgroundColor: "#dcfce7",
+    borderColor: "#bbf7d0",
+    borderRadius: 18,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 58,
+    minWidth: 76,
+    paddingHorizontal: 10,
+  },
+  scannerGaugeValue: {
+    color: "#166534",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  scannerGaugeLabel: {
+    color: "#15803d",
+    fontSize: 10,
+    fontWeight: "900",
+    marginTop: 1,
+    textTransform: "uppercase",
+  },
+  scannerStatusBadge: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderColor: colors.line,
+    borderRadius: 18,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+    minHeight: 58,
+    paddingHorizontal: 12,
+  },
+  scannerStatusText: {
+    color: "#15803d",
+    fontSize: 13,
+    fontWeight: "900",
   },
   scannerResultBody: {
     gap: 8,
@@ -2014,6 +2131,42 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
     color: colors.white,
+  },
+  scanUsageCard: {
+    backgroundColor: colors.surface0,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginTop: 4,
+    padding: 10,
+  },
+  scanUsageHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 7,
+  },
+  scanUsageLabel: {
+    color: colors.textTertiary,
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  scanUsageText: {
+    color: colors.greenMuted,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  scanUsageTrack: {
+    backgroundColor: colors.sage,
+    borderRadius: 999,
+    height: 5,
+    overflow: "hidden",
+  },
+  scanUsageFill: {
+    backgroundColor: colors.green,
+    borderRadius: 999,
+    height: "100%",
   },
   alternativeBlock: {
     borderTopColor: colors.line,

@@ -25,6 +25,12 @@ export function AuthScreen() {
     if (lower.includes("network") || lower.includes("fetch") || lower.includes("failed to fetch")) {
       return "Network error. Please try again.";
     }
+    if (lower.includes("auth session missing") || lower.includes("session missing") || lower.includes("expired")) {
+      return "Your session expired. Please sign in again.";
+    }
+    if (lower.includes("access_denied") || lower.includes("cancelled") || lower.includes("canceled")) {
+      return "Sign-in was cancelled. You can try again when you're ready.";
+    }
     if (message) return message;
     return fallback;
   }
@@ -73,8 +79,7 @@ export function AuthScreen() {
         setMessage("Signed in. Welcome to GrowMate.");
       }
     } catch (linkError) {
-      const nextMessage = linkError instanceof Error ? linkError.message : "Unable to confirm email link.";
-      setError(nextMessage);
+      setError(getFriendlyAuthError(linkError, "Unable to finish sign-in. Please try again."));
     }
   }
 
@@ -82,7 +87,7 @@ export function AuthScreen() {
     Linking.getInitialURL()
       .then(handleIncomingLink)
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Failed to load initial deep link");
+        setError(getFriendlyAuthError(err, "Unable to restore your sign-in session."));
       });
     const subscription = Linking.addEventListener("url", (event) => handleIncomingLink(event.url));
     return () => subscription.remove();
@@ -110,19 +115,25 @@ export function AuthScreen() {
           </View>
 
           <Text style={styles.title}>Find your next healthy plant.</Text>
-          <Text style={styles.subtitle}>Browse verified plants, message sellers, track orders, and build your garden.</Text>
+          <Text style={styles.subtitle}>Browse verified local collections and buy safely.</Text>
 
           <View style={styles.heroChips}>
             <View style={styles.heroChip}>
-              <MaterialCommunityIcons name="sprout" size={15} color="#d9f6cd" />
+              <View style={styles.heroChipIcon}>
+                <MaterialCommunityIcons name="sprout" size={17} color="#fff4c2" />
+              </View>
               <Text style={styles.heroChipText}>Verified plants</Text>
             </View>
             <View style={styles.heroChip}>
-              <MaterialCommunityIcons name="shield-check-outline" size={15} color="#d9f6cd" />
+              <View style={styles.heroChipIcon}>
+                <MaterialCommunityIcons name="shield-check-outline" size={17} color="#fff4c2" />
+              </View>
               <Text style={styles.heroChipText}>Safe orders</Text>
             </View>
             <View style={styles.heroChip}>
-              <MaterialCommunityIcons name="truck-delivery-outline" size={15} color="#d9f6cd" />
+              <View style={styles.heroChipIcon}>
+                <MaterialCommunityIcons name="truck-delivery-outline" size={17} color="#fff4c2" />
+              </View>
               <Text style={styles.heroChipText}>Easy delivery</Text>
             </View>
           </View>
@@ -132,7 +143,7 @@ export function AuthScreen() {
           <View style={styles.sheetHandle} />
           <Text style={styles.sheetTitle}>Sign in to GrowMate</Text>
           <Text style={styles.sheetSubtitle}>
-            Continue with Google to browse plants, message sellers, track orders, and build your garden.
+            Sign in to join our community of gardeners.
           </Text>
 
           <Pressable
@@ -198,7 +209,7 @@ const styles = StyleSheet.create({
   },
   page: {
     flexGrow: 1,
-    backgroundColor: colors.cream,
+    backgroundColor: colors.greenDark,
   },
   hero: {
     backgroundColor: colors.greenDark,
@@ -286,33 +297,46 @@ const styles = StyleSheet.create({
   },
   heroChips: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 22,
+    gap: 10,
+    justifyContent: "space-between",
+    marginTop: 24,
   },
   heroChip: {
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderColor: "rgba(255,255,255,0.16)",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,244,194,0.18)",
+    borderRadius: 18,
+    borderWidth: 1,
+    flex: 1,
+    gap: 7,
+    justifyContent: "center",
+    minHeight: 72,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+  },
+  heroChipIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,211,96,0.16)",
+    borderColor: "rgba(255,244,194,0.2)",
     borderRadius: 999,
     borderWidth: 1,
-    flexDirection: "row",
-    gap: 5,
-    minHeight: 36,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
+    height: 30,
+    justifyContent: "center",
+    width: 30,
   },
   heroChipText: {
     color: "#f4fff1",
-    fontSize: 13,
-    fontWeight: "800",
+    fontSize: 12,
+    fontWeight: "900",
+    lineHeight: 15,
+    textAlign: "center",
   },
   sheet: {
     backgroundColor: colors.white,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
+    flexGrow: 1,
     marginTop: -18,
-    minHeight: 444,
     paddingBottom: 30,
     paddingHorizontal: 22,
     paddingTop: 12,
@@ -340,6 +364,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     lineHeight: 19,
+    marginBottom: 4,
     marginTop: 4,
   },
   googleButton: {
@@ -399,10 +424,16 @@ const styles = StyleSheet.create({
   },
   error: {
     color: "#9f2d20",
+    backgroundColor: "#fff4f0",
+    borderColor: "#f4c7bd",
+    borderRadius: 14,
+    borderWidth: 1,
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 20,
-    marginTop: 12,
+    marginTop: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   warningTitle: {
     color: "#9f4b00",

@@ -406,7 +406,7 @@ export function DiscoverGardensScreen({ currentGardenId, onOpenChat, onOpenListi
         visible={selectedGarden !== null}
         onClose={() => setSelectedGarden(null)}
         sellerId={selectedGarden ? selectedGarden.userId : null}
-        sellerName={selectedGarden ? selectedGarden.name : ""}
+        sellerName={selectedGarden ? selectedGarden.userName : ""}
         onOpenChat={onOpenChat || (() => {})}
         onOpenListingDetail={onOpenListingDetail}
       />

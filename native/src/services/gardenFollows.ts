@@ -40,6 +40,19 @@ type BaseGarden = Omit<
   "plantCount" | "activeListingsCount" | "firstListingId" | "firstListingName" | "previewPlants" | "previewPhotoUrls"
 >;
 
+function getPersonalizedGardenName(rawName: string | null | undefined, userName: string | null | undefined) {
+  const name = rawName?.trim();
+  const owner = userName?.trim() || "GrowMate";
+  const genericNames = ["my plant collection", "plant collection", "my garden", "garden"];
+
+  if (name && !genericNames.includes(name.toLowerCase())) {
+    return name;
+  }
+
+  const firstName = owner.split(/\s+/)[0] || owner;
+  return `${firstName}${firstName.toLowerCase().endsWith("s") ? "'" : "'s"} Plant Collection`;
+}
+
 function getPreviewLabel(plant: {
   category?: string | null;
   condition?: string | null;
@@ -215,13 +228,14 @@ export async function getFollowedGardens(followerId: string): Promise<FollowedGa
     const owner = Array.isArray(garden?.owner) ? garden.owner[0] : garden?.owner;
     const sellerProfile = getSellerProfileJoin(owner);
 
+    const userName = owner?.display_name ?? "GrowMate Gardener";
     return {
       id: garden?.id ?? "",
-      name: garden?.name ?? "Unknown Garden",
+      name: getPersonalizedGardenName(garden?.name, userName),
       bio: garden?.bio ?? null,
       coverPhotoUrl: garden?.cover_photo_url ?? null,
       userId: garden?.user_id ?? "",
-      userName: owner?.display_name ?? "GrowMate Gardener",
+      userName,
       avatarUrl: owner?.avatar_url ?? null,
       location: owner?.location ?? null,
       isVerifiedSeller: owner?.seller_status === "verified",
@@ -261,13 +275,14 @@ export async function getDiscoverableGardens(currentUserId: string): Promise<Fol
   const gardens = (data ?? []).map((garden: any): BaseGarden => {
     const owner = Array.isArray(garden.owner) ? garden.owner[0] : garden.owner;
     const sellerProfile = getSellerProfileJoin(owner);
+    const userName = owner?.display_name ?? "GrowMate Gardener";
     return {
       id: garden.id,
-      name: garden.name,
+      name: getPersonalizedGardenName(garden.name, userName),
       bio: garden.bio,
       coverPhotoUrl: garden.cover_photo_url,
       userId: garden.user_id,
-      userName: owner?.display_name ?? "GrowMate Gardener",
+      userName,
       avatarUrl: owner?.avatar_url ?? null,
       location: owner?.location ?? null,
       isVerifiedSeller: owner?.seller_status === "verified",

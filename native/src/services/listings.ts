@@ -93,6 +93,29 @@ function getPhotoUrl(storagePath?: string | null) {
   return supabase.storage.from("listing-photos").getPublicUrl(storagePath).data.publicUrl;
 }
 
+function getCorrectedListingPhotoPath(listing: Pick<ListingRow, "name" | "local_name" | "scientific_name">, sortedPhotos: ListingPhotoRow[]) {
+  const firstPath = sortedPhotos[0]?.storage_path;
+  if (!firstPath || !firstPath.includes("/listings/mock-")) return firstPath;
+
+  const folder = firstPath.slice(0, firstPath.lastIndexOf("/") + 1);
+  const plantName = [listing.name, listing.local_name, listing.scientific_name].filter(Boolean).join(" ").toLowerCase();
+
+  if (plantName.includes("peace lily") || plantName.includes("spathiphyllum")) {
+    return `${folder}mock-snake.jpg`;
+  }
+  if (plantName.includes("snake plant") || plantName.includes("sansevieria")) {
+    return `${folder}mock-pothos.jpg`;
+  }
+  if (plantName.includes("golden pothos") || plantName.includes("epipremnum")) {
+    return `${folder}mock-syngonium.jpg`;
+  }
+  if (plantName.includes("monstera")) {
+    return `${folder}mock-monstera.jpg`;
+  }
+
+  return firstPath;
+}
+
 function getSeller(seller?: SellerRow | SellerRow[] | null) {
   if (Array.isArray(seller)) {
     return seller[0] ?? null;
@@ -168,7 +191,7 @@ export async function getActiveListings(searchTerm = "", limit = 10, lastPublish
       deliveryOption: listing.delivery_option,
       description: listing.description,
       sellerName: seller?.display_name ?? "Verified seller",
-      photoUrl: getPhotoUrl(sortedPhotos[0]?.storage_path),
+      photoUrl: getPhotoUrl(getCorrectedListingPhotoPath(listing, sortedPhotos)),
       publishedAt: listing.published_at ?? null,
       trustScore,
       isAiChecked,
@@ -237,7 +260,7 @@ export async function getSellerListings(sellerId: string): Promise<SellerListing
       deliveryOption: listing.delivery_option,
       status: listing.status ?? "draft",
       createdAt: listing.created_at ?? new Date().toISOString(),
-      photoUrl: getPhotoUrl(sortedPhotos[0]?.storage_path),
+      photoUrl: getPhotoUrl(getCorrectedListingPhotoPath(listing, sortedPhotos)),
     };
   });
 }
@@ -399,7 +422,7 @@ export async function getUserOrders(userId: string): Promise<Order[]> {
       : [];
     const sortedPhotos = [...photos].sort((a, b) => a.sort_order - b.sort_order);
     const photoUrl = sortedPhotos[0]?.storage_path
-      ? getPhotoUrl(sortedPhotos[0].storage_path)
+      ? getPhotoUrl(getCorrectedListingPhotoPath({ name: listing?.name ?? "", local_name: null, scientific_name: null }, sortedPhotos))
       : null;
 
     return {
@@ -581,7 +604,13 @@ export async function getListingDetail(listingId: string): Promise<ListingDetail
   const sortedPhotos = [...(listing.listing_photos ?? [])].sort((a, b) => a.sort_order - b.sort_order);
   const seller = getSeller(listing.seller);
 
-  const photoUrls = sortedPhotos.map(photo => getPhotoUrl(photo.storage_path)).filter(Boolean) as string[];
+  const primaryPhotoPath = getCorrectedListingPhotoPath(listing, sortedPhotos);
+  const photoUrls = [
+    getPhotoUrl(primaryPhotoPath),
+    ...sortedPhotos
+      .filter((photo) => photo.storage_path !== primaryPhotoPath)
+      .map((photo) => getPhotoUrl(photo.storage_path)),
+  ].filter(Boolean) as string[];
   const idNum = listing.id.charCodeAt(0) || 0;
   const sellerIdNum = listing.seller_id.charCodeAt(0) || 0;
   const trustScore = 4.5 + (idNum % 5) / 10;

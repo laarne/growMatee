@@ -25,33 +25,41 @@ import { EmptyState } from "./EmptyState";
 import { isFollowingGarden, toggleFollowGarden } from "../services/gardenFollows";
 
 type ParsedCareNote = {
-  emoji: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
   label: string;
   value: string;
+  color: string;
+  backgroundColor: string;
 };
 
 function parseCareNotes(notes?: string): ParsedCareNote[] {
   if (!notes) return [];
   const sentences = notes
-    .split(/[.\n;]+/)
+    .replace(/(\d)\.(\d)/g, "$1<decimal>$2")
+    .split(/\n+|;+/)
+    .flatMap((line) => line.split(/\.\s+/))
+    .map((s) => s.replace(/<decimal>/g, "."))
     .map((s) => s.trim())
     .filter(Boolean);
 
   return sentences.map((sentence) => {
     const lower = sentence.toLowerCase();
+    if (lower.includes("leafy ai") || lower.includes("identified") || lower.includes("confidence") || lower.includes("scan")) {
+      return { icon: "brain", label: "AI Scan", value: sentence, color: "#2563eb", backgroundColor: "#dbeafe" };
+    }
     if (lower.includes("water") || lower.includes("watering") || lower.includes("wet")) {
-      return { emoji: "💧", label: "Water", value: sentence };
+      return { icon: "water-outline", label: "Water", value: sentence, color: "#0284c7", backgroundColor: "#e0f2fe" };
     }
     if (lower.includes("light") || lower.includes("sun") || lower.includes("shade") || lower.includes("indirect") || lower.includes("direct")) {
-      return { emoji: "☀️", label: "Light", value: sentence };
+      return { icon: "white-balance-sunny", label: "Light", value: sentence, color: "#ca8a04", backgroundColor: "#fef3c7" };
     }
     if (lower.includes("listed") || lower.includes("php") || lower.includes("price") || lower.includes("sell") || lower.includes("cutting") || lower.includes("cost") || lower.includes("buy")) {
-      return { emoji: "💰", label: "Market", value: sentence };
+      return { icon: "storefront-outline", label: "Market", value: sentence, color: "#15803d", backgroundColor: "#dcfce7" };
     }
     if (lower.includes("wipe") || lower.includes("clean") || lower.includes("dust") || lower.includes("monthly") || lower.includes("mist") || lower.includes("fertiliz") || lower.includes("feed")) {
-      return { emoji: "🌱", label: "Care", value: sentence };
+      return { icon: "clipboard-check-outline", label: "Care Log", value: sentence, color: "#7c3aed", backgroundColor: "#ede9fe" };
     }
-    return { emoji: "📋", label: "General", value: sentence };
+    return { icon: "note-text-outline", label: "Observation", value: sentence, color: colors.green, backgroundColor: colors.sage };
   });
 }
 
@@ -265,6 +273,17 @@ export function SellerGardenModal({
     return "Add Friend";
   }
 
+  function getDisplayGardenName() {
+    const rawName = garden?.name?.trim();
+    const genericNames = ["my plant collection", "plant collection", "my garden", "garden"];
+    if (rawName && !genericNames.includes(rawName.toLowerCase())) {
+      return rawName;
+    }
+
+    const firstName = sellerName.trim().split(/\s+/)[0] || "GrowMate";
+    return `${firstName}${firstName.toLowerCase().endsWith("s") ? "'" : "'s"} Plant Collection`;
+  }
+
   return (
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
       <View style={styles.container}>
@@ -348,7 +367,7 @@ export function SellerGardenModal({
                     </View>
                   )}
                   <View style={styles.sellerNameCol}>
-                    <Text style={styles.coverTitleText}>{garden?.name || `${sellerName}'s Indoor Jungle`}</Text>
+                    <Text style={styles.coverTitleText}>{getDisplayGardenName()}</Text>
                     <Text style={styles.coverSubText}>
                       {plants.length} plants · {listings.length} active listings · {profile?.location || "Butuan City"}
                     </Text>
@@ -569,9 +588,11 @@ export function SellerGardenModal({
                   <View style={styles.careNotesBox}>
                     {parseCareNotes(detailPlant.careNotes).map((item, idx) => (
                       <View key={idx} style={styles.careNoteRow}>
-                        <Text style={styles.careNoteEmoji}>{item.emoji}</Text>
+                        <View style={[styles.careNoteIconWrap, { backgroundColor: item.backgroundColor }]}>
+                          <MaterialCommunityIcons name={item.icon} size={16} color={item.color} />
+                        </View>
                         <View style={styles.careNoteContent}>
-                          <Text style={styles.careNoteLabel}>{item.label}</Text>
+                          <Text style={[styles.careNoteLabel, { color: item.color }]}>{item.label}</Text>
                           <Text style={styles.careNoteValue}>{item.value}</Text>
                         </View>
                       </View>
@@ -1115,9 +1136,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
-  careNoteEmoji: {
-    fontSize: 16,
+  careNoteIconWrap: {
+    alignItems: "center",
+    borderRadius: 12,
+    height: 32,
+    justifyContent: "center",
     marginRight: 10,
+    width: 32,
   },
   careNoteContent: {
     flex: 1,
