@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
@@ -200,17 +200,35 @@ export function DiscoverGardensScreen({ currentGardenId, onOpenChat, onOpenListi
   }
 
   function renderGardenCover(garden: FollowedGarden) {
-    const coverUri = garden.coverPhotoUrl || getStableDefaultCover(garden.userId);
+    const isFollowing = followingStates[garden.id] ?? false;
+    const coverPhoto = garden.coverPhotoUrl?.trim();
+    const coverUri = coverPhoto ? coverPhoto : getStableDefaultCover(garden.userId);
+
     return (
       <View style={styles.gardenCoverWrap}>
         {coverUri ? (
           <Image source={{ uri: coverUri }} style={styles.gardenCoverImg} />
         ) : (
           <View style={styles.gardenCoverFallback}>
-            <MaterialCommunityIcons name="flower" size={40} color="rgba(255,255,255,0.2)" />
+            <MaterialCommunityIcons name="leaf" size={48} color="rgba(45, 90, 61, 0.15)" />
           </View>
         )}
         <View style={styles.gardenCoverOverlay} />
+
+        {/* Bookmark save overlay in top-right */}
+        {garden.userId !== user?.id && (
+          <Pressable
+            onPress={() => handleToggleFollow(garden.id)}
+            style={styles.coverSaveIconBtn}
+            hitSlop={8}
+          >
+            <MaterialCommunityIcons
+              name={isFollowing ? "bookmark" : "bookmark-outline"}
+              size={20}
+              color={isFollowing ? "#f59e0b" : "#ffffff"}
+            />
+          </Pressable>
+        )}
       </View>
     );
   }
@@ -247,7 +265,7 @@ export function DiscoverGardensScreen({ currentGardenId, onOpenChat, onOpenListi
                 onPress={() => setActiveFilter(filter.id)}
                 style={[styles.filterChip, isActive && styles.filterChipActive]}
               >
-                <MaterialCommunityIcons name={filter.icon} size={14} color={isActive ? colors.white : colors.green} />
+                <MaterialCommunityIcons name={filter.icon} size={14} color={colors.green} />
                 <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>{filter.label}</Text>
               </Pressable>
             );
@@ -304,90 +322,82 @@ export function DiscoverGardensScreen({ currentGardenId, onOpenChat, onOpenListi
           const isFollowing = followingStates[garden.id] ?? false;
 
           return (
-            <Card key={garden.id} tint="sage">
-              {renderGardenCover(garden)}
+            <Pressable
+              key={garden.id}
+              onPress={() => handleViewGarden(garden)}
+              style={({ pressed }) => [
+                pressed && { opacity: 0.96, transform: [{ scale: 0.995 }] }
+              ]}
+            >
+              <Card tint="sage">
+                {renderGardenCover(garden)}
 
-              <View style={styles.gardenHeader}>
-                <View style={styles.ownerInfo}>
-                  {garden.avatarUrl ? (
-                    <Image source={{ uri: garden.avatarUrl }} style={styles.avatar} />
-                  ) : (
-                    <View style={styles.avatarFallback}>
-                      <MaterialCommunityIcons name="account" size={25} color={colors.greenMuted} />
+                <View style={styles.gardenHeader}>
+                  <View style={styles.ownerInfo}>
+                    {garden.avatarUrl ? (
+                      <Image source={{ uri: garden.avatarUrl }} style={styles.avatar} />
+                    ) : (
+                      <View style={styles.avatarFallback}>
+                        <MaterialCommunityIcons name="account" size={25} color={colors.greenMuted} />
+                      </View>
+                    )}
+                    <View style={styles.ownerTextBlock}>
+                      <Text style={styles.gardenName}>{garden.name}</Text>
+                      <View style={styles.ownerMetaRow}>
+                        <Text style={styles.ownerName}>by {garden.userName}</Text>
+                        {garden.location ? (
+                          <>
+                            <Text style={styles.metaDot}>·</Text>
+                            <MaterialCommunityIcons name="map-marker-outline" size={11} color={colors.greenMuted} />
+                            <Text style={styles.ownerMetaText}>{garden.location}</Text>
+                          </>
+                        ) : null}
+                        {garden.trustScore ? (
+                          <>
+                            <Text style={styles.metaDot}>·</Text>
+                            <MaterialCommunityIcons name="star" size={11} color="#f59e0b" />
+                            <Text style={styles.ownerMetaText}>{garden.trustScore.toFixed(1)}</Text>
+                          </>
+                        ) : null}
+                      </View>
                     </View>
-                  )}
-                  <View style={styles.ownerTextBlock}>
-                    <Text style={styles.gardenName}>{garden.name}</Text>
-                    <Text style={styles.ownerName}>
-                      by {garden.userName}{garden.location ? ` - ${garden.location}` : ""}
-                    </Text>
+                  </View>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <View style={styles.trustBadge}>
+                      <MaterialCommunityIcons
+                        name={garden.isVerifiedSeller ? "check-decagram" : "earth"}
+                        size={13}
+                        color={colors.green}
+                      />
+                      <Text style={styles.trustBadgeText}>{garden.isVerifiedSeller ? "Verified" : "Public"}</Text>
+                    </View>
+                    <MaterialCommunityIcons name="chevron-right" size={20} color={colors.greenMuted} />
                   </View>
                 </View>
-                <View style={styles.trustBadge}>
-                  <MaterialCommunityIcons
-                    name={garden.isVerifiedSeller ? "check-decagram" : "earth"}
-                    size={13}
-                    color={colors.green}
-                  />
-                  <Text style={styles.trustBadgeText}>{garden.isVerifiedSeller ? "Verified" : "Public"}</Text>
-                </View>
-              </View>
 
-              {garden.bio && <Text style={styles.bioText}>{garden.bio}</Text>}
+                {garden.bio && <Text style={styles.bioText}>{garden.bio}</Text>}
 
-              <View style={styles.reasonBox}>
-                <MaterialCommunityIcons name="lightbulb-on-outline" size={15} color={colors.green} />
-                <Text style={styles.reasonText}>{getGardenReason(garden)}</Text>
-              </View>
+                <View style={styles.reasonBox}>
+                  <MaterialCommunityIcons name="lightbulb-on-outline" size={15} color={colors.green} />
+                  <Text style={styles.reasonText}>{getGardenReason(garden)}</Text>
+                </View>
 
-              <View style={styles.signalRow}>
-                <View style={styles.marketSignal}>
-                  <Text style={styles.marketSignalText}>
-                    {garden.plantCount} {garden.plantCount === 1 ? "plant" : "plants"}
-                  </Text>
-                </View>
-                <View style={styles.marketSignal}>
-                  <Text style={styles.marketSignalText}>
-                    {garden.activeListingsCount} {garden.activeListingsCount === 1 ? "listing" : "listings"}
-                  </Text>
-                </View>
-                <View style={styles.iconSignal}>
-                  <MaterialCommunityIcons name="star" size={12} color="#d39b21" style={{ marginTop: -1 }} />
-                  <Text style={styles.iconSignalText}>{garden.trustScore?.toFixed(1) ?? "New"}</Text>
-                </View>
-                <View style={styles.marketSignal}>
-                  <Text style={styles.marketSignalText}>{garden.completedSales} sales</Text>
-                </View>
-              </View>
-
-              <View style={styles.buttonRow}>
-                <View style={styles.flexButton}>
-                  <Button variant="primary" onPress={() => handleViewGarden(garden)}>
-                    View Garden
-                  </Button>
-                </View>
-                <View style={styles.flexButton}>
-                  <Button variant="secondary" onPress={() => handleViewListings(garden)}>
-                    View Listings
-                  </Button>
-                </View>
-              </View>
-
-              {garden.userId !== user?.id && (
-                <View style={styles.smallActionRow}>
-                  {onOpenChat && garden.firstListingId && (
-                    <Pressable onPress={() => handleMessageSeller(garden)} style={styles.smallAction}>
-                      <MaterialCommunityIcons name="forum-outline" size={14} color={colors.green} />
-                      <Text style={styles.smallActionText}>Message Seller</Text>
-                    </Pressable>
+                <View style={styles.signalRow}>
+                  <View style={styles.marketSignal}>
+                    <Text style={styles.marketSignalText}>
+                      {garden.plantCount} {garden.plantCount === 1 ? "plant" : "plants"}
+                    </Text>
+                  </View>
+                  {garden.activeListingsCount > 0 && (
+                    <View style={styles.marketSignal}>
+                      <Text style={styles.marketSignalText}>
+                        {garden.activeListingsCount} {garden.activeListingsCount === 1 ? "listing" : "listings"}
+                      </Text>
+                    </View>
                   )}
-                  <Pressable onPress={() => handleToggleFollow(garden.id)} style={styles.smallAction}>
-                    <MaterialCommunityIcons name={isFollowing ? "bookmark" : "bookmark-outline"} size={14} color={colors.green} />
-                    <Text style={styles.smallActionText}>{isFollowing ? "Saved" : "Save Garden"}</Text>
-                  </Pressable>
                 </View>
-              )}
-            </Card>
+              </Card>
+            </Pressable>
           );
         })}
       </ScrollView>
@@ -455,8 +465,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   filterChipActive: {
-    backgroundColor: colors.green,
-    borderColor: colors.green,
+    backgroundColor: "#e8f7f0", // soft sage background tint
+    borderColor: "rgba(26, 77, 46, 0.22)",
   },
   filterChipText: {
     color: colors.green,
@@ -464,7 +474,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   filterChipTextActive: {
-    color: colors.white,
+    color: colors.green,
   },
   loadingContainer: {
     alignItems: "center",
@@ -999,7 +1009,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: "hidden",
     position: "relative",
-    backgroundColor: colors.greenDark,
+    backgroundColor: colors.surface1,
     marginBottom: 12,
   },
   gardenCoverImg: {
@@ -1012,10 +1022,45 @@ const styles = StyleSheet.create({
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: colors.greenDark,
+    backgroundColor: colors.surface1,
   },
   gardenCoverOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.15)",
+    backgroundColor: "rgba(0,0,0,0.12)",
+  },
+  coverSaveIconBtn: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 20,
+    ...Platform.select({
+      web: {
+        backdropFilter: "blur(4px)",
+      } as any,
+    }),
+  },
+  ownerMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 3,
+  },
+  metaDot: {
+    color: colors.greenMuted,
+    fontSize: 12,
+    paddingHorizontal: 2,
+    includeFontPadding: false,
+  },
+  ownerMetaText: {
+    color: colors.greenMuted,
+    fontSize: 12,
+    fontWeight: "700",
+    includeFontPadding: false,
   },
 });
