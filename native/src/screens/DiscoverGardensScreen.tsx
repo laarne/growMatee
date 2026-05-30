@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Animated, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
@@ -17,8 +17,7 @@ import {
 import { getOrCreateMarketConversation } from "../services/messages";
 import { colors } from "../theme/colors";
 
-type Tab = "discover" | "following";
-type DiscoverFilter = "all" | "verified" | "hasListings" | "nearMe" | "indoor" | "beginner" | "topRated";
+type DiscoverFilter = "all" | "following" | "verified" | "hasListings" | "nearMe" | "indoor" | "beginner" | "topRated";
 type GardenDetailTab = "plants" | "sale" | "reviews" | "tips";
 
 type DiscoverGardensScreenProps = {
@@ -29,6 +28,7 @@ type DiscoverGardensScreenProps = {
 
 const FILTERS: { id: DiscoverFilter; label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
   { id: "all", label: "All", icon: "sprout-outline" },
+  { id: "following", label: "Saved ⭐", icon: "bookmark-outline" },
   { id: "verified", label: "Verified", icon: "check-decagram-outline" },
   { id: "hasListings", label: "Has Listings", icon: "storefront-outline" },
   { id: "nearMe", label: "Near Me", icon: "map-marker-radius-outline" },
@@ -64,7 +64,15 @@ const DETAIL_TABS: { id: GardenDetailTab; label: string }[] = [
   { id: "tips", label: "Care Tips" },
 ];
 
-function gardenMatchesFilter(garden: FollowedGarden, filter: DiscoverFilter, viewerLocation?: string | null) {
+function gardenMatchesFilter(
+  garden: FollowedGarden,
+  filter: DiscoverFilter,
+  viewerLocation?: string | null,
+  followingStates?: Record<string, boolean>
+) {
+  if (filter === "following") {
+    return followingStates ? followingStates[garden.id] === true : false;
+  }
   const searchText = [
     garden.name,
     garden.bio,
@@ -130,8 +138,8 @@ function getStableDefaultCover(uid?: string) {
 
 export function DiscoverGardensScreen({ currentGardenId, onOpenChat, onOpenListingDetail }: DiscoverGardensScreenProps) {
   const { profile, user } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>("discover");
   const [activeFilter, setActiveFilter] = useState<DiscoverFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [gardens, setGardens] = useState<FollowedGarden[]>([]);
   const [followingStates, setFollowingStates] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -139,16 +147,43 @@ export function DiscoverGardensScreen({ currentGardenId, onOpenChat, onOpenListi
 
   const [selectedGarden, setSelectedGarden] = useState<FollowedGarden | null>(null);
 
-  const displayedGardens = useMemo(
-    () =>
-      gardens.filter(
-        (garden) =>
-          garden.id !== currentGardenId &&
-          garden.userId !== user?.id &&
-          gardenMatchesFilter(garden, activeFilter, profile?.location)
-      ),
-    [activeFilter, currentGardenId, gardens, profile?.location, user?.id]
-  );
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const displayedGardens = useMemo(() => {
+    const filtered = gardens.filter((garden) => {
+      const isSelf = garden.id === currentGardenId || garden.userId === user?.id;
+      if (isSelf) return false;
+
+      const matchesFilter = gardenMatchesFilter(garden, activeFilter, profile?.location, followingStates);
+      if (!matchesFilter) return false;
+
+      return true;
+    });
+
+    if (!searchQuery.trim()) return filtered;
+
+    const query = searchQuery.toLowerCase().trim();
+    return filtered.filter((garden) => {
+      const name = (garden.name ?? "").toLowerCase();
+      const userName = (garden.userName ?? "").toLowerCase();
+      const bio = (garden.bio ?? "").toLowerCase();
+      const location = (garden.location ?? "").toLowerCase();
+
+      const hasMatchingPlant = garden.previewPlants?.some(
+        (plant) =>
+          (plant.name ?? "").toLowerCase().includes(query) ||
+          (plant.category ?? "").toLowerCase().includes(query)
+      );
+
+      return (
+        name.includes(query) ||
+        userName.includes(query) ||
+        bio.includes(query) ||
+        location.includes(query) ||
+        hasMatchingPlant
+      );
+    });
+  }, [gardens, activeFilter, searchQuery, currentGardenId, user?.id, profile?.location, followingStates]);
 
   async function loadData() {
     if (!user) return;
@@ -156,14 +191,26 @@ export function DiscoverGardensScreen({ currentGardenId, onOpenChat, onOpenListi
     setError(null);
 
     try {
-      const data = activeTab === "discover" ? await getDiscoverableGardens(user.id) : await getFollowedGardens(user.id);
+      const [discoverData, followedData] = await Promise.all([
+        getDiscoverableGardens(user.id),
+        getFollowedGardens(user.id),
+      ]);
+
+      const allGardensMap = new Map<string, FollowedGarden>();
+      discoverData.forEach((g) => allGardensMap.set(g.id, g));
+      followedData.forEach((g) => allGardensMap.set(g.id, g));
+      const data = Array.from(allGardensMap.values());
       setGardens(data);
 
       const states: Record<string, boolean> = {};
-
-      for (const garden of data) {
-        states[garden.id] = await isFollowingGarden(garden.id, user.id);
-      }
+      followedData.forEach((g) => {
+        states[g.id] = true;
+      });
+      discoverData.forEach((g) => {
+        if (states[g.id] === undefined) {
+          states[g.id] = false;
+        }
+      });
 
       setFollowingStates(states);
     } catch (err) {
@@ -175,7 +222,7 @@ export function DiscoverGardensScreen({ currentGardenId, onOpenChat, onOpenListi
 
   useEffect(() => {
     loadData();
-  }, [activeTab, user?.id]);
+  }, [user?.id]);
 
   async function handleToggleFollow(gardenId: string) {
     if (!user) return;
@@ -183,10 +230,6 @@ export function DiscoverGardensScreen({ currentGardenId, onOpenChat, onOpenListi
     try {
       const isFollowingNow = await toggleFollowGarden(gardenId, user.id);
       setFollowingStates((prev) => ({ ...prev, [gardenId]: isFollowingNow }));
-
-      if (activeTab === "following" && !isFollowingNow) {
-        setGardens((prev) => prev.filter((garden) => garden.id !== gardenId));
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
     }
@@ -254,171 +297,188 @@ export function DiscoverGardensScreen({ currentGardenId, onOpenChat, onOpenListi
     );
   }
 
-
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 45],
+    outputRange: [1, 0],
+    extrapolate: "clamp",
+  });
+  const headerTranslate = scrollY.interpolate({
+    inputRange: [0, 45],
+    outputRange: [0, -10],
+    extrapolate: "clamp",
+  });
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.tabContainer}>
-          <View style={styles.flexTab}>
-            <Button variant={activeTab === "discover" ? "primary" : "secondary"} onPress={() => setActiveTab("discover")}>
-              Discover
-            </Button>
-          </View>
-          <View style={styles.flexTab}>
-            <Button variant={activeTab === "following" ? "primary" : "secondary"} onPress={() => setActiveTab("following")}>
-              Saved Gardens
-            </Button>
-          </View>
-        </View>
-
-        <View style={styles.introBlock}>
+      <Animated.ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        stickyHeaderIndices={[1]}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
+      >
+        <Animated.View style={[styles.introBlock, { opacity: headerOpacity, transform: [{ translateY: headerTranslate }] }]}>
           <Text style={styles.screenTitle}>Discover Gardens</Text>
           <Text style={styles.screenSubtitle}>Find trusted plant sellers and collections near you.</Text>
+        </Animated.View>
+
+        <View style={styles.stickyHeaderWrap}>
+          <View style={styles.searchContainer}>
+            <MaterialCommunityIcons name="magnify" size={20} color={colors.greenMuted} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search growers, plant types, or locations..."
+              placeholderTextColor={colors.greenMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              clearButtonMode="while-editing"
+              autoCapitalize="none"
+            />
+            {searchQuery.length > 0 && (
+              <Pressable onPress={() => setSearchQuery("")} hitSlop={8} style={{ padding: 4 }}>
+                <MaterialCommunityIcons name="close-circle" size={18} color={colors.greenMuted} />
+              </Pressable>
+            )}
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+            {FILTERS.map((filter) => {
+              const isActive = activeFilter === filter.id;
+              return (
+                <Pressable
+                  key={filter.id}
+                  onPress={() => setActiveFilter(filter.id)}
+                  style={[styles.filterChip, isActive && styles.filterChipActive]}
+                >
+                  <MaterialCommunityIcons name={filter.icon} size={14} color={colors.green} />
+                  <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>{filter.label}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {FILTERS.map((filter) => {
-            const isActive = activeFilter === filter.id;
-            return (
-              <Pressable
-                key={filter.id}
-                onPress={() => setActiveFilter(filter.id)}
-                style={[styles.filterChip, isActive && styles.filterChipActive]}
-              >
-                <MaterialCommunityIcons name={filter.icon} size={14} color={colors.green} />
-                <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>{filter.label}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        {isLoading && (
+          <DiscoverGardensSkeleton />
+        )}
 
-      {isLoading && (
-        <DiscoverGardensSkeleton />
-      )}
+        {error && (
+          <Card tint="warning">
+            <Text style={styles.errorTitle}>Error</Text>
+            <Text style={styles.errorText}>{error}</Text>
+          </Card>
+        )}
 
-      {error && (
-        <Card tint="warning">
-          <Text style={styles.errorTitle}>Error</Text>
-          <Text style={styles.errorText}>{error}</Text>
-        </Card>
-      )}
-
-      {!isLoading && !error && gardens.length === 0 && (
-        <Card>
-          {activeTab === "discover" ? (
+        {!isLoading && !error && gardens.length === 0 && (
+          <Card>
             <EmptyState
               icon="sprout-outline"
               title="No discoverable gardens"
               description="Be the first to go public. Toggle your garden to discoverable in your settings."
             />
-          ) : (
+          </Card>
+        )}
+
+        {!isLoading && !error && gardens.length > 0 && displayedGardens.length === 0 && (
+          <Card>
             <EmptyState
-              icon="bookmark-outline"
-              title="No saved gardens yet"
-              description="Explore discoverable gardens and save the sellers you want to revisit."
-              buttonLabel="Browse Gardens"
-              onButtonPress={() => setActiveTab("discover")}
+              icon={activeFilter === "following" ? "bookmark-outline" : "filter-outline"}
+              title={activeFilter === "following" ? "No saved gardens yet" : "No matches for this filter"}
+              description={
+                activeFilter === "following"
+                  ? "Explore discoverable gardens and save the sellers you want to revisit by clicking the bookmark icon."
+                  : "Try another filter or search query to discover more seller gardens."
+              }
             />
-          )}
-        </Card>
-      )}
+          </Card>
+        )}
 
-      {!isLoading && !error && gardens.length > 0 && displayedGardens.length === 0 && (
-        <Card>
-          <EmptyState
-            icon="filter-outline"
-            title="No matches for this filter"
-            description="Try another filter to discover more seller gardens."
-          />
-        </Card>
-      )}
+        {!isLoading &&
+          !error &&
+          displayedGardens.map((garden) => {
+            return (
+              <Pressable
+                key={garden.id}
+                onPress={() => handleViewGarden(garden)}
+                style={({ pressed }) => [
+                  pressed && { opacity: 0.96, transform: [{ scale: 0.995 }] }
+                ]}
+              >
+                <Card tint="sage">
+                  {renderGardenCover(garden)}
 
-      {!isLoading &&
-        !error &&
-        displayedGardens.map((garden) => {
-          const isFollowing = followingStates[garden.id] ?? false;
-
-          return (
-            <Pressable
-              key={garden.id}
-              onPress={() => handleViewGarden(garden)}
-              style={({ pressed }) => [
-                pressed && { opacity: 0.96, transform: [{ scale: 0.995 }] }
-              ]}
-            >
-              <Card tint="sage">
-                {renderGardenCover(garden)}
-
-                <View style={styles.gardenHeader}>
-                  <View style={styles.ownerInfo}>
-                    {garden.avatarUrl ? (
-                      <Image source={{ uri: garden.avatarUrl }} style={styles.avatar} />
-                    ) : (
-                      <View style={styles.avatarFallback}>
-                        <MaterialCommunityIcons name="account" size={25} color={colors.greenMuted} />
-                      </View>
-                    )}
-                    <View style={styles.ownerTextBlock}>
-                      <Text style={styles.gardenName}>{garden.name}</Text>
-                      <View style={styles.ownerMetaRow}>
-                        <Text style={styles.ownerName}>by {garden.userName}</Text>
-                        {garden.location ? (
-                          <>
-                            <Text style={styles.metaDot}>·</Text>
-                            <MaterialCommunityIcons name="map-marker-outline" size={11} color={colors.greenMuted} />
-                            <Text style={styles.ownerMetaText}>{garden.location}</Text>
-                          </>
-                        ) : null}
-                        {garden.trustScore ? (
-                          <>
-                            <Text style={styles.metaDot}>·</Text>
-                            <MaterialCommunityIcons name="star" size={11} color="#f59e0b" />
-                            <Text style={styles.ownerMetaText}>{garden.trustScore.toFixed(1)}</Text>
-                          </>
-                        ) : null}
+                  <View style={styles.gardenHeader}>
+                    <View style={styles.ownerInfo}>
+                      {garden.avatarUrl ? (
+                        <Image source={{ uri: garden.avatarUrl }} style={styles.avatar} />
+                      ) : (
+                        <View style={styles.avatarFallback}>
+                          <MaterialCommunityIcons name="account" size={25} color={colors.greenMuted} />
+                        </View>
+                      )}
+                      <View style={styles.ownerTextBlock}>
+                        <Text style={styles.gardenName}>{garden.name}</Text>
+                        <View style={styles.ownerMetaRow}>
+                          <Text style={styles.ownerName}>by {garden.userName}</Text>
+                          {garden.location ? (
+                            <>
+                              <Text style={styles.metaDot}>·</Text>
+                              <MaterialCommunityIcons name="map-marker-outline" size={11} color={colors.greenMuted} />
+                              <Text style={styles.ownerMetaText}>{garden.location}</Text>
+                            </>
+                          ) : null}
+                          {garden.trustScore ? (
+                            <>
+                              <Text style={styles.metaDot}>·</Text>
+                              <MaterialCommunityIcons name="star" size={11} color="#f59e0b" />
+                              <Text style={styles.ownerMetaText}>{garden.trustScore.toFixed(1)}</Text>
+                            </>
+                          ) : null}
+                        </View>
                       </View>
                     </View>
-                  </View>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <View style={styles.trustBadge}>
-                      <MaterialCommunityIcons
-                        name={garden.isVerifiedSeller ? "check-decagram" : "earth"}
-                        size={13}
-                        color={colors.green}
-                      />
-                      <Text style={styles.trustBadgeText}>{garden.isVerifiedSeller ? "Verified" : "Public"}</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <View style={styles.trustBadge}>
+                        <MaterialCommunityIcons
+                          name={garden.isVerifiedSeller ? "check-decagram" : "earth"}
+                          size={13}
+                          color={colors.green}
+                        />
+                        <Text style={styles.trustBadgeText}>{garden.isVerifiedSeller ? "Verified" : "Public"}</Text>
+                      </View>
+                      <MaterialCommunityIcons name="chevron-right" size={20} color={colors.greenMuted} />
                     </View>
-                    <MaterialCommunityIcons name="chevron-right" size={20} color={colors.greenMuted} />
                   </View>
-                </View>
 
-                {garden.bio && <Text style={styles.bioText}>{garden.bio}</Text>}
+                  {garden.bio && <Text style={styles.bioText}>{garden.bio}</Text>}
 
-                <View style={styles.reasonBox}>
-                  <MaterialCommunityIcons name="lightbulb-on-outline" size={15} color={colors.green} />
-                  <Text style={styles.reasonText}>{getGardenReason(garden)}</Text>
-                </View>
-
-                <View style={styles.signalRow}>
-                  <View style={styles.marketSignal}>
-                    <Text style={styles.marketSignalText}>
-                      {garden.plantCount} {garden.plantCount === 1 ? "plant" : "plants"}
-                    </Text>
+                  <View style={styles.reasonBox}>
+                    <MaterialCommunityIcons name="lightbulb-on-outline" size={15} color={colors.green} />
+                    <Text style={styles.reasonText}>{getGardenReason(garden)}</Text>
                   </View>
-                  {garden.activeListingsCount > 0 && (
+
+                  <View style={styles.signalRow}>
                     <View style={styles.marketSignal}>
                       <Text style={styles.marketSignalText}>
-                        {garden.activeListingsCount} {garden.activeListingsCount === 1 ? "listing" : "listings"}
+                        {garden.plantCount} {garden.plantCount === 1 ? "plant" : "plants"}
                       </Text>
                     </View>
-                  )}
-                </View>
-              </Card>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+                    {garden.activeListingsCount > 0 && (
+                      <View style={styles.marketSignal}>
+                        <Text style={styles.marketSignalText}>
+                          {garden.activeListingsCount} {garden.activeListingsCount === 1 ? "listing" : "listings"}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </Card>
+              </Pressable>
+            );
+          })}
+      </Animated.ScrollView>
 
       <SellerGardenModal
         visible={selectedGarden !== null}
@@ -441,17 +501,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 96,
   },
-  tabContainer: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 12,
-  },
-  flexTab: {
-    flex: 1,
-  },
-  flexButton: {
-    flex: 1,
-  },
   introBlock: {
     marginBottom: 10,
   },
@@ -466,6 +515,32 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 18,
     marginTop: 3,
+  },
+  stickyHeaderWrap: {
+    backgroundColor: colors.cream,
+    paddingTop: 4,
+    paddingBottom: 8,
+    zIndex: 10,
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: "#eef7f2",
+    borderRadius: 24,
+    paddingHorizontal: 12,
+    height: 44,
+    marginBottom: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: "100%",
+    marginLeft: 8,
+    color: colors.green,
+    fontSize: 14,
+    fontWeight: "600",
+    paddingVertical: 0,
   },
   filterRow: {
     gap: 8,
