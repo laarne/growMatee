@@ -804,6 +804,12 @@
         </span>
         <span>Revenue</span>
       </a>
+      <a class="menu-item" onclick="switchTab('database-cache', this)">
+        <span class="menu-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+        </span>
+        <span>Database Cache</span>
+      </a>
       <a class="menu-item" onclick="switchTab('system-config', this)">
         <span class="menu-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
@@ -1315,6 +1321,134 @@
 
       </section>
 
+      <!-- ==================== DATABASE CACHE & PLANT CARE TAB ==================== -->
+      <section id="tab-database-cache" class="tab-section">
+        <div class="panel-card" style="margin-bottom: 24px;">
+          <h2 style="font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 8px;">Database Cache &amp; System Logs</h2>
+          <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">Monitor and inspect cached botanical care records, user-reported missing plant requests, and active third-party API transaction logs.</p>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-bottom: 20px;">
+          <button class="filter-tab active" id="db-view-cache" onclick="switchDbView('cache')">Plant Care Cache</button>
+          <button class="filter-tab" id="db-view-missing" onclick="switchDbView('missing')">Missing Plant Requests</button>
+          <button class="filter-tab" id="db-view-apilogs" onclick="switchDbView('apilogs')">API Usage Logs</button>
+        </div>
+
+        <!-- 1. Plant Care Cache View -->
+        <div id="db-panel-cache" class="db-panel-view">
+          <div class="panel-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.02);">
+            <div style="padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.02); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <div style="display: flex; gap: 8px;">
+                <button class="filter-tab active" id="cache-filter-all" onclick="filterCache('all')">All Cached</button>
+                <button class="filter-tab" id="cache-filter-perenual" onclick="filterCache('Perenual')">Perenual API</button>
+                <button class="filter-tab" id="cache-filter-growmate" onclick="filterCache('GrowMate')">GrowMate Standard</button>
+              </div>
+              <div style="font-size: 12px; color: var(--text-muted);">
+                Total Records: <strong style="color: #fff;" id="cache-total-count">0</strong>
+              </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Plant Details</th>
+                    <th>Watering</th>
+                    <th>Sunlight</th>
+                    <th>Soil &amp; Humidity</th>
+                    <th>Care Level</th>
+                    <th>Source</th>
+                    <th>Last Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="care-cache-table-body">
+                  <tr>
+                    <td colspan="8" style="text-align: center; padding: 20px; color: var(--text-dim);">Loading cache database records...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Missing Plant Requests View -->
+        <div id="db-panel-missing" class="db-panel-view" style="display: none;">
+          <div class="panel-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.02);">
+            <div style="padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.02); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <div style="display: flex; gap: 8px;">
+                <button class="filter-tab active" id="missing-filter-all" onclick="filterMissingRequests('all')">All Requests</button>
+                <button class="filter-tab" id="missing-filter-open" onclick="filterMissingRequests('open')">Open</button>
+                <button class="filter-tab" id="missing-filter-resolved" onclick="filterMissingRequests('resolved')">Resolved</button>
+                <button class="filter-tab" id="missing-filter-ignored" onclick="filterMissingRequests('ignored')">Ignored</button>
+              </div>
+              <div style="font-size: 12px; color: var(--text-muted);">
+                Pending: <strong style="color: #fff;" id="missing-pending-count">0</strong>
+              </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Query Term</th>
+                    <th>Requested By</th>
+                    <th>Reason</th>
+                    <th>Source Interface</th>
+                    <th>Created At</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="missing-requests-table-body">
+                  <tr>
+                    <td colspan="7" style="text-align: center; padding: 20px; color: var(--text-dim);">Loading missing requests...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. API Usage Logs View -->
+        <div id="db-panel-apilogs" class="db-panel-view" style="display: none;">
+          <div class="panel-card" style="padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,0.02);">
+            <div style="padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.02); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <div style="display: flex; gap: 8px;">
+                <button class="filter-tab active" id="apilogs-filter-all" onclick="filterApiLogs('all')">All Transactions</button>
+                <button class="filter-tab" id="apilogs-filter-success" onclick="filterApiLogs('success')">Success</button>
+                <button class="filter-tab" id="apilogs-filter-error" onclick="filterApiLogs('error')">Error</button>
+              </div>
+              <div style="font-size: 12px; color: var(--text-muted);">
+                Recent Logs: <strong style="color: #fff;" id="apilogs-total-count">0</strong>
+              </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Transaction</th>
+                    <th>Requested By</th>
+                    <th>Endpoint Path</th>
+                    <th>Query Target</th>
+                    <th>Status Code</th>
+                    <th>Timestamp</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody id="apilogs-table-body">
+                  <tr>
+                    <td colspan="7" style="text-align: center; padding: 20px; color: var(--text-dim);">Loading transaction logs...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
       <!-- ==================== SYSTEM CONFIG / API TOKENS TAB ==================== -->
       <section id="tab-system-config" class="tab-section">
         <div class="panel-card" style="margin-bottom: 24px;">
@@ -1439,6 +1573,19 @@
     </div>
   </div>
 
+  <!-- JSON CACHE DETAIL MODAL -->
+  <div id="json-modal" onclick="closeJsonModal()" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); z-index: 2000; align-items: center; justify-content: center; padding: 20px;">
+    <div class="panel-card" onclick="event.stopPropagation()" style="max-width: 700px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px; margin-bottom: 16px;">
+        <h3 id="json-modal-title" style="margin: 0; color: #fff; font-size: 16px; font-weight: 800;">Cached Plant Record</h3>
+        <button onclick="closeJsonModal()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px;">✕</button>
+      </div>
+      <div style="flex: 1; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 16px; font-family: monospace; font-size: 12px; line-height: 1.5; color: #a3b899; white-space: pre-wrap;" id="json-modal-content">
+        Loading...
+      </div>
+    </div>
+  </div>
+
   <script>
     // Global Error & Promise Rejection Handlers
     window.onerror = function(message, source, lineno, colno, error) {
@@ -1483,6 +1630,9 @@
     let ordersList = [];
     let reportsList = [];
     let scansList = [];
+    let careCacheList = [];
+    let missingRequestsList = [];
+    let apiLogsList = [];
     let realtimeChannels = null;
 
     // Trigger visual pulse on metric cards
@@ -1754,6 +1904,7 @@
         'reports-disputes': 'Safety Center & Report Logs',
         'ai-usage': 'Leafy AI Analytics & Cost Caps',
         'revenue': 'Marketplace Sales & Revenue Analytics',
+        'database-cache': 'Database Cache & System Logs',
         'system-config': 'API & System Configurations'
       };
       document.getElementById('header-title').textContent = titles[tabId] || 'Control Center';
@@ -1852,7 +2003,37 @@
         scansList = [];
       }
 
-      // 7. Render analytics graphs, logs and revenue totals
+      // 7. Fetch plant care cache
+      const { data: careCache, error: errCache } = await supabaseClient.from('plant_care_cache').select('*').order('scientific_name', { ascending: true });
+      if (careCache) {
+        careCacheList = careCache;
+        renderCareCache(careCache);
+      } else {
+        careCacheList = [];
+        renderCareCache([]);
+      }
+
+      // 8. Fetch missing plant requests
+      const { data: missingReqs, error: errMissing } = await supabaseClient.from('missing_plant_requests').select('*, user:profiles(display_name)').order('created_at', { ascending: false });
+      if (missingReqs) {
+        missingRequestsList = missingReqs;
+        renderMissingRequests(missingReqs);
+      } else {
+        missingRequestsList = [];
+        renderMissingRequests([]);
+      }
+
+      // 9. Fetch API usage logs
+      const { data: apiLogs, error: errApi } = await supabaseClient.from('api_usage_logs').select('*, user:profiles(display_name)').order('created_at', { ascending: false });
+      if (apiLogs) {
+        apiLogsList = apiLogs;
+        renderApiLogs(apiLogs);
+      } else {
+        apiLogsList = [];
+        renderApiLogs([]);
+      }
+
+      // 10. Render analytics graphs, logs and revenue totals
       initLogs();
       renderDashboardCharts();
       renderAIAnalytics();
@@ -2659,6 +2840,236 @@
       }
     }
 
+    // Database Cache & Logs helper functions
+    function switchDbView(viewName) {
+      document.querySelectorAll('#tab-database-cache .filter-tab').forEach(b => {
+        if (b.id && b.id.startsWith('db-view-')) b.classList.remove('active');
+      });
+      const activeBtn = document.getElementById('db-view-' + viewName);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      document.querySelectorAll('.db-panel-view').forEach(p => p.style.display = 'none');
+      const activePanel = document.getElementById('db-panel-' + viewName);
+      if (activePanel) activePanel.style.display = 'block';
+    }
+
+    function renderCareCache(list) {
+      const tbody = document.getElementById('care-cache-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      
+      document.getElementById('cache-total-count').textContent = careCacheList.length;
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 20px; color: var(--text-dim);">No cache records found matching criteria.</td></tr>`;
+        return;
+      }
+
+      list.forEach(c => {
+        const date = new Date(c.updated_at || c.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        
+        let providerPill = `<span class="status-pill sp-blue">Perenual</span>`;
+        if (c.provider === 'GrowMate') {
+          providerPill = `<span class="status-pill sp-active">GrowMate</span>`;
+        }
+
+        const commonName = c.common_name || c.normalized_common_name || 'N/A';
+        const scientificName = c.scientific_name || c.normalized_scientific_name || 'N/A';
+        const watering = c.watering || 'N/A';
+        const sunlight = c.sunlight || 'N/A';
+        const soil = c.soil || 'N/A';
+        const humidity = c.humidity || 'N/A';
+        const careLevel = c.care_level || 'N/A';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div class="user-avatar" style="width:28px; height:28px; font-size:11px; background:var(--green-pale); color:var(--color-green);">🌱</div>
+              <div>
+                <div style="font-weight:700; color:#fff;">${escapeHTML(commonName)}</div>
+                <div style="font-size:11px; color:var(--text-dim); font-style:italic;">${escapeHTML(scientificName)}</div>
+              </div>
+            </div>
+          </td>
+          <td>${escapeHTML(watering)}</td>
+          <td>${escapeHTML(sunlight)}</td>
+          <td>
+            <div style="font-size:11px; color:var(--text-dim);">
+              Soil: ${escapeHTML(soil)}<br/>
+              Humid: ${escapeHTML(humidity)}
+            </div>
+          </td>
+          <td><span class="status-pill sp-neutral">${escapeHTML(careLevel)}</span></td>
+          <td>${providerPill}</td>
+          <td>${date}</td>
+          <td>
+            <button class="btn-action btn-verify" onclick="viewCacheDetail('${c.id}')">Raw JSON</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function viewCacheDetail(cacheId) {
+      const entry = careCacheList.find(c => c.id === cacheId);
+      if (!entry) return;
+      openJsonModal(`${entry.common_name || entry.scientific_name} Details`, entry);
+    }
+
+    function filterCache(filter) {
+      document.querySelectorAll('#db-panel-cache .filter-tab').forEach(t => t.classList.remove('active'));
+      const activeEl = document.getElementById('cache-filter-' + (filter === 'all' ? 'all' : filter.toLowerCase()));
+      if (activeEl) activeEl.classList.add('active');
+
+      let filtered = careCacheList;
+      if (filter !== 'all') {
+        filtered = careCacheList.filter(c => c.provider === filter);
+      }
+      renderCareCache(filtered);
+    }
+
+    function renderMissingRequests(list) {
+      const tbody = document.getElementById('missing-requests-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      
+      const pendingCount = missingRequestsList.filter(r => r.status === 'open').length;
+      document.getElementById('missing-pending-count').textContent = pendingCount;
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-dim);">No requests found.</td></tr>`;
+        return;
+      }
+
+      list.forEach(r => {
+        const date = new Date(r.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        
+        let statusClass = 'sp-pending';
+        if (r.status === 'resolved') statusClass = 'sp-active';
+        else if (r.status === 'ignored') statusClass = 'sp-neutral';
+
+        let actionBtn = '';
+        if (r.status === 'open') {
+          actionBtn = `
+            <button class="btn-action btn-verify" onclick="updateMissingRequestStatus('${r.id}', 'resolved')">Resolve</button>
+            <button class="btn-action btn-danger" onclick="updateMissingRequestStatus('${r.id}', 'ignored')">Ignore</button>
+          `;
+        } else {
+          actionBtn = `<span style="font-size:11px; color:var(--text-dim); text-transform:uppercase;">Handled</span>`;
+        }
+
+        const userVal = r.user ? (r.user.display_name || 'User') : 'N/A';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><b style="color:#fff;">${escapeHTML(r.normalized_query)}</b></td>
+          <td>${escapeHTML(userVal)}</td>
+          <td><span style="font-size:11px; color:var(--text-dim);">${escapeHTML(r.reason)}</span></td>
+          <td><span class="status-pill sp-blue">${escapeHTML(r.source)}</span></td>
+          <td>${date}</td>
+          <td><span class="status-pill ${statusClass}">${escapeHTML(r.status)}</span></td>
+          <td>${actionBtn}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function updateMissingRequestStatus(requestId, newStatus) {
+      if (!supabaseClient || !assertAdmin()) return;
+      const { error } = await supabaseClient
+        .from('missing_plant_requests')
+        .update({ 
+          status: newStatus,
+          resolved_at: newStatus === 'resolved' ? new Date().toISOString() : null
+        })
+        .eq('id', requestId);
+        
+      if (error) alert(`Error updating: ${error.message}`);
+      else {
+        alert(`Request status updated to ${newStatus}.`);
+        loadRealDatabaseData();
+      }
+    }
+
+    function filterMissingRequests(filter) {
+      document.querySelectorAll('#db-panel-missing .filter-tab').forEach(t => t.classList.remove('active'));
+      const activeEl = document.getElementById('missing-filter-' + filter);
+      if (activeEl) activeEl.classList.add('active');
+
+      let filtered = missingRequestsList;
+      if (filter !== 'all') {
+        filtered = missingRequestsList.filter(r => r.status === filter);
+      }
+      renderMissingRequests(filtered);
+    }
+
+    function renderApiLogs(list) {
+      const tbody = document.getElementById('apilogs-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      
+      document.getElementById('apilogs-total-count').textContent = apiLogsList.length;
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-dim);">No transaction logs found.</td></tr>`;
+        return;
+      }
+
+      list.forEach(log => {
+        const date = new Date(log.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' ' + new Date(log.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        
+        let statusClass = 'sp-active';
+        if (log.status !== 'success') statusClass = 'sp-banned';
+
+        const userVal = log.user ? (log.user.display_name || 'User') : 'N/A';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span class="status-pill sp-blue">${escapeHTML(log.provider)}</span></td>
+          <td>${escapeHTML(userVal)}</td>
+          <td><span style="font-family:monospace; font-size:11px;">${escapeHTML(log.endpoint)}</span></td>
+          <td><span style="color:#fff; font-weight:700;">${escapeHTML(log.normalized_query || 'N/A')}</span></td>
+          <td><span class="status-pill ${statusClass}">${escapeHTML(log.status_code || '200')}</span></td>
+          <td>${date}</td>
+          <td>
+            <button class="btn-action btn-verify" onclick="viewApiLogDetail('${log.id}')">View Details</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function viewApiLogDetail(logId) {
+      const log = apiLogsList.find(l => l.id === logId);
+      if (!log) return;
+      openJsonModal(`API Log Detail - ${log.provider}`, log);
+    }
+
+    function filterApiLogs(filter) {
+      document.querySelectorAll('#db-panel-apilogs .filter-tab').forEach(t => t.classList.remove('active'));
+      const activeEl = document.getElementById('apilogs-filter-' + filter);
+      if (activeEl) activeEl.classList.add('active');
+
+      let filtered = apiLogsList;
+      if (filter === 'success') {
+        filtered = apiLogsList.filter(l => l.status === 'success');
+      } else if (filter === 'error') {
+        filtered = apiLogsList.filter(l => l.status !== 'success');
+      }
+      renderApiLogs(filtered);
+    }
+
+    function openJsonModal(title, dataObj) {
+      document.getElementById('json-modal-title').textContent = title;
+      document.getElementById('json-modal-content').textContent = JSON.stringify(dataObj, null, 2);
+      document.getElementById('json-modal').style.display = 'flex';
+    }
+    
+    function closeJsonModal() {
+      document.getElementById('json-modal').style.display = 'none';
+    }
+
     // Global Search
     function handleSearch(q) {
       const query = q.toLowerCase();
@@ -2694,6 +3105,25 @@
         );
       });
       renderOrders(filteredOrders);
+
+      const filteredCare = careCacheList.filter(c => 
+        (c.scientific_name && c.scientific_name.toLowerCase().includes(query)) || 
+        (c.common_name && c.common_name.toLowerCase().includes(query))
+      );
+      renderCareCache(filteredCare);
+
+      const filteredMissing = missingRequestsList.filter(r => 
+        (r.normalized_query && r.normalized_query.toLowerCase().includes(query)) || 
+        (r.original_query && r.original_query.toLowerCase().includes(query))
+      );
+      renderMissingRequests(filteredMissing);
+
+      const filteredApiLogs = apiLogsList.filter(l => 
+        (l.endpoint && l.endpoint.toLowerCase().includes(query)) || 
+        (l.provider && l.provider.toLowerCase().includes(query)) ||
+        (l.normalized_query && l.normalized_query.toLowerCase().includes(query))
+      );
+      renderApiLogs(filteredApiLogs);
     }
 
     // Init Logs
