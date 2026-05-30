@@ -1,0 +1,9 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/outputs/growmate-pitch-v2/$1"
+    }
+  ]
+}
