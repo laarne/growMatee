@@ -277,7 +277,7 @@ function BadgeCardItem({ badge }: { badge: BadgeType }) {
         >
           <MaterialCommunityIcons
             name={badge.icon as any}
-            size={24}
+            size={20}
             color={badge.unlocked ? theme.iconColor : "#94a3b8"}
           />
         </View>
@@ -2507,10 +2507,10 @@ const styles = StyleSheet.create({
   },
   badgesScroll: { marginTop: 10, paddingBottom: 6 },
   badgeCard: {
-    width: 108,
+    width: 92,
     borderRadius: radius.md,
-    padding: 10,
-    marginRight: 10,
+    padding: 8,
+    marginRight: 8,
     alignItems: "center",
   },
   badgeCardUnlocked: {
@@ -2518,15 +2518,15 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: "#0c2b1d",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.15,
-        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
       },
       android: {
-        elevation: 6,
+        elevation: 4,
       },
       web: {
-        boxShadow: "0px 4px 10px rgba(12, 43, 29, 0.04), 0px 16px 32px rgba(12, 43, 29, 0.12)",
+        boxShadow: "0px 3px 8px rgba(12, 43, 29, 0.03), 0px 12px 24px rgba(12, 43, 29, 0.1)",
       } as any,
     }),
   },
@@ -2535,49 +2535,49 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.4)",
   },
   badgeIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+    marginBottom: 6,
     position: "relative",
   },
   badgeIconWrapUnlocked: {
-    borderTopLeftRadius: 18,
-    borderBottomRightRadius: 18,
-    borderTopRightRadius: 6,
-    borderBottomLeftRadius: 6,
+    borderTopLeftRadius: 14,
+    borderBottomRightRadius: 14,
+    borderTopRightRadius: 4,
+    borderBottomLeftRadius: 4,
   },
   badgeIconWrapLocked: {
-    borderRadius: 22,
+    borderRadius: 18,
     backgroundColor: "rgba(0, 0, 0, 0.04)", // grayscale background tint for locked
   },
-  badgeIcon: { fontSize: 24 },
-  badgeTitle: { fontSize: 11, fontWeight: "800", color: colors.textPrimary, textAlign: "center", marginBottom: 4 },
+  badgeIcon: { fontSize: 20 },
+  badgeTitle: { fontSize: 9.5, fontWeight: "800", color: colors.textPrimary, textAlign: "center", marginBottom: 2 },
   badgeTitleLocked: { color: colors.textSecondary },
-  badgeDesc: { fontSize: 9.5, color: colors.textSecondary, textAlign: "center", fontWeight: "600", lineHeight: 12 },
+  badgeDesc: { fontSize: 8, color: colors.textSecondary, textAlign: "center", fontWeight: "600", lineHeight: 10 },
   badgeDescLocked: { color: colors.textTertiary },
   badgeProgressContainer: {
     width: "100%",
-    marginTop: 8,
+    marginTop: 6,
     alignItems: "center",
   },
   badgeProgressBar: {
     width: "100%",
-    height: 4,
+    height: 3,
     backgroundColor: "rgba(26, 58, 34, 0.08)",
-    borderRadius: 2,
+    borderRadius: 1.5,
     overflow: "hidden",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   badgeProgressFill: {
     height: "100%",
     backgroundColor: "#EF9F27", // gold progress fill color
-    borderRadius: 2,
+    borderRadius: 1.5,
   },
   badgeProgressHint: {
-    fontSize: 9,
+    fontSize: 8,
     color: colors.textSecondary,
     fontWeight: "700",
   },
