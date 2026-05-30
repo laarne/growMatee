@@ -178,6 +178,21 @@
       .footer-grid { grid-template-columns: 1fr; }
       .footer-bottom { flex-direction: column; gap: 12px; text-align: center; }
     }
+    @media (max-width: 480px) {
+      .container { padding: 0 16px; }
+      nav { padding: 10px 0; }
+      .logo-text { font-size: 16px; }
+      .logo-img { width: 28px; height: 28px; }
+      #nav-cta { padding: 8px 16px; font-size: 12px; }
+      .legal-content { padding: 100px 0 60px; }
+      .legal-header { margin-bottom: 24px; padding-bottom: 16px; }
+      .legal-title { font-size: 28px; }
+      .legal-body { font-size: 14px; }
+      .support-highlight { padding: 20px 16px; margin-bottom: 32px; }
+      .support-email { font-size: clamp(16px, 5.5vw, 24px); word-break: break-all; }
+      .contact-card { padding: 18px; }
+      .sdg-pills { flex-wrap: wrap; justify-content: center; }
+    }
   </style>
 </head>
 <body>
