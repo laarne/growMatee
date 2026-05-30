@@ -94,7 +94,7 @@ const allowedOrgans = new Set(["leaf", "flower", "fruit", "bark", "habit", "othe
 const allowedMimeTypes = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const maxImageBase64Length = 8_000_000;
 const maxRequestBytes = 9 * 1024 * 1024;
-const scanLimit = 5;
+const scanLimit = 20;
 const scanWindowMs = 60 * 60 * 1000;
 const careLookupPromises = new Map<string, Promise<CareProfile>>();
 
