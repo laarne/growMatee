@@ -353,10 +353,6 @@
       display: grid; grid-template-columns: 2fr 1.1fr;
       gap: 20px;
     }
-    .analytics-full-row {
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 20px;
-    }
     .panel-card {
       background: var(--bg-card);
       border: 1px solid var(--border-color);
@@ -547,38 +543,6 @@
       border-top: 1px solid rgba(255,255,255,0.02);
       padding-top: 10px; margin-top: 8px;
     }
-    
-    @keyframes pulse-glow {
-      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); transform: scale(1); }
-      50% { box-shadow: 0 0 20px 10px rgba(16, 185, 129, 0.2); transform: scale(1.02); }
-      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); transform: scale(1); }
-    }
-    .metric-pulse {
-      animation: pulse-glow 0.8s ease-out;
-    }
-    .live-pulse-dot {
-      width: 8px;
-      height: 8px;
-      background-color: var(--color-green);
-      border-radius: 50%;
-      display: inline-block;
-      position: relative;
-    }
-    .live-pulse-dot::after {
-      content: '';
-      width: 100%;
-      height: 100%;
-      background-color: var(--color-green);
-      border-radius: 50%;
-      position: absolute;
-      top: 0; left: 0;
-      animation: pulse-ring 2s infinite ease-in-out;
-      transform-origin: center;
-    }
-    @keyframes pulse-ring {
-      0% { transform: scale(0.5); opacity: 1; }
-      100% { transform: scale(2.5); opacity: 0; }
-    }
 
     /* ─── ID Profile verification styles ──────────────── */
     .grid-id-profiles {
@@ -670,7 +634,7 @@
     .id-doc-missing span { font-size: 14px; }
     .id-doc-missing p { font-size: 8px; font-weight: 800; color: var(--color-orange); text-transform: uppercase; }
 
-    /* Zoom Modal CSS */
+    /* Zoom Modal */
     #zoom-modal {
       position: fixed; inset: 0; z-index: 2000;
       background: rgba(0,0,0,0.9); backdrop-filter: blur(12px);
@@ -731,7 +695,6 @@
       border-color: var(--color-green);
     }
     
-    /* Toggle switch */
     .switch {
       position: relative; display: inline-block; width: 44px; height: 22px;
     }
@@ -807,7 +770,7 @@
       </a>
       <a class="menu-item" onclick="switchTab('id-profile', this)">
         <span class="menu-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line></svg>
         </span>
         <span>Seller Verification</span>
       </a>
@@ -956,7 +919,7 @@
             </div>
           </div>
 
-          <div class="metric-card action-card" onclick="switchTab('reports-disputes', document.querySelectorAll('.menu-item')[5])">
+          <div class="metric-card action-card" onclick="switchTab('orders', document.querySelectorAll('.menu-item')[4])">
             <div class="metric-left">
               <h3 id="stat-disputed-orders">0</h3>
               <p>Disputed Orders</p>
@@ -1011,7 +974,7 @@
               </div>
             </div>
             <div class="chart-container">
-              <svg width="100%" height="100%" viewBox="0 0 600 240" style="overflow: visible;">
+              <svg width="100%" height="100%" viewBox="0 0 600 240" style="overflow: visible;" id="dashboard-svg-chart">
                 <defs>
                   <linearGradient id="chart-grad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stop-color="#10b981" stop-opacity="0.35"/>
@@ -1022,15 +985,11 @@
                 <line x1="0" y1="100" x2="600" y2="100" stroke="rgba(255,255,255,0.02)" stroke-width="1"/>
                 <line x1="0" y1="160" x2="600" y2="160" stroke="rgba(255,255,255,0.02)" stroke-width="1"/>
                 
-                <!-- SVG Area & Lines -->
-                <path d="M 20 180 Q 100 130 180 150 T 340 70 T 500 50 L 580 90" fill="none" stroke="var(--color-green)" stroke-width="3.5" />
-                <path d="M 20 180 Q 100 130 180 150 T 340 70 T 500 50 L 580 90 L 580 200 L 20 200 Z" fill="url(#chart-grad)" />
-                <circle cx="500" cy="50" r="6" fill="#10b981" stroke="var(--bg-card)" stroke-width="2.5"/>
-                
+                <path d="M 20 200 L 580 200" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="2"/>
                 <text x="20" y="220" fill="var(--text-dim)" font-size="10" font-weight="800">WEEK 1</text>
                 <text x="180" y="220" fill="var(--text-dim)" font-size="10" font-weight="800">WEEK 2</text>
                 <text x="340" y="220" fill="var(--text-dim)" font-size="10" font-weight="800">WEEK 3</text>
-                <text x="500" y="220" fill="var(--text-dim)" font-size="10" font-weight="800">WEEK 4 (CURRENT)</text>
+                <text x="500" y="220" fill="var(--text-dim)" font-size="10" font-weight="800">WEEK 4</text>
               </svg>
             </div>
           </div>
@@ -1095,7 +1054,7 @@
         <div class="table-controls">
           <div class="filter-tabs">
             <span class="filter-tab active" id="app-tab-pending" onclick="filterApps('pending')">Pending Review</span>
-            <span class="filter-tab" id="app-tab-approved" onclick="filterApps('verified')">Approved Sellers</span>
+            <span class="filter-tab" id="app-tab-verified" onclick="filterApps('verified')">Approved Sellers</span>
             <span class="filter-tab" id="app-tab-rejected" onclick="filterApps('rejected')">Rejected Apps</span>
             <span class="filter-tab" id="app-tab-resubmit" onclick="filterApps('resubmit')">Invalid IDs</span>
           </div>
@@ -1135,8 +1094,8 @@
           <div class="filter-tabs">
             <span class="filter-tab active" id="order-tab-all" onclick="filterOrders('all')">All Orders</span>
             <span class="filter-tab" id="order-tab-pending" onclick="filterOrders('pending')">Pending</span>
-            <span class="filter-tab" id="order-tab-confirmed" onclick="filterOrders('confirmed')">Confirmed</span>
-            <span class="filter-tab" id="order-tab-transit" onclick="filterOrders('transit')">Pickup / Delivery</span>
+            <span class="filter-tab" id="order-tab-accepted" onclick="filterOrders('accepted')">Accepted</span>
+            <span class="filter-tab" id="order-tab-paid" onclick="filterOrders('paid')">Paid</span>
             <span class="filter-tab" id="order-tab-completed" onclick="filterOrders('completed')">Completed</span>
             <span class="filter-tab" id="order-tab-cancelled" onclick="filterOrders('cancelled')">Cancelled</span>
             <span class="filter-tab" id="order-tab-disputed" onclick="filterOrders('disputed')">Disputed</span>
@@ -1155,9 +1114,9 @@
                 <th>Item Purchased</th>
                 <th>Price</th>
                 <th>Fee (10%)</th>
-                <th>Delivery Fee</th>
+                <th>Delivery Style / Note</th>
                 <th>Order Status</th>
-                <th>Payment</th>
+                <th>Payment State</th>
                 <th>Admin Action</th>
               </tr>
             </thead>
@@ -1175,11 +1134,10 @@
         <div class="table-controls">
           <div class="filter-tabs">
             <span class="filter-tab active" id="report-tab-all" onclick="filterReports('all')">All Safety Reports</span>
-            <span class="filter-tab" id="report-tab-fake" onclick="filterReports('fake')">Fake Photos</span>
-            <span class="filter-tab" id="report-tab-protected" onclick="filterReports('protected')">Endangered/Protected Flags</span>
-            <span class="filter-tab" id="report-tab-off-app" onclick="filterReports('off-app')">Outside-App Attempts</span>
-            <span class="filter-tab" id="report-tab-scam" onclick="filterReports('scam')">Scam Reports</span>
-            <span class="filter-tab" id="report-tab-disputes" onclick="filterReports('dispute')">Order Disputes</span>
+            <span class="filter-tab" id="report-tab-open" onclick="filterReports('open')">Open Reports</span>
+            <span class="filter-tab" id="report-tab-reviewing" onclick="filterReports('reviewing')">Reviewing</span>
+            <span class="filter-tab" id="report-tab-resolved" onclick="filterReports('resolved')">Resolved</span>
+            <span class="filter-tab" id="report-tab-dismissed" onclick="filterReports('dismissed')">Dismissed</span>
           </div>
         </div>
 
@@ -1188,13 +1146,12 @@
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Incident Type</th>
-                <th>Target Object</th>
                 <th>Reporter User</th>
+                <th>Target Element</th>
+                <th>Reported User</th>
                 <th>Report Details / Reason</th>
-                <th>AI Risk Factor</th>
                 <th>Logged Date</th>
-                <th>Audit Status</th>
+                <th>Incident Status</th>
                 <th>Safety Options</th>
               </tr>
             </thead>
@@ -1217,7 +1174,7 @@
         <div class="metrics-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
           <div class="metric-card">
             <div class="metric-left">
-              <h3 id="ai-total-scans">24,842</h3>
+              <h3 id="ai-total-scans">0</h3>
               <p>Total Scans Run</p>
             </div>
             <div class="metric-right mr-green">
@@ -1226,16 +1183,7 @@
           </div>
           <div class="metric-card">
             <div class="metric-left">
-              <h3 id="ai-failed-scans">112</h3>
-              <p>Failed / Unrecognized</p>
-            </div>
-            <div class="metric-right mr-orange">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-            </div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-left">
-              <h3 id="ai-cost-estimate">₱5,962.08</h3>
+              <h3 id="ai-cost-estimate">₱0.00</h3>
               <p>Projected API Cost (Month)</p>
             </div>
             <div class="metric-right mr-yellow">
@@ -1244,8 +1192,17 @@
           </div>
           <div class="metric-card">
             <div class="metric-left">
-              <h3 id="ai-flagged-count">84</h3>
-              <p>Endangered Flags Raised</p>
+              <h3 id="ai-scans-today-cap">0</h3>
+              <p>AI Scans Today</p>
+            </div>
+            <div class="metric-right mr-blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect></svg>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-left">
+              <h3 id="ai-flagged-count">0</h3>
+              <p>Abuse Flags Raised</p>
             </div>
             <div class="metric-right mr-orange">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon><line x1="12" y1="8" x2="12" y2="12"></line></svg>
@@ -1260,9 +1217,8 @@
               <span class="panel-title">Daily Scan Query Trends (Last 7 Days)</span>
             </div>
             <div class="chart-container">
-              <svg width="100%" height="100%" viewBox="0 0 600 220" style="overflow: visible;">
-                <polyline points="20,180 100,120 180,140 280,80 380,95 480,50 580,45" fill="none" stroke="var(--color-blue)" stroke-width="3" />
-                <circle cx="480" cy="50" r="5" fill="var(--color-blue)"/>
+              <svg width="100%" height="100%" viewBox="0 0 600 220" style="overflow: visible;" id="ai-svg-chart">
+                <line x1="20" y1="180" x2="580" y2="180" stroke="rgba(255,255,255,0.05)" stroke-width="2"/>
                 <text x="20" y="210" fill="var(--text-dim)" font-size="9" font-weight="700">Mon</text>
                 <text x="100" y="210" fill="var(--text-dim)" font-size="9" font-weight="700">Tue</text>
                 <text x="180" y="210" fill="var(--text-dim)" font-size="9" font-weight="700">Wed</text>
@@ -1276,10 +1232,10 @@
 
           <div class="panel-card">
             <div class="panel-head">
-              <span class="panel-title">Users Nearing Scan Limits</span>
+              <span class="panel-title">Users Daily Scan Activity</span>
             </div>
             <div class="logs-feed" id="users-near-limits">
-              <!-- Loaded dynamically -->
+              <div style="text-align: center; padding: 20px; color: var(--text-dim);">No active scan logs returned.</div>
             </div>
           </div>
 
@@ -1298,7 +1254,7 @@
         <div class="metrics-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
           <div class="metric-card">
             <div class="metric-left">
-              <h3 id="rev-sales-volume">₱248,500.00</h3>
+              <h3 id="rev-sales-volume">₱0.00</h3>
               <p>Total Gross Volume</p>
             </div>
             <div class="metric-right mr-green">
@@ -1307,7 +1263,7 @@
           </div>
           <div class="metric-card">
             <div class="metric-left">
-              <h3 id="rev-fees-earned">₱24,850.00</h3>
+              <h3 id="rev-fees-earned">₱0.00</h3>
               <p>Platform Fees (10%)</p>
             </div>
             <div class="metric-right mr-blue">
@@ -1316,7 +1272,7 @@
           </div>
           <div class="metric-card">
             <div class="metric-left">
-              <h3 id="rev-avg-order">₱1,420.00</h3>
+              <h3 id="rev-avg-order">₱0.00</h3>
               <p>Average Order Value</p>
             </div>
             <div class="metric-right mr-yellow">
@@ -1325,7 +1281,7 @@
           </div>
           <div class="metric-card">
             <div class="metric-left">
-              <h3 id="rev-pending-fees">₱2,840.00</h3>
+              <h3 id="rev-pending-fees">₱0.00</h3>
               <p>Pending Escrow Fees</p>
             </div>
             <div class="metric-right mr-orange">
@@ -1340,22 +1296,9 @@
               <span class="panel-title">Top Plant Categories by Listings Count</span>
             </div>
             <div class="chart-container">
-              <svg width="100%" height="100%" viewBox="0 0 600 220" style="overflow: visible;">
-                <rect x="150" y="20" width="380" height="20" fill="var(--color-green)" rx="3"/>
-                <text x="20" y="34" fill="#fff" font-size="11" font-weight="700">Aroids / Monsteras</text>
-                <text x="540" y="34" fill="var(--text-muted)" font-size="11" font-weight="700">42%</text>
-
-                <rect x="150" y="60" width="280" height="20" fill="var(--color-sage)" rx="3"/>
-                <text x="20" y="74" fill="#fff" font-size="11" font-weight="700">Ferns &amp; Foliage</text>
-                <text x="445" y="74" fill="var(--text-muted)" font-size="11" font-weight="700">28%</text>
-
-                <rect x="150" y="100" width="180" height="20" fill="var(--color-blue)" rx="3"/>
-                <text x="20" y="114" fill="#fff" font-size="11" font-weight="700">Succulents</text>
-                <text x="345" y="114" fill="var(--text-muted)" font-size="11" font-weight="700">18%</text>
-
-                <rect x="150" y="140" width="120" height="20" fill="var(--color-yellow)" rx="3"/>
-                <text x="20" y="154" fill="#fff" font-size="11" font-weight="700">Orchids</text>
-                <text x="285" y="154" fill="var(--text-muted)" font-size="11" font-weight="700">12%</text>
+              <svg width="100%" height="100%" viewBox="0 0 600 220" style="overflow: visible;" id="revenue-svg-chart">
+                <line x1="150" y1="10" x2="150" y2="190" stroke="rgba(255,255,255,0.05)" stroke-width="2"/>
+                <text x="200" y="100" fill="var(--text-dim)" font-size="12">No plant listings categorized yet.</text>
               </svg>
             </div>
           </div>
@@ -1365,7 +1308,7 @@
               <span class="panel-title">Top Earning Sellers</span>
             </div>
             <div class="logs-feed" id="revenue-top-sellers">
-              <!-- Dynamic Top Sellers -->
+              <div style="text-align: center; padding: 20px; color: var(--text-dim);">No sales transactions processed.</div>
             </div>
           </div>
         </div>
@@ -1537,26 +1480,10 @@
     let profilesList = [];
     let listingsList = [];
     let sellerAppsList = [];
+    let ordersList = [];
+    let reportsList = [];
+    let scansList = [];
     let realtimeChannels = null;
-
-    // Mock Databases (Seeded dynamically)
-    let mockOrders = [
-      { id: "ORD-9281a3d", date: "2026-05-30T10:14:00Z", buyer: "Niko Silvester", seller: "Del Monte Orchids", item: "Monstera Albo Variegata", price: 4500, platform_fee: 450, delivery_fee: 250, status: "disputed", payment: "paid" },
-      { id: "ORD-184a20f", date: "2026-05-29T14:22:00Z", buyer: "Sophia Loren", seller: "Luzon Sprout Farm", item: "Philodendron Pink Princess", price: 1800, platform_fee: 180, delivery_fee: 150, status: "completed", payment: "paid" },
-      { id: "ORD-329bf18", date: "2026-05-28T09:12:00Z", buyer: "Juan Dela Cruz", seller: "Manila Plant Parent", item: "Calathea Orbifolia", price: 650, platform_fee: 65, delivery_fee: 100, status: "transit", payment: "paid" },
-      { id: "ORD-728ca1b", date: "2026-05-28T16:04:00Z", buyer: "Maria Makiling", seller: "Luzon Sprout Farm", item: "Alocasia Cuprea", price: 1200, platform_fee: 120, delivery_fee: 120, status: "confirmed", payment: "paid" },
-      { id: "ORD-548de9a", date: "2026-05-27T11:45:00Z", buyer: "Aries Pinoy", seller: "Del Monte Orchids", item: "Anthurium Clarinervium", price: 3500, platform_fee: 350, delivery_fee: 300, status: "completed", payment: "paid" },
-      { id: "ORD-902ee4f", date: "2026-05-26T15:33:00Z", buyer: "Juana Chang", seller: "GrowMate Hub", item: "Variegated ZZ Plant", price: 2500, platform_fee: 250, delivery_fee: 180, status: "refunded", payment: "refunded" },
-      { id: "ORD-340cb2e", date: "2026-05-25T08:19:00Z", buyer: "Santi Ramos", seller: "Manila Plant Parent", item: "Snake Plant Zeylanica", price: 400, platform_fee: 40, delivery_fee: 100, status: "cancelled", payment: "unpaid" }
-    ];
-
-    let mockReports = [
-      { id: "REP-01", type: "Outside-App Transaction", target: "@Del_Monte_Orchids", reporter: "Niko Silvester", details: "Seller requested GCash transfer directly before handoff to skip the 10% platform fee.", risk: "High", date: "2026-05-30T10:18:00Z", status: "pending" },
-      { id: "REP-02", type: "Protected Species Flag", target: "Pitcher Plant Nepenthes", reporter: "Leafy AI safety", details: "Potential trade of endangered pitcher plant detected. Ra 9147 check required.", risk: "Critical", date: "2026-05-29T16:45:00Z", status: "pending" },
-      { id: "REP-03", type: "Fake Plant Photo", target: "Monstera Albo Listing", reporter: "Sophia Loren", details: "Listing image belongs to a stock photo database, not the seller's actual plant.", risk: "Medium", date: "2026-05-28T11:00:00Z", status: "reviewed" },
-      { id: "REP-04", type: "Scam Seller", target: "@GreenThumb_Manila", reporter: "Jose Rizal", details: "Seller failed to show up for three separate meetups after accepting payment.", risk: "High", date: "2026-05-27T13:12:00Z", status: "reviewed" },
-      { id: "REP-05", type: "Damaged Plant Handoff", target: "Pink Princess Sale", reporter: "Maria Clara", details: "Seller delivered a plant with root rot and broken leaves. Refused handoff.", risk: "Low", date: "2026-05-26T09:30:00Z", status: "reviewed" }
-    ];
 
     // Trigger visual pulse on metric cards
     function triggerCardPulse(elementId) {
@@ -1637,6 +1564,9 @@
         .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
           handleRealtimeOrder(payload);
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, payload => {
+          handleRealtimeReport(payload);
+        })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'seller_applications' }, payload => {
           handleRealtimeSellerApp(payload);
         })
@@ -1651,43 +1581,27 @@
     // Realtime Postgres Change Handlers
     function handleRealtimeProfile(payload) {
       console.log("Realtime Profile Change:", payload);
-      if (payload.eventType === 'INSERT') {
-        const newProfile = payload.new;
-        if (!profilesList.some(p => p.id === newProfile.id)) {
-          profilesList.unshift(newProfile);
-          logSystemActivity("Account", `New profile: ${newProfile.display_name || newProfile.username || 'buyer_node'}`);
-          loadRealDatabaseData();
-        }
-      } else if (payload.eventType === 'UPDATE') {
-        loadRealDatabaseData();
-      }
+      loadRealDatabaseData();
     }
 
     function handleRealtimeListing(payload) {
       console.log("Realtime Listing Change:", payload);
-      if (payload.eventType === 'INSERT') {
-        logSystemActivity("AI Scan", `New listing "${payload.new.name}" submitted. Safety check complete.`);
-        loadRealDatabaseData();
-      } else if (payload.eventType === 'UPDATE') {
-        loadRealDatabaseData();
-      }
+      loadRealDatabaseData();
     }
 
     function handleRealtimeOrder(payload) {
       console.log("Realtime Order Change:", payload);
-      if (payload.eventType === 'INSERT') {
-        const newOrder = payload.new;
-        logSystemActivity("Order", `New order! Fee: ₱${parseFloat(newOrder.platform_fee || 0).toFixed(2)}`);
-        loadRealDatabaseData();
-      }
+      loadRealDatabaseData();
+    }
+
+    function handleRealtimeReport(payload) {
+      console.log("Realtime Report Change:", payload);
+      loadRealDatabaseData();
     }
 
     function handleRealtimeSellerApp(payload) {
       console.log("Realtime Seller App Change:", payload);
-      if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-        logSystemActivity("Audit", "Seller verification application received review updates.");
-        loadRealDatabaseData();
-      }
+      loadRealDatabaseData();
     }
 
     function showLoginError(message) {
@@ -1894,72 +1808,57 @@
       }
 
       // 3. Fetch orders
-      const { data: orders, error: errOrders } = await supabaseClient.from('orders').select('*');
-      
-      // Calculate platform fees (10% standard commission)
-      let dbRevenue = 0;
-      let dbSalesVolume = 0;
-      let completedCount = 0;
-      let disputedCount = mockOrders.filter(o => o.status === 'disputed').length;
+      const { data: orders, error: errOrders } = await supabaseClient.from('orders').select('*').order('created_at', { ascending: false });
+      if (orders) {
+        ordersList = orders;
+        
+        let completedCount = orders.filter(o => o.status === 'completed').length;
+        let disputedCount = orders.filter(o => o.status === 'disputed').length;
 
-      if (orders && orders.length > 0) {
-        orders.forEach(o => {
-          dbRevenue += parseFloat(o.platform_fee || 0);
-          dbSalesVolume += parseFloat(o.amount || (o.platform_fee * 10) || 0);
-          if (o.status === 'completed') completedCount++;
-          if (o.status === 'disputed') disputedCount++;
-        });
+        document.getElementById('stat-orders').textContent = completedCount.toLocaleString();
+        document.getElementById('stat-disputed-orders').textContent = disputedCount;
+        
+        renderOrders(orders);
+      } else {
+        ordersList = [];
+        renderOrders([]);
       }
-
-      // Merge with mock orders
-      let finalRevenue = dbRevenue + mockOrders.reduce((acc, curr) => acc + (curr.status !== 'cancelled' ? curr.platform_fee : 0), 0);
-      let finalVolume = dbSalesVolume + mockOrders.reduce((acc, curr) => acc + (curr.status !== 'cancelled' ? curr.price : 0), 0);
-      let finalCompleted = completedCount + mockOrders.filter(o => o.status === 'completed').length;
-
-      document.getElementById('stat-revenue').textContent = `₱${finalRevenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-      document.getElementById('stat-orders').textContent = finalCompleted;
-      document.getElementById('stat-disputed-orders').textContent = disputedCount;
-      
-      // Update Revenue Analytics Tab Numbers
-      document.getElementById('rev-sales-volume').textContent = `₱${finalVolume.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-      document.getElementById('rev-fees-earned').textContent = `₱${finalRevenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-      
-      let allOrdersList = orders ? [...orders, ...mockOrders] : mockOrders;
-      renderOrders(allOrdersList);
 
       // 4. Fetch seller applications
       const { data: sellerApps, error: errApps } = await supabaseClient.from('seller_applications').select('*, user:profiles(display_name, location)').order('created_at', { ascending: false });
       if (sellerApps) {
         sellerAppsList = sellerApps;
         renderSellerApps(sellerApps);
+      } else {
+        sellerAppsList = [];
+        renderSellerApps([]);
       }
 
-      // 5. Initial System Logs
+      // 5. Fetch safety reports
+      const { data: reports, error: errReports } = await supabaseClient.from('reports').select('*').order('created_at', { ascending: false });
+      if (reports) {
+        reportsList = reports;
+        renderReports(reports);
+      } else {
+        reportsList = [];
+        renderReports([]);
+      }
+
+      // 6. Fetch leafy scan events
+      const { data: scans, error: errScans } = await supabaseClient.from('leafy_scan_events').select('*').order('scanned_at', { ascending: false });
+      if (scans) {
+        scansList = scans;
+      } else {
+        scansList = [];
+      }
+
+      // 7. Render analytics graphs, logs and revenue totals
       initLogs();
-
-      // 6. Fetch API status and credits info
-      try {
-        const todayStart = new Date();
-        todayStart.setHours(0,0,0,0);
-        
-        const { count: scansCount } = await supabaseClient
-          .from('leafy_scan_events')
-          .select('*', { count: 'exact', head: true })
-          .gte('scanned_at', todayStart.toISOString());
-        
-        let scansToday = scansCount || 14; // Default seed if zero
-        document.getElementById('stat-ai-scans-today').textContent = scansToday;
-        document.getElementById('ai-total-scans').textContent = (24842 + (scansCount || 0)).toLocaleString();
-
-        document.getElementById('stat-supabase-url').textContent = SUPABASE_URL.replace('https://', '');
-      } catch (statsErr) {
-        console.error("Error loading API statistics:", statsErr);
-      }
-
-      // Populate Mock Elements
-      renderReports(mockReports);
+      renderDashboardCharts();
       renderAIAnalytics();
       renderRevenueAnalytics();
+      
+      document.getElementById('stat-supabase-url').textContent = SUPABASE_URL.replace('https://', '');
     }
 
     // Render User Profiles Table
@@ -1968,7 +1867,7 @@
       tbody.innerHTML = '';
 
       if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 20px;">No users found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 20px;">No users found in database.</td></tr>`;
         return;
       }
 
@@ -2002,11 +1901,10 @@
           actionBtn += ` <button class="btn-action btn-yellow" style="margin-left:4px;" onclick="switchTab('id-profile', document.querySelectorAll('.menu-item')[2])">Verify ID</button>`;
         }
 
-        // Count listings and orders from user
         let userListings = listingsList.filter(l => l.seller_id === p.id).length;
-        let userOrders = mockOrders.filter(o => o.buyer === p.display_name || o.seller === p.display_name).length;
+        let userOrders = ordersList.filter(o => o.buyer_id === p.id || o.seller_id === p.id).length;
 
-        const displayName = p.display_name || p.username || 'User Node';
+        const displayName = p.display_name || p.username || 'GrowMate User';
         const email = p.username ? `${p.username}@plantita.online` : 'user@plantita.online';
 
         const tr = document.createElement('tr');
@@ -2044,7 +1942,7 @@
       }
 
       list.forEach(l => {
-        const conf = l.ai_confidence || 92;
+        const conf = l.ai_confidence || 90;
         const status = l.status || 'review';
         
         let tagClass = 'sp-pending';
@@ -2121,7 +2019,7 @@
       grid.innerHTML = '';
 
       if (list.length === 0) {
-        grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted); font-weight: 600;">No applications found.</div>`;
+        grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted); font-weight: 600;">No verifications queue returned.</div>`;
         return;
       }
 
@@ -2209,32 +2107,20 @@
       });
     }
 
-    // Zoom modal control
-    function openZoomModal(url) {
-      const modal = document.getElementById('zoom-modal');
-      const img = document.getElementById('zoomed-image');
-      if (modal && img) {
-        img.src = url;
-        modal.style.display = 'flex';
-      }
-    }
-    
-    function closeZoomModal() {
-      const modal = document.getElementById('zoom-modal');
-      if (modal) {
-        modal.style.display = 'none';
-      }
-    }
-
     // Render Orders Management
     function renderOrders(list) {
       const tbody = document.getElementById('orders-table-body');
       if (!tbody) return;
       tbody.innerHTML = '';
 
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; padding: 20px;">No marketplace orders found in database.</td></tr>`;
+        return;
+      }
+
       list.forEach(o => {
-        const date = new Date(o.date || o.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-        const price = parseFloat(o.price || o.amount || 0);
+        const date = new Date(o.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        const price = parseFloat(o.subtotal || o.amount || 0);
         const fee = parseFloat(o.platform_fee || (price * 0.10) || 0);
         const delivery = parseFloat(o.delivery_fee || 0);
         
@@ -2244,6 +2130,8 @@
         else if (o.status === 'disputed') statusClass = 'sp-disputed';
         else if (o.status === 'refunded') statusClass = 'sp-refunded';
         else if (o.status === 'confirmed') statusClass = 'sp-confirmed';
+        else if (o.status === 'accepted') statusClass = 'sp-neutral';
+        else if (o.status === 'paid') statusClass = 'sp-active';
 
         let actionBtn = '';
         if (o.status === 'disputed') {
@@ -2251,24 +2139,32 @@
             <button class="btn-action btn-verify" onclick="resolveDispute('${o.id}')">Resolve</button>
             <button class="btn-action btn-danger" onclick="refundOrder('${o.id}')">Refund</button>
           `;
-        } else if (o.status === 'completed' || o.status === 'confirmed') {
+        } else if (o.status === 'completed' || o.status === 'confirmed' || o.status === 'paid') {
           actionBtn = `<button class="btn-action btn-danger" onclick="refundOrder('${o.id}')">Refund</button>`;
         } else {
-          actionBtn = `<span style="font-size:11px; color:var(--text-dim);">No Action Required</span>`;
+          actionBtn = `<span style="font-size:11px; color:var(--text-dim);">No Action</span>`;
         }
+
+        const buyerObj = profilesList.find(p => p.id === o.buyer_id);
+        const sellerObj = profilesList.find(p => p.id === o.seller_id);
+        const listingObj = listingsList.find(l => l.id === o.listing_id);
+
+        const buyerName = buyerObj ? (buyerObj.display_name || buyerObj.username) : 'Buyer Node';
+        const sellerName = sellerObj ? (sellerObj.display_name || sellerObj.username) : 'Seller Node';
+        const itemName = listingObj ? listingObj.name : 'Plant Specimen';
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td><b style="color:#fff;">#${o.id.substring(0,8)}</b></td>
           <td>${date}</td>
-          <td>${escapeHTML(o.buyer || 'Buyer')}</td>
-          <td>${escapeHTML(o.seller || 'Seller')}</td>
-          <td><span style="color:#fff; font-weight:700;">${escapeHTML(o.item || 'Plant Specimen')}</span></td>
+          <td>${escapeHTML(buyerName)}</td>
+          <td>${escapeHTML(sellerName)}</td>
+          <td><span style="color:#fff; font-weight:700;">${escapeHTML(itemName)}</span></td>
           <td>₱${price.toFixed(2)}</td>
           <td>₱${fee.toFixed(2)}</td>
-          <td>₱${delivery.toFixed(2)}</td>
+          <td><span style="font-size:11px;">${escapeHTML(o.meetup_or_delivery || 'Courier Delivery')}</span></td>
           <td><span class="status-pill ${statusClass}">${escapeHTML(o.status)}</span></td>
-          <td><span class="status-pill ${o.payment === 'paid' ? 'sp-active' : 'sp-neutral'}">${escapeHTML(o.payment || 'unpaid')}</span></td>
+          <td><span class="status-pill ${o.status === 'paid' || o.status === 'completed' ? 'sp-active' : 'sp-neutral'}">${o.status === 'paid' || o.status === 'completed' ? 'Paid' : 'Unpaid'}</span></td>
           <td>${actionBtn}</td>
         `;
         tbody.appendChild(tr);
@@ -2281,33 +2177,52 @@
       if (!tbody) return;
       tbody.innerHTML = '';
 
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 20px;">No safety flags logged in database.</td></tr>`;
+        return;
+      }
+
       list.forEach(r => {
-        const date = new Date(r.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        const date = new Date(r.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
         
-        let riskClass = 'sp-neutral';
-        if (r.risk === 'Critical') riskClass = 'sp-banned';
-        else if (r.risk === 'High') riskClass = 'sp-pending';
+        let statusClass = 'sp-pending';
+        if (r.status === 'resolved') statusClass = 'sp-active';
+        else if (r.status === 'dismissed') statusClass = 'sp-neutral';
 
         let actionBtn = '';
-        if (r.status === 'pending') {
+        if (r.status === 'open' || r.status === 'reviewing') {
           actionBtn = `
-            <button class="btn-action btn-verify" onclick="auditReport('${r.id}', 'resolved')">Clear Flag</button>
-            <button class="btn-action btn-danger" onclick="auditReport('${r.id}', 'penalized')">Block / Penalize</button>
+            <button class="btn-action btn-verify" onclick="auditReport('${r.id}', 'resolved')">Resolve</button>
+            <button class="btn-action btn-danger" onclick="auditReport('${r.id}', 'dismissed')">Dismiss</button>
           `;
         } else {
-          actionBtn = `<span style="font-size:11px; color:var(--text-dim); text-transform:uppercase;">Audited: ${r.status}</span>`;
+          actionBtn = `<span style="font-size:11px; color:var(--text-dim); text-transform:uppercase;">Audited</span>`;
+        }
+
+        const reporterObj = profilesList.find(p => p.id === r.reporter_id);
+        const listingObj = listingsList.find(l => l.id === r.listing_id);
+        const reportedUserObj = profilesList.find(p => p.id === r.reported_user_id);
+
+        const reporterName = reporterObj ? (reporterObj.display_name || reporterObj.username) : 'Reporter';
+        
+        let targetElement = 'Platform Feed';
+        if (r.listing_id) {
+          targetElement = listingObj ? `Listing: ${listingObj.name}` : `Listing ID: ${r.listing_id.substring(0,8)}`;
+        } else if (r.reported_user_id) {
+          targetElement = reportedUserObj ? `User: ${reportedUserObj.display_name || reportedUserObj.username}` : `User ID: ${r.reported_user_id.substring(0,8)}`;
+        } else if (r.post_id) {
+          targetElement = `Feed Post: ${r.post_id.substring(0,8)}`;
         }
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td><b style="color:#fff;">${r.id}</b></td>
-          <td><span class="status-pill sp-blue">${escapeHTML(r.type)}</span></td>
-          <td><span style="color:#fff; font-weight:700;">${escapeHTML(r.target)}</span></td>
-          <td>${escapeHTML(r.reporter)}</td>
-          <td style="font-size:12px; max-width:240px; line-height:1.4;">${escapeHTML(r.details)}</td>
-          <td><span class="status-pill ${riskClass}">${escapeHTML(r.risk)}</span></td>
+          <td><b style="color:#fff;">#${r.id.substring(0,8)}</b></td>
+          <td>${escapeHTML(reporterName)}</td>
+          <td><span style="color:#fff; font-weight:700;">${escapeHTML(targetElement)}</span></td>
+          <td>${reportedUserObj ? escapeHTML(reportedUserObj.display_name || 'User') : 'N/A'}</td>
+          <td style="font-size:12px; max-width:240px; line-height:1.4;"><span class="status-pill sp-blue" style="margin-right:6px;">${escapeHTML(r.reason)}</span>${escapeHTML(r.details || '')}</td>
           <td>${date}</td>
-          <td><span class="status-pill ${r.status === 'pending' ? 'sp-pending' : 'sp-active'}">${escapeHTML(r.status)}</span></td>
+          <td><span class="status-pill ${statusClass}">${escapeHTML(r.status)}</span></td>
           <td>${actionBtn}</td>
         `;
         tbody.appendChild(tr);
@@ -2316,23 +2231,47 @@
 
     // Render AI analytics tab
     function renderAIAnalytics() {
+      document.getElementById('ai-total-scans').textContent = scansList.length;
+      
+      const todayStart = new Date();
+      todayStart.setHours(0,0,0,0);
+      const scansToday = scansList.filter(s => new Date(s.scanned_at) >= todayStart).length;
+      document.getElementById('ai-scans-today-cap').textContent = scansToday;
+      document.getElementById('stat-ai-scans-today').textContent = scansToday;
+
+      // Projected Cost (₱5.00 per Scan node check API)
+      const projectedCost = scansList.length * 5.00;
+      document.getElementById('ai-cost-estimate').textContent = `₱${projectedCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
       const container = document.getElementById('users-near-limits');
       if (!container) return;
       container.innerHTML = '';
 
-      const users = [
-        { name: "Del Monte Orchids", scans: 148, limit: 150, risk: "High" },
-        { name: "Juan Sprout Hub", scans: 142, limit: 150, risk: "High" },
-        { name: "Manila Plant Parent", scans: 14, limit: 15, risk: "High" },
-        { name: "Pedro Greenery", scans: 138, limit: 150, risk: "Normal" }
-      ];
+      if (scansList.length === 0) {
+        container.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-dim);">No active scan logs returned.</div>`;
+        return;
+      }
 
-      users.forEach(u => {
+      // Aggregate scans by user_id
+      const userScansMap = {};
+      scansList.forEach(s => {
+        userScansMap[s.user_id] = (userScansMap[s.user_id] || 0) + 1;
+      });
+
+      const sortedUsers = Object.entries(userScansMap).map(([uid, count]) => {
+        const u = profilesList.find(p => p.id === uid);
+        return {
+          name: u ? (u.display_name || u.username) : 'User',
+          count: count
+        };
+      }).sort((a,b) => b.count - a.count);
+
+      sortedUsers.slice(0, 10).forEach(u => {
         const item = document.createElement('div');
         item.className = 'log-item';
         item.innerHTML = `
-          <span class="log-time" style="width:70px; color:var(--color-yellow); font-weight:800;">${u.scans}/${u.limit} Scans</span>
-          <span class="log-msg"><b style="color:#fff;">${escapeHTML(u.name)}</b> is approaching monthly scan thresholds. Flag: <b>${u.risk}</b></span>
+          <span class="log-time" style="width:70px; color:var(--color-yellow); font-weight:800;">${u.count} Scans</span>
+          <span class="log-msg"><b style="color:#fff;">${escapeHTML(u.name)}</b> query requests recorded this period.</span>
         `;
         container.appendChild(item);
       });
@@ -2340,29 +2279,191 @@
 
     // Render Revenue Analytics Tab
     function renderRevenueAnalytics() {
-      const container = document.getElementById('revenue-top-sellers');
-      if (!container) return;
-      container.innerHTML = '';
+      let salesVolume = 0;
+      let platformFees = 0;
+      let completedOrders = ordersList.filter(o => o.status === 'completed' || o.status === 'paid');
+      let pendingOrders = ordersList.filter(o => o.status === 'pending' || o.status === 'accepted');
 
-      const sellers = [
-        { name: "Del Monte Orchids", sales: 112000, fee: 11200, orders: 32 },
-        { name: "Luzon Sprout Farm", sales: 74200, fee: 7420, orders: 48 },
-        { name: "Manila Plant Parent", sales: 42000, fee: 4200, orders: 18 },
-        { name: "GrowMate Hub", sales: 20300, fee: 2030, orders: 11 }
-      ];
-
-      sellers.forEach(s => {
-        const div = document.createElement('div');
-        div.className = 'log-item';
-        div.innerHTML = `
-          <span class="log-time" style="width:90px; color:var(--color-sage); font-weight:800;">₱${s.sales.toLocaleString()}</span>
-          <span class="log-msg"><b>${escapeHTML(s.name)}</b> completed <b>${s.orders}</b> orders. Commission fee collected: <b>₱${s.fee.toLocaleString()}</b></span>
-        `;
-        container.appendChild(div);
+      completedOrders.forEach(o => {
+        salesVolume += parseFloat(o.subtotal || 0);
+        platformFees += parseFloat(o.platform_fee || (o.subtotal * 0.10) || 0);
       });
+
+      let pendingFees = 0;
+      pendingOrders.forEach(o => {
+        pendingFees += parseFloat(o.platform_fee || (o.subtotal * 0.10) || 0);
+      });
+
+      const avgOrder = completedOrders.length > 0 ? (salesVolume / completedOrders.length) : 0;
+
+      document.getElementById('rev-sales-volume').textContent = `₱${salesVolume.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('rev-fees-earned').textContent = `₱${platformFees.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('rev-avg-order').textContent = `₱${avgOrder.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('rev-pending-fees').textContent = `₱${pendingFees.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+      // Render Top Categories SVG Chart
+      const categoryCounts = {};
+      listingsList.forEach(l => {
+        categoryCounts[l.category] = (categoryCounts[l.category] || 0) + 1;
+      });
+
+      const sortedCategories = Object.entries(categoryCounts).sort((a,b) => b[1] - a[1]);
+      const revenueSvg = document.getElementById('revenue-svg-chart');
+      if (revenueSvg) {
+        revenueSvg.innerHTML = '<line x1="150" y1="10" x2="150" y2="190" stroke="rgba(255,255,255,0.05)" stroke-width="2"/>';
+        if (sortedCategories.length === 0) {
+          revenueSvg.innerHTML += '<text x="200" y="100" fill="var(--text-dim)" font-size="12">No plant listings categorized yet.</text>';
+        } else {
+          const totalListings = listingsList.length;
+          sortedCategories.slice(0, 4).forEach(([cat, val], idx) => {
+            const y = 20 + (idx * 40);
+            const percentage = Math.round((val / totalListings) * 100);
+            const barW = Math.max(10, Math.round((val / totalListings) * 380));
+            const colors = ['var(--color-green)', 'var(--color-sage)', 'var(--color-blue)', 'var(--color-yellow)'];
+            
+            revenueSvg.innerHTML += `
+              <rect x="150" y="${y}" width="${barW}" height="20" fill="${colors[idx] || 'var(--color-green)'}" rx="3"/>
+              <text x="10" y="${y + 14}" fill="#fff" font-size="10" font-weight="700">${escapeHTML(cat.substring(0,18))}</text>
+              <text x="${160 + barW}" y="${y + 14}" fill="var(--text-muted)" font-size="10" font-weight="700">${percentage}% (${val})</text>
+            `;
+          });
+        }
+      }
+
+      // Render Top Sellers
+      const sellerStats = {};
+      completedOrders.forEach(o => {
+        const fee = parseFloat(o.platform_fee || (o.subtotal * 0.10) || 0);
+        const sub = parseFloat(o.subtotal || 0);
+        if (!sellerStats[o.seller_id]) {
+          sellerStats[o.seller_id] = { sales: 0, fee: 0, count: 0 };
+        }
+        sellerStats[o.seller_id].sales += sub;
+        sellerStats[o.seller_id].fee += fee;
+        sellerStats[o.seller_id].count++;
+      });
+
+      const sellersContainer = document.getElementById('revenue-top-sellers');
+      if (sellersContainer) {
+        sellersContainer.innerHTML = '';
+        const sortedSellers = Object.entries(sellerStats).map(([sid, stats]) => {
+          const s = profilesList.find(p => p.id === sid);
+          return {
+            name: s ? (s.display_name || s.username) : 'Seller',
+            sales: stats.sales,
+            fee: stats.fee,
+            count: stats.count
+          };
+        }).sort((a,b) => b.sales - a.sales);
+
+        if (sortedSellers.length === 0) {
+          sellersContainer.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-dim);">No sales transactions processed.</div>`;
+        } else {
+          sortedSellers.slice(0, 10).forEach(s => {
+            const div = document.createElement('div');
+            div.className = 'log-item';
+            div.innerHTML = `
+              <span class="log-time" style="width:90px; color:var(--color-sage); font-weight:800;">₱${s.sales.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+              <span class="log-msg"><b>${escapeHTML(s.name)}</b> completed <b>${s.count}</b> sales. Collected fee: <b>₱${s.fee.toLocaleString(undefined, {minimumFractionDigits: 2})}</b></span>
+            `;
+            sellersContainer.appendChild(div);
+          });
+        }
+      }
     }
 
-    // Filters & Navigation Queries
+    // Render Dashboard growth charts
+    function renderDashboardCharts() {
+      const chartSvg = document.getElementById('dashboard-svg-chart');
+      if (!chartSvg) return;
+
+      // Keep lines but clear previous dynamically generated nodes
+      chartSvg.querySelectorAll('.dyn-node').forEach(n => n.remove());
+
+      if (profilesList.length === 0 && ordersList.length === 0) {
+        return;
+      }
+
+      // Group profiles by week (last 4 weeks)
+      const weekIntervals = [];
+      for (let i = 3; i >= 0; i--) {
+        const start = new Date(Date.now() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
+        const end = new Date(Date.now() - i * 7 * 24 * 60 * 60 * 1000);
+        weekIntervals.push({ start, end, users: 0, orders: 0 });
+      }
+
+      profilesList.forEach(p => {
+        const cat = new Date(p.created_at);
+        weekIntervals.forEach(w => {
+          if (cat >= w.start && cat < w.end) w.users++;
+        });
+      });
+
+      ordersList.forEach(o => {
+        const cat = new Date(o.created_at);
+        weekIntervals.forEach(w => {
+          if (cat >= w.start && cat < w.end) w.orders++;
+        });
+      });
+
+      // Calculate SVG Coordinates (Y range: 200 is 0, 40 is max)
+      const maxVal = Math.max(5, ...weekIntervals.map(w => Math.max(w.users, w.orders))) + 2;
+      const getPoints = (key) => {
+        return weekIntervals.map((w, idx) => {
+          const x = 20 + (idx * 180);
+          const y = 200 - ((w[key] / maxVal) * 160);
+          return { x, y };
+        });
+      };
+
+      const userPts = getPoints('users');
+      const orderPts = getPoints('orders');
+
+      const buildPath = (pts) => {
+        return pts.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+      };
+
+      const userPathD = buildPath(userPts);
+      const orderPathD = buildPath(orderPts);
+
+      // Render Users Line
+      const userPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      userPath.setAttribute('d', userPathD);
+      userPath.setAttribute('fill', 'none');
+      userPath.setAttribute('stroke', 'var(--color-green)');
+      userPath.setAttribute('stroke-width', '3');
+      userPath.setAttribute('class', 'dyn-node');
+      chartSvg.appendChild(userPath);
+
+      // Render Orders Line
+      const orderPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      orderPath.setAttribute('d', orderPathD);
+      orderPath.setAttribute('fill', 'none');
+      orderPath.setAttribute('stroke', 'var(--color-blue)');
+      orderPath.setAttribute('stroke-width', '3');
+      orderPath.setAttribute('class', 'dyn-node');
+      chartSvg.appendChild(orderPath);
+
+      // Draw dots
+      const drawDots = (pts, color) => {
+        pts.forEach(p => {
+          const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          c.setAttribute('cx', p.x);
+          c.setAttribute('cy', p.y);
+          c.setAttribute('r', '4');
+          c.setAttribute('fill', color);
+          c.setAttribute('stroke', 'var(--bg-card)');
+          c.setAttribute('stroke-width', '2');
+          c.setAttribute('class', 'dyn-node');
+          chartSvg.appendChild(c);
+        });
+      };
+      
+      drawDots(userPts, 'var(--color-green)');
+      drawDots(orderPts, 'var(--color-blue)');
+    }
+
+    // Dynamic Filter Profiles
     function filterUsers(filter) {
       document.querySelectorAll('#tab-users .filter-tab').forEach(t => t.classList.remove('active'));
       const activeEl = document.getElementById('user-tab-' + filter);
@@ -2409,8 +2510,8 @@
       const activeEl = document.getElementById('order-tab-' + filter);
       if (activeEl) activeEl.classList.add('active');
 
-      let filtered = mockOrders;
-      if (filter !== 'all') filtered = mockOrders.filter(o => o.status === filter);
+      let filtered = ordersList;
+      if (filter !== 'all') filtered = ordersList.filter(o => o.status === filter);
       renderOrders(filtered);
     }
 
@@ -2419,17 +2520,12 @@
       const activeEl = document.getElementById('report-tab-' + filter);
       if (activeEl) activeEl.classList.add('active');
 
-      let filtered = mockReports;
-      if (filter === 'fake') filtered = mockReports.filter(r => r.type === 'Fake Plant Photo');
-      else if (filter === 'protected') filtered = mockReports.filter(r => r.type === 'Protected Species Flag');
-      else if (filter === 'off-app') filtered = mockReports.filter(r => r.type === 'Outside-App Transaction');
-      else if (filter === 'scam') filtered = mockReports.filter(r => r.type === 'Scam Seller');
-      else if (filter === 'dispute') filtered = mockReports.filter(r => r.type === 'Order Dispute');
-
+      let filtered = reportsList;
+      if (filter !== 'all') filtered = reportsList.filter(r => r.status === filter);
       renderReports(filtered);
     }
 
-    // Audit action callbacks
+    // Audit Actions
     async function suspendUser(userId) {
       if (!supabaseClient || !assertAdmin()) return;
       const profile = profilesList.find(p => p.id === userId);
@@ -2439,7 +2535,7 @@
         const { error } = await supabaseClient.from('profiles').update({ seller_status: 'suspended' }).eq('id', userId);
         if (error) alert(`Error: ${error.message}`);
         else {
-          alert(`Suspended ${name}.`);
+          alert(`Suspended user "${name}".`);
           loadRealDatabaseData();
         }
       }
@@ -2462,8 +2558,21 @@
 
     async function updateListingStatus(listingId, newStatus) {
       if (!supabaseClient || !assertAdmin()) return;
-      const { error } = await supabaseClient.from('listings').update({ status: newStatus }).eq('id', listingId);
-      if (error) alert(`Error updating: ${error.message}`);
+      
+      let error = null;
+      if (newStatus === 'active' || newStatus === 'rejected') {
+        const { error: err } = await supabaseClient.rpc('admin_set_listing_review_status', { 
+          p_listing_id: listingId, 
+          p_status: newStatus,
+          p_review_note: `Listing review finalized state: ${newStatus}`
+        });
+        error = err;
+      } else {
+        const { error: err } = await supabaseClient.from('listings').update({ status: newStatus }).eq('id', listingId);
+        error = err;
+      }
+
+      if (error) alert(`Error: ${error.message}`);
       else {
         alert(`Listing status updated to: ${newStatus}`);
         loadRealDatabaseData();
@@ -2472,46 +2581,20 @@
 
     async function approveSellerApp(appId) {
       if (!supabaseClient || !assertAdmin()) return;
-      const app = sellerAppsList.find(a => a.id === appId);
-      if (!app) return;
-      
-      const displayName = app.user?.display_name || "Seller";
-      if (confirm(`Approve seller application for "${displayName}"?`)) {
-        try {
-          await supabaseClient.from('profiles').update({ seller_status: 'verified' }).eq('id', app.user_id);
-          await supabaseClient.from('seller_profiles').upsert({
-            user_id: app.user_id,
-            shop_name: app.shop_name || "Plant Shop",
-            seller_bio: app.reason || ""
-          }, { onConflict: 'user_id' });
-          
-          await supabaseClient.from('seller_applications').update({
-            status: 'verified',
-            reviewed_by: activeUser.id,
-            reviewed_at: new Date().toISOString()
-          }).eq('id', appId);
-
-          alert(`Seller approved.`);
-          loadRealDatabaseData();
-        } catch (err) {
-          alert(`Error: ${err.message}`);
-        }
+      const { error } = await supabaseClient.rpc('admin_approve_seller_application', { p_application_id: appId });
+      if (error) alert(`Failed to approve application: ${error.message}`);
+      else {
+        alert(`Seller application approved.`);
+        loadRealDatabaseData();
       }
     }
 
     async function rejectSellerApp(appId) {
       if (!supabaseClient || !assertAdmin()) return;
-      const app = sellerAppsList.find(a => a.id === appId);
-      if (!app) return;
-      
-      if (confirm(`Reject seller application?`)) {
-        await supabaseClient.from('profiles').update({ seller_status: 'rejected' }).eq('id', app.user_id);
-        await supabaseClient.from('seller_applications').update({
-          status: 'rejected',
-          reviewed_by: activeUser.id,
-          reviewed_at: new Date().toISOString()
-        }).eq('id', appId);
-        alert(`Rejected seller application.`);
+      const { error } = await supabaseClient.rpc('admin_reject_seller_application', { p_application_id: appId });
+      if (error) alert(`Failed to reject application: ${error.message}`);
+      else {
+        alert(`Seller application rejected.`);
         loadRealDatabaseData();
       }
     }
@@ -2520,48 +2603,58 @@
       if (!supabaseClient || !assertAdmin()) return;
       const app = sellerAppsList.find(a => a.id === appId);
       if (!app) return;
-      
+
       if (confirm(`Request document resubmission for this seller?`)) {
-        await supabaseClient.from('profiles').update({ seller_status: 'pending' }).eq('id', app.user_id);
-        await supabaseClient.from('seller_applications').update({
+        const { error: err1 } = await supabaseClient.from('profiles').update({ seller_status: 'pending' }).eq('id', app.user_id);
+        const { error: err2 } = await supabaseClient.from('seller_applications').update({
           status: 'resubmit',
           reviewed_by: activeUser.id,
-          reviewed_at: new Date().toISOString()
+          reviewed_at: new Date().toISOString(),
+          review_note: 'Request document resubmission'
         }).eq('id', appId);
-        alert(`Requested document resubmission.`);
-        loadRealDatabaseData();
-      }
-    }
 
-    // Action items callbacks for mock elements
-    function refundOrder(orderId) {
-      const idx = mockOrders.findIndex(o => o.id === orderId);
-      if (idx !== -1) {
-        if (confirm(`Process platform refund for order #${orderId.substring(0,8)}?`)) {
-          mockOrders[idx].status = 'refunded';
-          mockOrders[idx].payment = 'refunded';
-          logSystemActivity("Safety", `Order #${orderId.substring(0,8)} platform refund issued.`);
+        if (err1 || err2) alert(`Error requesting resubmission: ${(err1 || err2).message}`);
+        else {
+          alert(`Requested document resubmission.`);
           loadRealDatabaseData();
         }
       }
     }
 
-    function resolveDispute(orderId) {
-      const idx = mockOrders.findIndex(o => o.id === orderId);
-      if (idx !== -1) {
-        if (confirm(`Mark dispute resolved for order #${orderId.substring(0,8)}?`)) {
-          mockOrders[idx].status = 'completed';
-          logSystemActivity("Audit", `Escalated dispute on order #${orderId.substring(0,8)} resolved.`);
+    async function refundOrder(orderId) {
+      if (!supabaseClient || !assertAdmin()) return;
+      if (confirm(`Issue platform refund for order #${orderId.substring(0,8)}?`)) {
+        const { error } = await supabaseClient.from('orders').update({ status: 'refunded' }).eq('id', orderId);
+        if (error) alert(`Error issuing refund: ${error.message}`);
+        else {
+          alert(`Refund issued successfully.`);
           loadRealDatabaseData();
         }
       }
     }
 
-    function auditReport(reportId, outcome) {
-      const idx = mockReports.findIndex(r => r.id === reportId);
-      if (idx !== -1) {
-        mockReports[idx].status = outcome;
-        logSystemActivity("Security", `Incident Report ${reportId} audited. Resolution: ${outcome}`);
+    async function resolveDispute(orderId) {
+      if (!supabaseClient || !assertAdmin()) return;
+      if (confirm(`Resolve dispute and mark order #${orderId.substring(0,8)} complete?`)) {
+        const { error } = await supabaseClient.from('orders').update({ status: 'completed' }).eq('id', orderId);
+        if (error) alert(`Error: ${error.message}`);
+        else {
+          alert(`Dispute resolved. Order completed.`);
+          loadRealDatabaseData();
+        }
+      }
+    }
+
+    async function auditReport(reportId, outcome) {
+      if (!supabaseClient || !assertAdmin()) return;
+      const { error } = await supabaseClient.rpc('admin_update_report_status', { 
+        p_report_id: reportId, 
+        p_status: outcome 
+      });
+      
+      if (error) alert(`Error: ${error.message}`);
+      else {
+        alert(`Safety report updated to: ${outcome}`);
         loadRealDatabaseData();
       }
     }
@@ -2588,12 +2681,18 @@
       );
       renderSellerApps(filteredApps);
 
-      const filteredOrders = mockOrders.filter(o =>
-        o.id.toLowerCase().includes(query) ||
-        o.buyer.toLowerCase().includes(query) ||
-        o.seller.toLowerCase().includes(query) ||
-        o.item.toLowerCase().includes(query)
-      );
+      const filteredOrders = ordersList.filter(o => {
+        const buyerObj = profilesList.find(p => p.id === o.buyer_id);
+        const sellerObj = profilesList.find(p => p.id === o.seller_id);
+        const listingObj = listingsList.find(l => l.id === o.listing_id);
+        
+        return (
+          o.id.toLowerCase().includes(query) ||
+          (buyerObj && (buyerObj.display_name || buyerObj.username || '').toLowerCase().includes(query)) ||
+          (sellerObj && (sellerObj.display_name || sellerObj.username || '').toLowerCase().includes(query)) ||
+          (listingObj && (listingObj.name || '').toLowerCase().includes(query))
+        );
+      });
       renderOrders(filteredOrders);
     }
 
