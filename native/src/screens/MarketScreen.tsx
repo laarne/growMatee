@@ -13,6 +13,7 @@ import { SellerGardenModal } from "../components/SellerGardenModal";
 import { useNavigationContext } from "../context/NavigationContext";
 import { EmptyState } from "../components/EmptyState";
 import { ImageZoomModal } from "../components/ImageZoomModal";
+import { SkeletonBlock, SkeletonCard, SkeletonLine } from "../components/Skeleton";
 import { readFastCache, writeFastCache } from "../utils/fastCache";
 
 const CATEGORIES = ["All", "Indoor", "Outdoor", "Vegetables", "Root Crops", "Fruit Trees", "Rare", "Flowering", "Medicinal", "Succulents", "Herbs", "Ornamental"];
@@ -28,6 +29,22 @@ const marketFonts = {
 const MARKET_CACHE_MAX_AGE_MS = 1000 * 60 * 15;
 const MARKET_LISTINGS_CACHE_KEY = "market:listings:v3";
 const MARKET_DELIVERY_LABEL = "Delivery";
+
+function MarketListingSkeleton() {
+  return (
+    <View style={styles.grid}>
+      {[0, 1, 2, 3].map((item) => (
+        <SkeletonCard key={item} style={styles.marketSkeletonCard}>
+          <SkeletonBlock height={132} borderRadius={18} />
+          <SkeletonLine width="52%" height={10} />
+          <SkeletonLine width="82%" height={14} />
+          <SkeletonLine width="46%" height={12} />
+          <SkeletonLine width="70%" height={10} />
+        </SkeletonCard>
+      ))}
+    </View>
+  );
+}
 
 export function MarketScreen({
   onOpenChat,
@@ -432,10 +449,7 @@ export function MarketScreen({
 
       {/* ── States ── */}
       {isLoadingListings && (
-        <View style={styles.centerState}>
-          <ActivityIndicator color={colors.green} />
-          <Text style={styles.stateText}>Loading listings...</Text>
-        </View>
+        <MarketListingSkeleton />
       )}
       {!isLoadingListings && listingError && (
         <View style={styles.errorCard}>
@@ -1144,6 +1158,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   gridSpacer: {
+    width: "47.8%",
+  },
+  marketSkeletonCard: {
     width: "47.8%",
   },
   // ── Listing card (grid cell) ──────────────────────────────

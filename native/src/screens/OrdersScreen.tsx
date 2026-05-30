@@ -23,8 +23,33 @@ import { getOrCreateMarketConversation } from "../services/messages";
 import { colors } from "../theme/colors";
 import { readFastCache, writeFastCache } from "../utils/fastCache";
 import { formatCurrency } from "../utils/currency";
+import { SkeletonBlock, SkeletonCard, SkeletonLine } from "../components/Skeleton";
 
 const ORDERS_CACHE_MAX_AGE_MS = 1000 * 60 * 10;
+
+function OrdersSkeleton() {
+  return (
+    <View style={styles.listContent}>
+      {[0, 1].map((item) => (
+        <SkeletonCard key={item}>
+          <View style={styles.skeletonOrderHeader}>
+            <SkeletonBlock height={50} width={50} borderRadius={10} />
+            <View style={styles.skeletonFlex}>
+              <SkeletonLine width="76%" height={15} />
+              <SkeletonLine width="48%" height={11} />
+            </View>
+          </View>
+          <SkeletonBlock height={34} borderRadius={999} />
+          <SkeletonBlock height={68} borderRadius={12} />
+          <View style={styles.skeletonFooterRow}>
+            <SkeletonLine width="38%" height={11} />
+            <SkeletonLine width="46%" height={36} />
+          </View>
+        </SkeletonCard>
+      ))}
+    </View>
+  );
+}
 
 export function OrdersScreen({
   onOpenChat,
@@ -436,9 +461,7 @@ export function OrdersScreen({
       </View>
 
       {loading && orders.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color={colors.green} size="large" />
-        </View>
+        <OrdersSkeleton />
       ) : (
         <FlatList
           data={filteredOrders}
@@ -649,9 +672,8 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "stretch",
+    gap: 10,
   },
   dateText: {
     fontSize: 12,
@@ -659,15 +681,18 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
+    justifyContent: "flex-end",
   },
   btn: {
     minHeight: 40,
-    paddingHorizontal: 12,
+    paddingHorizontal: 11,
     paddingVertical: 8,
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
+    flexShrink: 1,
   },
   btnPrimary: {
     backgroundColor: colors.green,
@@ -727,6 +752,20 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 14,
     fontWeight: "900",
+  },
+  skeletonOrderHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+  },
+  skeletonFlex: {
+    flex: 1,
+    gap: 8,
+  },
+  skeletonFooterRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   modalOverlay: {
     flex: 1,

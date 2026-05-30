@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Button } from "../components/Button";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
+import { SkeletonBlock, SkeletonCard, SkeletonLine } from "../components/Skeleton";
 import { useAuth } from "../context/AuthContext";
 import { SellerGardenModal } from "../components/SellerGardenModal";
 import {
@@ -35,6 +36,26 @@ const FILTERS: { id: DiscoverFilter; label: string; icon: keyof typeof MaterialC
   { id: "beginner", label: "Beginner Friendly", icon: "seed-outline" },
   { id: "topRated", label: "Top Rated", icon: "star-outline" },
 ];
+
+function DiscoverGardensSkeleton() {
+  return (
+    <View style={styles.skeletonList}>
+      {[0, 1, 2].map((item) => (
+        <SkeletonCard key={item}>
+          <SkeletonBlock height={145} borderRadius={18} />
+          <View style={styles.skeletonGardenRow}>
+            <SkeletonBlock height={44} width={44} borderRadius={22} />
+            <View style={styles.skeletonGardenCopy}>
+              <SkeletonLine width="70%" height={15} />
+              <SkeletonLine width="48%" height={11} />
+            </View>
+          </View>
+          <SkeletonLine width="86%" height={12} />
+        </SkeletonCard>
+      ))}
+    </View>
+  );
+}
 
 const DETAIL_TABS: { id: GardenDetailTab; label: string }[] = [
   { id: "plants", label: "Plants" },
@@ -273,10 +294,7 @@ export function DiscoverGardensScreen({ currentGardenId, onOpenChat, onOpenListi
         </ScrollView>
 
       {isLoading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color={colors.green} size="large" />
-          <Text style={styles.loadingText}>Loading gardens...</Text>
-        </View>
+        <DiscoverGardensSkeleton />
       )}
 
       {error && (
@@ -486,6 +504,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     marginTop: 8,
+  },
+  skeletonList: {
+    gap: 12,
+  },
+  skeletonGardenRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+  },
+  skeletonGardenCopy: {
+    flex: 1,
+    gap: 8,
   },
   emptyTitle: {
     color: colors.green,

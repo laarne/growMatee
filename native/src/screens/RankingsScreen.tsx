@@ -18,7 +18,9 @@ import { getUserOrders, type Order } from "../services/listings";
 import { colors, radius, shadow, fontSize, spacing } from "../theme/colors";
 import { Screen } from "../components/Screen";
 import { SellerGardenModal } from "../components/SellerGardenModal";
+import { SkeletonBlock, SkeletonCard, SkeletonLine } from "../components/Skeleton";
 import { readFastCache, writeFastCache } from "../utils/fastCache";
+
 
 function getRankTrend(userId: string, points: number) {
   if (points === 0) return { type: "stable", text: "—", color: "#6b7280" };
@@ -656,10 +658,7 @@ export function RankingsScreen({
         >
           {/* Loading / Error states */}
           {isLoadingLeaderboard && (
-            <View style={styles.center}>
-              <ActivityIndicator color={colors.green} size="large" />
-              <Text style={styles.loadingText}>Loading leaderboard...</Text>
-            </View>
+            <LeaderboardSkeleton />
           )}
 
           {!isLoadingLeaderboard && leaderboardError && (
@@ -1056,6 +1055,30 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
     gap: 10,
   },
+  leaderboardSkeleton: {
+    gap: 12,
+  },
+  skeletonPodiumRow: {
+    alignItems: "flex-end",
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  skeletonPodiumItem: {
+    alignItems: "center",
+    flex: 1,
+    gap: 8,
+  },
+  skeletonRankRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  skeletonRankCopy: {
+    flex: 1,
+    gap: 7,
+  },
   loadingText: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: "600", marginTop: 8 },
   emptyTitle: { fontSize: fontSize.md, fontWeight: "700", color: colors.textPrimary },
   emptySub: { fontSize: fontSize.sm, color: colors.textSecondary, textAlign: "center" },
@@ -1360,3 +1383,32 @@ const styles = StyleSheet.create({
     color: colors.green,
   },
 });
+
+function LeaderboardSkeleton() {
+  return (
+    <View style={styles.leaderboardSkeleton}>
+      <View style={styles.skeletonPodiumRow}>
+        {[0, 1, 2].map((item) => (
+          <View key={item} style={styles.skeletonPodiumItem}>
+            <SkeletonBlock height={58} width={58} borderRadius={29} />
+            <SkeletonLine width="70%" height={12} />
+            <SkeletonLine width="42%" height={10} />
+          </View>
+        ))}
+      </View>
+      {[0, 1, 2, 3].map((item) => (
+        <SkeletonCard key={item}>
+          <View style={styles.skeletonRankRow}>
+            <SkeletonBlock height={34} width={34} borderRadius={17} />
+            <SkeletonBlock height={42} width={42} borderRadius={21} />
+            <View style={styles.skeletonRankCopy}>
+              <SkeletonLine width="58%" height={13} />
+              <SkeletonLine width="38%" height={10} />
+            </View>
+            <SkeletonLine width={34} height={15} />
+          </View>
+        </SkeletonCard>
+      ))}
+    </View>
+  );
+}

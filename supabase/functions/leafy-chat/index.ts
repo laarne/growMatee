@@ -29,6 +29,7 @@ const corsHeaders = {
 
 const maxMessageLength = 2000;
 const maxHistoryMessages = 10;
+const maxRequestBytes = 12 * 1024;
 const chatLimit = 30;
 const chatWindowMs = 60 * 60 * 1000;
 
@@ -46,6 +47,20 @@ function getBearerToken(request: Request) {
   const authHeader = request.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) return null;
   return authHeader;
+}
+
+function validateJsonRequest(request: Request) {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().includes("application/json")) {
+    return jsonResponse({ error: "Request body must be JSON." }, 415);
+  }
+
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(contentLength) && contentLength > maxRequestBytes) {
+    return jsonResponse({ error: "Request body is too large." }, 413);
+  }
+
+  return null;
 }
 
 function sanitizeText(value: unknown, maxLength = maxMessageLength) {
@@ -87,6 +102,9 @@ Deno.serve(async (request) => {
   if (!authorization) {
     return jsonResponse({ error: "Sign in before chatting with Leafy." }, 401);
   }
+
+  const requestValidation = validateJsonRequest(request);
+  if (requestValidation) return requestValidation;
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: {
@@ -196,12 +214,10 @@ Deno.serve(async (request) => {
   });
 
   if (!response.ok) {
-    const details = await response.text();
     return jsonResponse(
       {
         error: "Leafy AI generation failed.",
         status: response.status,
-        details: details.slice(0, 240),
       },
       response.status,
     );

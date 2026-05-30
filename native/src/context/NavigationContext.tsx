@@ -10,6 +10,8 @@ type NavigationContextType = {
   unreadCount: number;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  gardenActiveSubTab: "discover" | "my_garden" | "ranking";
+  setGardenActiveSubTab: (subTab: "discover" | "my_garden" | "ranking") => void;
 };
 
 const NavigationContext = createContext<NavigationContextType | undefined>(undefined);
@@ -19,6 +21,7 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   const [searchQuery, setSearchQuery] = useState("");
   const { session, user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [gardenActiveSubTab, setGardenActiveSubTab] = useState<"discover" | "my_garden" | "ranking">("my_garden");
 
   useEffect(() => {
     if (!session || !user) return;
@@ -39,11 +42,22 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   }, [session, user?.id]);
 
   return (
-    <NavigationContext.Provider value={{ activeTab, setActiveTab, unreadCount, searchQuery, setSearchQuery }}>
+    <NavigationContext.Provider
+      value={{
+        activeTab,
+        setActiveTab,
+        unreadCount,
+        searchQuery,
+        setSearchQuery,
+        gardenActiveSubTab,
+        setGardenActiveSubTab,
+      }}
+    >
       {children}
     </NavigationContext.Provider>
   );
 }
+
 
 export function useNavigationContext() {
   const context = useContext(NavigationContext);

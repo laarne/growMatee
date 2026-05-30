@@ -101,6 +101,9 @@ const defaultSeedPlants = [
   "english ivy",
 ];
 
+const maxRequestBytes = 16 * 1024;
+const maxPlantNameLength = 80;
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -109,6 +112,22 @@ function jsonResponse(body: unknown, status = 200) {
       "Content-Type": "application/json",
     },
   });
+}
+
+function validateJsonRequest(request: Request) {
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (!request.headers.has("content-length") || contentLength === 0) return null;
+
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().includes("application/json")) {
+    return jsonResponse({ error: "Request body must be JSON." }, 415);
+  }
+
+  if (Number.isFinite(contentLength) && contentLength > maxRequestBytes) {
+    return jsonResponse({ error: "Request body is too large." }, 413);
+  }
+
+  return null;
 }
 
 function normalizeText(value: string) {
@@ -253,6 +272,9 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: "Seed function environment is not configured." }, 500);
   }
 
+  const requestValidation = validateJsonRequest(request);
+  if (requestValidation) return requestValidation;
+
   const userClient = createClient(supabaseUrl, supabaseAnonKey, { global: { headers: { Authorization: authHeader } } });
   if (!await assertAdmin(userClient)) return jsonResponse({ error: "Admin access is required." }, 403);
 
@@ -260,7 +282,14 @@ Deno.serve(async (request) => {
 
   const payload = await request.json().catch(() => ({})) as SeedRequest;
   const requestedPlants = Array.isArray(payload.plants) && payload.plants.length > 0 ? payload.plants : defaultSeedPlants;
-  const uniquePlants = [...new Set(requestedPlants.map(normalizeText).filter((plant) => plant.length >= 2))];
+  const uniquePlants = [
+    ...new Set(
+      requestedPlants
+        .filter((plant): plant is string => typeof plant === "string")
+        .map(normalizeText)
+        .filter((plant) => plant.length >= 2 && plant.length <= maxPlantNameLength),
+    ),
+  ];
   const limit = Math.min(Math.max(payload.limit ?? 50, 1), 100);
   const plants = uniquePlants.slice(0, limit);
 

@@ -51,6 +51,8 @@ const corsHeaders = {
 const minSearchLength = 3;
 const perUserDailyLimit = 5;
 const globalDailyLimit = 80;
+const maxRequestBytes = 4096;
+const maxQueryLength = 80;
 const inFlightLookups = new Map<string, Promise<PlantCareProfile>>();
 
 function jsonResponse(body: unknown, status = 200) {
@@ -65,6 +67,26 @@ function jsonResponse(body: unknown, status = 200) {
 
 function normalizeText(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, " ").trim();
+}
+
+function validateJsonRequest(request: Request) {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().includes("application/json")) {
+    return jsonResponse({ error: "Request body must be JSON." }, 415);
+  }
+
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(contentLength) && contentLength > maxRequestBytes) {
+    return jsonResponse({ error: "Request body is too large." }, 413);
+  }
+
+  return null;
+}
+
+function normalizePerenualId(value: unknown) {
+  if (value === undefined || value === null || value === "") return undefined;
+  const id = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(id) && id > 0 && id <= 1_000_000 ? id : null;
 }
 
 function toText(value: string[] | string | null | undefined) {
@@ -295,6 +317,9 @@ Deno.serve(async (request) => {
   if (!authHeader?.startsWith("Bearer ")) return jsonResponse({ error: "Sign in before requesting plant care." }, 401);
   if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) return jsonResponse({ error: "Supabase function environment is not configured." }, 500);
 
+  const requestValidation = validateJsonRequest(request);
+  if (requestValidation) return requestValidation;
+
   const userClient = createClient(supabaseUrl, supabaseAnonKey, { global: { headers: { Authorization: authHeader } } });
   const adminClient = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
   const { data: { user }, error: userError } = await userClient.auth.getUser();
@@ -307,11 +332,15 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: "Request body must be JSON." }, 400);
   }
 
-  const originalQuery = payload.perenualId ? String(payload.perenualId) : payload.query ?? "";
-  const normalizedQuery = payload.perenualId ? String(payload.perenualId) : normalizeText(originalQuery);
-  if (!payload.perenualId && normalizedQuery.length < minSearchLength) return jsonResponse({ error: "Search at least 3 characters." }, 400);
+  const perenualId = normalizePerenualId(payload.perenualId);
+  if (perenualId === null) return jsonResponse({ error: "Plant identifier is invalid." }, 400);
 
-  const cached = await loadCache(userClient, normalizedQuery, payload.perenualId);
+  const originalQuery = perenualId ? String(perenualId) : String(payload.query ?? "").trim();
+  const normalizedQuery = perenualId ? String(perenualId) : normalizeText(originalQuery);
+  if (!perenualId && normalizedQuery.length < minSearchLength) return jsonResponse({ error: "Search at least 3 characters." }, 400);
+  if (!perenualId && normalizedQuery.length > maxQueryLength) return jsonResponse({ error: "Search is too long." }, 400);
+
+  const cached = await loadCache(userClient, normalizedQuery, perenualId);
   if (cached) {
     await logUsage(adminClient, user.id, normalizedQuery, "supabase-cache", "cache_hit");
     return jsonResponse(cached);
@@ -324,7 +353,7 @@ Deno.serve(async (request) => {
   }
 
   const lookupPromise = (async () => {
-    const doubleCheckedCache = await loadCache(adminClient, normalizedQuery, payload.perenualId);
+    const doubleCheckedCache = await loadCache(adminClient, normalizedQuery, perenualId);
     if (doubleCheckedCache) {
       await logUsage(adminClient, user.id, normalizedQuery, "supabase-cache", "cache_hit_after_double_check");
       return doubleCheckedCache;

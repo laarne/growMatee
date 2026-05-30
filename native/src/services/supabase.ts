@@ -1,5 +1,4 @@
 import "react-native-url-polyfill/auto";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
@@ -8,8 +7,6 @@ const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
-
-const WEB_AUTH_STORAGE_KEY = "__growmate_supabase_auth_storage__";
 
 function getWebStorageItem(key: string) {
   if (typeof window === "undefined") return null;
@@ -20,15 +17,7 @@ function getWebStorageItem(key: string) {
     }
   } catch {}
 
-  try {
-    const raw = window.name || "";
-    const cache = raw ? JSON.parse(raw) : {};
-    return typeof cache?.[WEB_AUTH_STORAGE_KEY]?.[key] === "string"
-      ? cache[WEB_AUTH_STORAGE_KEY][key]
-      : null;
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 function setWebStorageItem(key: string, value: string) {
@@ -41,18 +30,7 @@ function setWebStorageItem(key: string, value: string) {
     }
   } catch {}
 
-  try {
-    const raw = window.name || "";
-    const cache = raw ? JSON.parse(raw) : {};
-    const authCache = typeof cache[WEB_AUTH_STORAGE_KEY] === "object" && cache[WEB_AUTH_STORAGE_KEY] !== null
-      ? cache[WEB_AUTH_STORAGE_KEY]
-      : {};
-    cache[WEB_AUTH_STORAGE_KEY] = { ...authCache, [key]: value };
-    window.name = JSON.stringify(cache);
-    return true;
-  } catch {
-    return false;
-  }
+  return false;
 }
 
 function removeWebStorageItem(key: string) {
@@ -65,53 +43,42 @@ function removeWebStorageItem(key: string) {
     }
   } catch {}
 
-  try {
-    const raw = window.name || "";
-    const cache = raw ? JSON.parse(raw) : {};
-    if (cache?.[WEB_AUTH_STORAGE_KEY]) {
-      delete cache[WEB_AUTH_STORAGE_KEY][key];
-      window.name = JSON.stringify(cache);
-    }
-    return true;
-  } catch {
-    return false;
-  }
+  return false;
 }
 
 const customStorage = {
   getItem: async (key: string): Promise<string | null> => {
     if (Platform.OS === "web") {
-      return getWebStorageItem(key) ?? AsyncStorage.getItem(key);
+      return getWebStorageItem(key);
     }
     try {
       return await SecureStore.getItemAsync(key);
     } catch (e) {
-      console.error("SecureStore getItem failed, falling back to AsyncStorage", e);
-      return AsyncStorage.getItem(key);
+      console.error("SecureStore getItem failed. Auth session will not be restored from insecure storage.", e);
+      return null;
     }
   },
   setItem: async (key: string, value: string): Promise<void> => {
     if (Platform.OS === "web") {
       if (setWebStorageItem(key, value)) return;
-      return AsyncStorage.setItem(key, value);
+      return;
     }
     try {
       await SecureStore.setItemAsync(key, value);
     } catch (e) {
-      console.error("SecureStore setItem failed, falling back to AsyncStorage", e);
-      await AsyncStorage.setItem(key, value);
+      console.error("SecureStore setItem failed. Refusing to persist auth session in plaintext storage.", e);
+      throw new Error("Secure session storage is unavailable.");
     }
   },
   removeItem: async (key: string): Promise<void> => {
     if (Platform.OS === "web") {
       if (removeWebStorageItem(key)) return;
-      return AsyncStorage.removeItem(key);
+      return;
     }
     try {
       await SecureStore.deleteItemAsync(key);
     } catch (e) {
-      console.error("SecureStore deleteItem failed, falling back to AsyncStorage", e);
-      await AsyncStorage.removeItem(key);
+      console.error("SecureStore deleteItem failed.", e);
     }
   },
 };
@@ -123,6 +90,7 @@ export const supabase = isSupabaseConfigured
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
+        flowType: "pkce",
       },
     })
   : null;

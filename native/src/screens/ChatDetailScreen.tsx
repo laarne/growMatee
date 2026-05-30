@@ -10,7 +10,7 @@ import { scanPlantWithLeafy, type LeafyScanResult } from "../services/leafyScan"
 import { getMessages, sendMessage, markConversationAsRead, type Message } from "../services/messages";
 import { pickImageFromLibrary, type PickedImage } from "../services/storage";
 import { supabase } from "../services/supabase";
-import { colors } from "../theme/colors";
+import { colors, shadow } from "../theme/colors";
 import { unwrapDelimitedUserInput, wrapUserInputForPrompt } from "../utils/promptSafety";
 import { sanitizeUserInput } from "../utils/sanitize";
 import { STORAGE_KEYS } from "../utils/storageKeys";
@@ -161,6 +161,19 @@ function formatLeafyScanResponse(result: LeafyScanResult): string {
     .concat(alternatives);
 }
 
+function isOnlyEmojis(str: string): boolean {
+  const clean = str.replace(/\s+/g, ""); // remove all spaces
+  if (!clean) return false;
+  
+  // RegExp using Unicode Property Escapes to match emojis
+  const allEmojis = Array.from(clean).every((char) =>
+    /\p{Extended_Pictographic}/u.test(char)
+  );
+  
+  const codePointsCount = Array.from(clean).length;
+  return allEmojis && codePointsCount >= 1 && codePointsCount <= 3;
+}
+
 export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailScreenProps) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
@@ -172,8 +185,41 @@ export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailS
   const [isLeafyTyping, setIsLeafyTyping] = useState(false);
   const [attachedImage, setAttachedImage] = useState<PickedImage | null>(null);
   const [visibleTimestampMessageId, setVisibleTimestampMessageId] = useState<string | null>(null);
+  const [recipientAvatarUrl, setRecipientAvatarUrl] = useState<string | null>(null);
 
   const scrollViewRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    setRecipientAvatarUrl(null);
+    const currentUserId = user?.id;
+    if (conversationId === "leafy-ai-assistant" || !currentUserId) return;
+
+    async function fetchRecipientAvatar() {
+      try {
+        if (!supabase) return;
+        const { data, error } = await supabase
+          .from("conversation_members")
+          .select(`
+            user_id,
+            profiles (
+              avatar_url
+            )
+          `)
+          .eq("conversation_id", conversationId)
+          .neq("user_id", currentUserId)
+          .maybeSingle();
+
+        if (data && data.profiles) {
+          const profile = data.profiles as any;
+          setRecipientAvatarUrl(profile.avatar_url);
+        }
+      } catch (err) {
+        console.warn("Error fetching recipient avatar:", err);
+      }
+    }
+
+    fetchRecipientAvatar();
+  }, [conversationId, user?.id]);
 
   async function loadMessages(silent = false) {
     if (conversationId === "leafy-ai-assistant") {
@@ -428,15 +474,28 @@ export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailS
       keyboardVerticalOffset={Platform.OS === "ios" ? 120 + insets.top : 0}
       style={styles.root}
     >
-      <Screen scroll={false}>
-        <View style={styles.header}>
-          <Pressable onPress={onClose} style={styles.backButton} hitSlop={8}>
-            <MaterialCommunityIcons name="arrow-left" size={18} color={colors.green} />
-            <Text style={styles.backButtonText}>Back</Text>
-          </Pressable>
-          <Text numberOfLines={1} style={styles.title}>
-            {title}
-          </Text>
+      <Screen scroll={false} showHeader={false} noPadding={true}>
+        <View style={[styles.header, { paddingTop: insets.top + 6, paddingBottom: 6 }]}>
+          <View style={styles.headerLeft}>
+            <Pressable onPress={onClose} style={styles.backIconButton} hitSlop={12}>
+              <MaterialCommunityIcons name="chevron-left" size={28} color={colors.green} />
+            </Pressable>
+          </View>
+          <View style={styles.headerCenter}>
+            {conversationId === "leafy-ai-assistant" ? (
+              <Image source={leafyAvatar} style={styles.headerAvatar} />
+            ) : recipientAvatarUrl ? (
+              <Image source={{ uri: recipientAvatarUrl }} style={styles.headerAvatar} />
+            ) : (
+              <View style={styles.headerAvatarFallback}>
+                <MaterialCommunityIcons name="account" size={18} color={colors.green} />
+              </View>
+            )}
+            <Text numberOfLines={1} style={styles.headerTitle}>
+              {conversationId === "leafy-ai-assistant" ? "Leafy AI" : title}
+            </Text>
+          </View>
+          <View style={styles.headerRight} />
         </View>
 
         {error && (
@@ -464,20 +523,42 @@ export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailS
               </View>
             ) : (
               <>
-                {messages.map((msg) => {
+                {messages.map((msg, idx) => {
                   const isMe = msg.senderId === user?.id;
                   const isTimestampVisible = visibleTimestampMessageId === msg.id;
+                  const nextMsg = messages[idx + 1];
+                  const isLastInStream = !nextMsg || nextMsg.senderId !== msg.senderId;
+                  const isEmojiOnly = !msg.imageUrl && isOnlyEmojis(msg.body);
                   return (
                     <View key={msg.id} style={[styles.bubbleWrap, isMe ? styles.bubbleWrapMe : styles.bubbleWrapOther]}>
-                      {!isMe && conversationId === "leafy-ai-assistant" && (
-                        <Image source={leafyAvatar} style={styles.leafyAvatar} />
+                      {!isMe && (
+                        conversationId === "leafy-ai-assistant" ? (
+                          <Image source={leafyAvatar} style={styles.leafyAvatar} />
+                        ) : recipientAvatarUrl ? (
+                          <Image source={{ uri: recipientAvatarUrl }} style={styles.leafyAvatar} />
+                        ) : (
+                          <View style={styles.leafyAvatarFallback}>
+                            <MaterialCommunityIcons name="account" size={18} color={colors.green} />
+                          </View>
+                        )
                       )}
                       <Pressable
                         onPress={() => setVisibleTimestampMessageId((current) => (current === msg.id ? null : msg.id))}
-                        style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther]}
+                        style={[
+                          styles.bubble,
+                          isMe ? styles.bubbleMe : styles.bubbleOther,
+                          isMe
+                            ? { borderBottomRightRadius: isLastInStream ? 4 : 16 }
+                            : { borderBottomLeftRadius: isLastInStream ? 4 : 16 },
+                          isEmojiOnly && styles.emojiBubble
+                        ]}
                       >
                         {msg.imageUrl && <Image source={{ uri: msg.imageUrl }} style={styles.messageImage} />}
-                        <Text style={[styles.bubbleText, isMe ? styles.bubbleTextMe : styles.bubbleTextOther]}>
+                        <Text style={[
+                          styles.bubbleText,
+                          isMe ? styles.bubbleTextMe : styles.bubbleTextOther,
+                          isEmojiOnly && styles.emojiText
+                        ]}>
                           {msg.body}
                         </Text>
                         {isTimestampVisible && (
@@ -513,24 +594,33 @@ export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailS
         {conversationId === "leafy-ai-assistant" && (
           <View style={styles.suggestionsContainer}>
             <Text style={styles.suggestionsTitle}>Ask Leafy AI:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestionsScroll}>
-              {[
-                { label: "Watering Monstera", query: "How often should I water my Monstera?" },
-                { label: "Succulent Soil Mix", query: "What soil mix is best for succulents?" },
-                { label: "Propagate Pothos", query: "How do I propagate pothos cuttings?" },
-                { label: "Treat Yellow Leaves", query: "How do I treat yellow leaves?" },
-              ].map((item, idx) => (
-                <Pressable
-                  key={idx}
-                  onPress={() => {
-                    setText(item.query);
-                  }}
-                  style={styles.suggestionChip}
-                >
-                  <Text style={styles.suggestionChipText}>{item.label}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+            <View style={{ position: "relative" }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestionsScroll}>
+                {[
+                  { label: "Watering Monstera", query: "How often should I water my Monstera?" },
+                  { label: "Succulent Soil Mix", query: "What soil mix is best for succulents?" },
+                  { label: "Propagate Pothos", query: "How do I propagate pothos cuttings?" },
+                  { label: "Treat Yellow Leaves", query: "How do I treat yellow leaves?" },
+                ].map((item, idx) => (
+                  <Pressable
+                    key={idx}
+                    onPress={() => {
+                      setText(item.query);
+                    }}
+                    style={styles.suggestionChip}
+                  >
+                    <Text style={styles.suggestionChipText}>{item.label}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <View style={styles.fadeOverlay} pointerEvents="none">
+                <View style={[styles.fadeStep, { opacity: 0.1 }]} />
+                <View style={[styles.fadeStep, { opacity: 0.3 }]} />
+                <View style={[styles.fadeStep, { opacity: 0.6 }]} />
+                <View style={[styles.fadeStep, { opacity: 0.9 }]} />
+                <View style={[styles.fadeStep, { opacity: 1.0 }]} />
+              </View>
+            </View>
           </View>
         )}
 
@@ -547,28 +637,46 @@ export function ChatDetailScreen({ conversationId, title, onClose }: ChatDetailS
           </View>
         )}
 
-        <View style={[styles.composerRow, { paddingBottom: Math.max(insets.bottom + 6, 12) }]}>
-          {conversationId === "leafy-ai-assistant" && (
+        <View style={[styles.composerRow, { paddingBottom: Math.max(insets.bottom + 12, 16) }]}>
+          <View style={styles.composerCapsule}>
+            {conversationId === "leafy-ai-assistant" && (
+              <Pressable
+                accessibilityLabel="Upload plant photo"
+                disabled={isSending}
+                onPress={handlePickLeafyImage}
+                style={({ pressed }) => [styles.attachButton, pressed && styles.attachButtonPressed]}
+                hitSlop={8}
+              >
+                <MaterialCommunityIcons color={colors.greenMuted} name="camera" size={20} />
+              </Pressable>
+            )}
+            <TextInput
+              multiline
+              onChangeText={setText}
+              placeholder="Type your message..."
+              placeholderTextColor={colors.greenMuted}
+              style={styles.input}
+              value={text}
+              editable={!isSending}
+            />
             <Pressable
-              accessibilityLabel="Upload plant photo"
-              disabled={isSending}
-              onPress={handlePickLeafyImage}
-              style={({ pressed }) => [styles.attachButton, pressed && styles.attachButtonPressed]}
+              accessibilityLabel="Send message"
+              disabled={isSending || (!text.trim() && !(conversationId === "leafy-ai-assistant" && attachedImage))}
+              onPress={handleSend}
+              style={({ pressed }) => [
+                styles.sendButton,
+                pressed && styles.sendButtonPressed,
+                (isSending || (!text.trim() && !(conversationId === "leafy-ai-assistant" && attachedImage))) && styles.sendButtonDisabled,
+              ]}
+              hitSlop={8}
             >
-              <MaterialCommunityIcons color={colors.green} name="image-plus" size={21} />
+              {isSending ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <MaterialCommunityIcons name="arrow-up" size={20} color={colors.white} />
+              )}
             </Pressable>
-          )}
-          <TextInput
-            multiline
-            onChangeText={setText}
-            placeholder="Type your message..."
-            placeholderTextColor="#8a9583"
-            style={styles.input}
-            value={text}
-          />
-          <Button disabled={isSending || (!text.trim() && !(conversationId === "leafy-ai-assistant" && attachedImage))} onPress={handleSend}>
-            {isSending ? "Sending" : "Send"}
-          </Button>
+          </View>
         </View>
       </Screen>
     </KeyboardAvoidingView>
@@ -581,33 +689,55 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    flexDirection: "row",
     alignItems: "center",
-    borderBottomColor: colors.line,
+    justifyContent: "space-between",
+    backgroundColor: colors.white,
     borderBottomWidth: 1,
-    flexDirection: "row",
-    gap: 10,
-    paddingBottom: 8,
+    borderBottomColor: colors.line,
+    paddingHorizontal: 12,
   },
-  title: {
-    color: colors.green,
-    flex: 1,
-    fontSize: 18,
-    fontWeight: "900",
+  headerLeft: {
+    width: 44,
+    alignItems: "flex-start",
   },
-  backButton: {
+  headerRight: {
+    width: 44,
+  },
+  backIconButton: {
+    width: 44,
+    height: 44,
     alignItems: "center",
-    backgroundColor: colors.surface1,
-    borderColor: colors.line,
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 4,
-    minHeight: 30,
-    paddingHorizontal: 10,
+    justifyContent: "center",
   },
-  backButtonText: {
+  headerCenter: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  headerAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.lineMid,
+    backgroundColor: colors.sage,
+  },
+  headerAvatarFallback: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.lineMid,
+    backgroundColor: colors.sage,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
     color: colors.green,
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: "900",
   },
   scroll: {
@@ -617,8 +747,9 @@ const styles = StyleSheet.create({
   messagesList: {
     flexGrow: 1,
     justifyContent: "flex-start",
-    paddingTop: 8,
-    paddingBottom: 6,
+    paddingTop: 12,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
   },
   bubbleWrap: {
     alignItems: "flex-end",
@@ -642,22 +773,20 @@ const styles = StyleSheet.create({
     width: 32,
   },
   bubble: {
-    borderRadius: 20,
-    maxWidth: "80%",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    borderRadius: 16,
+    maxWidth: "75%",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   bubbleMe: {
     backgroundColor: colors.green,
-    borderBottomRightRadius: 4,
   },
   bubbleOther: {
     backgroundColor: colors.sage,
-    borderBottomLeftRadius: 4,
   },
   bubbleText: {
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "600",
     lineHeight: 20,
   },
   bubbleTextMe: {
@@ -679,39 +808,81 @@ const styles = StyleSheet.create({
     color: colors.greenMuted,
   },
   composerRow: {
-    alignItems: "center",
-    borderTopColor: colors.line,
-    borderTopWidth: 1,
-    flexDirection: "row",
-    gap: 10,
+    backgroundColor: colors.cream,
+    paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 6,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
   },
-  attachButton: {
+  composerCapsule: {
+    flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.white,
-    borderColor: colors.line,
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
-    height: 44,
+    borderColor: colors.lineMid,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    minHeight: 48,
+    ...shadow.sm,
+  },
+  attachButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
     justifyContent: "center",
-    width: 44,
+    backgroundColor: "transparent",
   },
   attachButtonPressed: {
     backgroundColor: colors.sage,
   },
   input: {
-    backgroundColor: colors.white,
-    borderColor: colors.line,
-    borderRadius: 22,
-    borderWidth: 1,
-    color: colors.green,
     flex: 1,
+    color: colors.green,
     fontSize: 14,
-    fontWeight: "700",
-    maxHeight: 80,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    fontWeight: "600",
+    maxHeight: 100,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    textAlignVertical: "center",
+  },
+  sendButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.green,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sendButtonPressed: {
+    backgroundColor: colors.greenDark,
+  },
+  sendButtonDisabled: {
+    backgroundColor: colors.green,
+    opacity: 0.4,
+  },
+  leafyAvatarFallback: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.lineMid,
+    backgroundColor: colors.sage,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emojiBubble: {
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  emojiText: {
+    fontSize: 32,
+    lineHeight: 40,
   },
   attachmentPreview: {
     alignItems: "center",
@@ -721,7 +892,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: "row",
     gap: 10,
+    marginHorizontal: 16,
     marginTop: 6,
+    marginBottom: 8,
     padding: 8,
   },
   attachmentThumb: {
@@ -818,6 +991,19 @@ const styles = StyleSheet.create({
   suggestionsScroll: {
     gap: 8,
     paddingBottom: 4,
+    paddingRight: 48,
+  },
+  fadeOverlay: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 40,
+    flexDirection: "row",
+  },
+  fadeStep: {
+    flex: 1,
+    backgroundColor: colors.cream,
   },
   suggestionChip: {
     backgroundColor: colors.white,

@@ -93,6 +93,7 @@ const corsHeaders = {
 const allowedOrgans = new Set(["leaf", "flower", "fruit", "bark", "habit", "other"]);
 const allowedMimeTypes = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const maxImageBase64Length = 8_000_000;
+const maxRequestBytes = 9 * 1024 * 1024;
 const scanLimit = 5;
 const scanWindowMs = 60 * 60 * 1000;
 const careLookupPromises = new Map<string, Promise<CareProfile>>();
@@ -117,6 +118,20 @@ function jsonResponse(body: unknown, status = 200) {
       "Content-Type": "application/json",
     },
   });
+}
+
+function validateJsonRequest(request: Request) {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().includes("application/json")) {
+    return jsonResponse({ error: "Request body must be JSON." }, 415);
+  }
+
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(contentLength) && contentLength > maxRequestBytes) {
+    return jsonResponse({ error: "Image is too large. Choose a smaller photo." }, 413);
+  }
+
+  return null;
 }
 
 function base64ToBlob(base64: string, mimeType: string) {
@@ -524,6 +539,9 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: "Sign in before scanning plants." }, 401);
   }
 
+  const requestValidation = validateJsonRequest(request);
+  if (requestValidation) return requestValidation;
+
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: {
       headers: {
@@ -634,11 +652,11 @@ Deno.serve(async (request) => {
 
   if (!response.ok) {
     const details = await response.text();
+    console.warn("PlantNet scan failed:", { status: response.status, details: details.slice(0, 500) });
     return jsonResponse(
       {
         error: "PlantNet scan failed.",
         status: response.status,
-        details: details.slice(0, 240),
       },
       response.status,
     );

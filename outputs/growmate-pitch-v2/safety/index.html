@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Marketplace Safety Rules — GrowMate</title>
+  <meta name="description" content="Read the Marketplace Safety Rules for GrowMate. Understand our order pipeline, cancellation rules, damaged plant guidelines, and buyer protection." />
+  <link rel="icon" type="image/png" href="../app-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --green:         #1a3a22;
+      --green-mid:     #2d5a3d;
+      --green-leaf:    #4caf50;
+      --green-light:   #81c784;
+      --green-pale:    #e4f0d8;
+      --cream:         #faf8f4;
+      --cream-warm:    #f5f0e8;
+      --beige:         #ede6d9;
+      --terracotta:    #b85c42;
+      --terra-pale:    #faeae5;
+      --yellow:        #c9963a;
+      --yellow-pale:   #fdf3df;
+      --surface:       #ffffff;
+      --text-1:        #1a3a22;
+      --text-2:        #4b6051;
+      --text-3:        #7a9080;
+      --line:          #dce8d2;
+      --shadow-sm:     0 2px 14px rgba(26,58,34,0.07);
+      --shadow-md:     0 6px 32px rgba(26,58,34,0.10);
+      --shadow-lg:     0 20px 64px rgba(26,58,34,0.13);
+      --r-sm: 12px;
+      --r-md: 18px;
+      --r-lg: 28px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: #faf8f4;
+      color: #1a3a22;
+      line-height: 1.6;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    .container { max-width: 1160px; margin: 0 auto; padding: 0 28px; width: 100%; }
+    .container-narrow { max-width: 800px; }
+    
+    /* Nav */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      padding: 14px 0;
+      background: rgba(250,248,244,0.90);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(26,58,34,0.06);
+    }
+    .nav-inner { display: flex; align-items: center; justify-content: space-between; }
+    .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .logo-img { width: 34px; height: 34px; object-fit: contain; border-radius: 8px; }
+    .logo-text { font-size: 20px; font-weight: 800; color: var(--green); letter-spacing: -0.3px; }
+    .nav-links { display: flex; align-items: center; gap: 30px; }
+    .nav-links a { font-size: 14px; font-weight: 500; color: var(--text-2); text-decoration: none; transition: color 0.18s; }
+    .nav-links a:hover { color: var(--green); }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 11px 24px; border-radius: 999px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 14px; font-weight: 600; text-decoration: none;
+      cursor: pointer; border: none; transition: all 0.22s ease;
+    }
+    .btn-dark {
+      background: var(--green); color: #fff;
+      box-shadow: 0 4px 18px rgba(26,58,34,0.24);
+    }
+    .btn-dark:hover { background: var(--green-mid); transform: translateY(-2px); box-shadow: 0 8px 28px rgba(26,58,34,0.28); }
+    
+    /* Content Layout */
+    .legal-content {
+      padding: 140px 0 100px;
+      flex: 1;
+    }
+    .legal-header {
+      margin-bottom: 48px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 24px;
+    }
+    .legal-title {
+      font-size: clamp(32px, 4vw, 48px);
+      font-weight: 800;
+      color: var(--green);
+      line-height: 1.15;
+      margin-bottom: 12px;
+    }
+    .legal-subtitle {
+      font-size: 14px;
+      color: var(--text-3);
+      font-weight: 500;
+    }
+    
+    .legal-body {
+      font-size: 15px;
+      color: var(--text-2);
+      line-height: 1.75;
+    }
+    .legal-body h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--green);
+      margin-top: 36px;
+      margin-bottom: 16px;
+    }
+    .legal-body h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--green);
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+    .legal-body p {
+      margin-bottom: 18px;
+    }
+    .legal-body ul, .legal-body ol {
+      margin-bottom: 24px;
+      padding-left: 24px;
+    }
+    .legal-body li {
+      margin-bottom: 8px;
+    }
+    .legal-body strong {
+      color: var(--green);
+    }
+    
+    .legal-alert {
+      background: var(--green-pale);
+      border-left: 4px solid var(--green-leaf);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 24px;
+      font-size: 14px;
+      color: var(--green-mid);
+    }
+    .legal-alert-terra {
+      background: var(--terra-pale);
+      border-left: 4px solid var(--terracotta);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 24px;
+      font-size: 14px;
+      color: #9e4b34;
+    }
+    
+    /* Footer */
+    footer { background: var(--green); padding: 64px 0 32px; margin-top: auto; }
+    .footer-grid { display: grid; grid-template-columns: 2.2fr 1fr 1fr 1fr; gap: 48px; margin-bottom: 48px; }
+    .footer-logo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .footer-logo-img { width: 32px; border-radius: 7px; }
+    .footer-logo-text { font-size: 18px; font-weight: 800; color: #fff; }
+    .footer-tagline { font-size: 13px; color: rgba(255,255,255,0.52); line-height: 1.7; max-width: 240px; }
+    .footer-col h5 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.85); margin-bottom: 16px; }
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .footer-col ul li a { font-size: 13px; color: rgba(255,255,255,0.50); text-decoration: none; transition: color 0.18s; }
+    .footer-col ul li a:hover { color: rgba(255,255,255,0.90); }
+    .footer-bottom { border-top: 1px solid rgba(255,255,255,0.10); padding-top: 24px; display: flex; align-items: center; justify-content: space-between; }
+    .footer-copy { font-size: 12px; color: rgba(255,255,255,0.35); }
+    .sdg-pills { display: flex; gap: 8px; }
+    .sdg-pill { padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.55); }
+    
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .footer-grid { grid-template-columns: 1fr; }
+      .footer-bottom { flex-direction: column; gap: 12px; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV ─────────────────────────────────────────────────── -->
+<nav id="nav">
+  <div class="container">
+    <div class="nav-inner">
+      <a href="../index.html" class="logo" id="nav-logo">
+        <img src="../growmate-logo.png" alt="GrowMate logo" class="logo-img" />
+        <span class="logo-text">GrowMate</span>
+      </a>
+      <div class="nav-links">
+        <a href="../index.html">Home</a>
+        <a href="../index.html#screens">App</a>
+        <a href="../index.html#features">Features</a>
+        <a href="../index.html#ai">Leafy AI</a>
+        <a href="../index.html#model">Pricing</a>
+      </div>
+      <a href="../growmate.apk" class="btn btn-dark" id="nav-cta" download>Download App</a>
+    </div>
+  </div>
+</nav>
+
+<!-- LEGAL CONTENT ────────────────────────────────────────── -->
+<section class="legal-content">
+  <div class="container container-narrow">
+    <div class="legal-header">
+      <h1 class="legal-title">Marketplace Safety Rules</h1>
+      <p class="legal-subtitle">Last updated: May 30, 2026</p>
+    </div>
+    <div class="legal-body">
+      <div class="legal-alert">
+        <strong>Community Priority:</strong> GrowMate was built to create a safe, sustainable ecosystem for local gardeners across the Philippines. Following these rules protects you, your plants, and other gardeners.
+      </div>
+      
+      <h2>1. How Orders Work</h2>
+      <p>All listings and transactions on the GrowMate app follow a structured pipeline designed to prevent confusion and fraud:</p>
+      <ol>
+        <li><strong>Order Request:</strong> The buyer clicks "Request Order" on a listing and inputs their preferred meetup location or delivery instructions. The listing is temporarily reserved.</li>
+        <li><strong>Seller Review:</strong> The seller reviews the request and discusses delivery details with the buyer via the secure in-app chat. The seller can then accept or reject the order.</li>
+        <li><strong>Acceptance & Scheduling:</strong> Once accepted, the meetup or local courier delivery (such as Lalamove, Grab, or Borzo) is scheduled.</li>
+        <li><strong>Physical Inspection & Handoff:</strong> When the plant changes hands, the buyer inspects it.</li>
+        <li><strong>Completion:</strong> Once satisfied, the buyer clicks "Confirm Receipt" in the app. The transaction is marked complete, and any platform fee is processed.</li>
+      </ol>
+
+      <h2>2. Cancellation Policy</h2>
+      <p>We understand that schedules and plant availability can change. Our cancellation rules are as follows:</p>
+      <ul>
+        <li><strong>Before Dispatch/Meetup:</strong> Both buyers and sellers have the right to cancel an order request at any time prior to the seller marking the order as "dispatched" or "on the way."</li>
+        <li><strong>Seller Cancellations:</strong> If a seller frequently cancels orders after accepting them due to lack of stock or incorrect care, their seller ranking may be lowered, and their visibility on the marketplace feed reduced.</li>
+        <li><strong>Buyer Cancellations:</strong> Buyers who repeatedly request orders and cancel them without valid reasons will be flagged, and their account may face restrictions on the maximum number of active order requests allowed.</li>
+      </ul>
+
+      <h2>3. Damaged Plant Policy</h2>
+      <p>Plants are fragile living specimens. Because of their nature, special rules apply to damage claims:</p>
+      <ul>
+        <li><strong>Inspection is Mandatory:</strong> The buyer must inspect the plant's leaves, stems, and soil condition immediately during the meetup or upon delivery handoff.</li>
+        <li><strong>Right to Reject:</strong> If the plant is damaged, heavily pest-infested, or looks significantly different from the listing photos, the buyer has the right to <strong>reject the handoff</strong>. The buyer should not confirm receipt in the app and should cancel the order indicating "Item not as described".</li>
+        <li><strong>After Confirmation:</strong> Once the buyer clicks "Confirm Receipt" inside the app, the transaction is closed. <strong>No refunds, returns, or claims will be processed by GrowMate after this step.</strong></li>
+      </ul>
+
+      <h2>4. Dispute Resolution Process</h2>
+      <p>If an issue arises during a transaction (e.g. a seller fails to meet up or ships the wrong plant, or a buyer claims a plant was not delivered):</p>
+      <ol>
+        <li><strong>Contact Support:</strong> Do not confirm receipt in the app. Email our dispute team immediately at <a href="mailto:support@plantita.online"><strong>support@plantita.online</strong></a>.</li>
+        <li><strong>Provide Evidence:</strong> Include the Order ID, seller/buyer name, screenshot of chat history, and clear photographs of the plant (if delivered).</li>
+        <li><strong>Investigation:</strong> Our team will review the in-app chat transcripts and delivery documentation. We will make a final decision on order cancellation or fund release within 3-5 business days.</li>
+      </ol>
+
+      <h2>5. Rules Against Outside-App Transactions</h2>
+      <p>To ensure a safe environment, <strong>we strictly prohibit conducting transactions outside of the GrowMate app</strong> if they were initiated on the platform.</p>
+      <div class="legal-alert-terra">
+        <strong>Warning:</strong> Direct transactions (e.g. paying outside the app via personal bank transfers before handoff, or completing cash deals without using the app's order tracker) bypass our safety checks. We cannot provide dispute assistance, refund support, or verify user credibility for transactions that occur off-platform. Violators will face immediate account suspension.
+      </div>
+
+      <h2>6. What "Buyer Protection" Actually Means</h2>
+      <p>When you transact inside the GrowMate order pipeline, you are covered by our <strong>Buyer Protection Policy</strong>. This means:</p>
+      <ul>
+        <li><strong>Payment Escrow:</strong> Your funds are held securely by the platform and are only released to the seller after you confirm receipt.</li>
+        <li><strong>Resolution Assistance:</strong> If the seller does not ship or bring the plant, you get a full refund.</li>
+        <li><strong>Quality Hold:</strong> If the plant arrives dead or is the wrong species, you can freeze the transaction by opening a dispute before confirming receipt.</li>
+      </ul>
+
+      <h2>7. Contact Support</h2>
+      <p>For any safety concerns, disputes, or reporting suspicious users, contact our team at:</p>
+      <p>Email: <a href="mailto:support@plantita.online"><strong>support@plantita.online</strong></a></p>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER ───────────────────────────────────────────────── -->
+<footer id="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="footer-logo-row">
+          <img src="../growmate-logo.png" alt="GrowMate" class="footer-logo-img" />
+          <span class="footer-logo-text">GrowMate</span>
+        </div>
+        <p class="footer-tagline">The Philippines' safest and smartest plant marketplace and community. Grow smart, grow safe, grow great.</p>
+        <p style="font-size: 11px; color: rgba(255,255,255,0.4); line-height: 1.5; margin-top: 14px;">
+          For support, seller concerns, buyer disputes, or account deletion:<br/>
+          <a href="mailto:support@plantita.online" style="color: rgba(255,255,255,0.6); text-decoration: underline;">support@plantita.online</a>
+        </p>
+      </div>
+      <div class="footer-col">
+        <h5>Product</h5>
+        <ul>
+          <li><a href="../index.html#screens">App Screens</a></li>
+          <li><a href="../index.html#features">Features</a></li>
+          <li><a href="../index.html#ai">Leafy AI</a></li>
+          <li><a href="../index.html#how">How It Works</a></li>
+          <li><a href="../index.html#model">Pricing</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Community</h5>
+        <ul>
+          <li><a href="../index.html#screens">Feed</a></li>
+          <li><a href="../index.html#screens">Garden Discovery</a></li>
+          <li><a href="../index.html#testimonials">Success Stories</a></li>
+          <li><a href="../index.html#impact">Our Impact</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h5>Company</h5>
+        <ul>
+          <li><a href="../contact">Contact Us</a></li>
+          <li><a href="../safety">Marketplace Safety</a></li>
+          <li><a href="../privacy">Privacy Policy</a></li>
+          <li><a href="../terms">Terms of Service</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-copy">© 2026 GrowMate. All rights reserved. Made in the Philippines.</div>
+      <div class="sdg-pills">
+        <span class="sdg-pill">SDG 11</span>
+        <span class="sdg-pill">SDG 12</span>
+        <span class="sdg-pill">SDG 15</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

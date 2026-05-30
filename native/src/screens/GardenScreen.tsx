@@ -39,6 +39,7 @@ import { DiscoverGardensScreen } from "./DiscoverGardensScreen";
 import { RankingsScreen } from "./RankingsScreen";
 import { supabase } from "../services/supabase";
 import { readFastCache, writeFastCache } from "../utils/fastCache";
+import { useNavigationContext } from "../context/NavigationContext";
 
 type ParsedCareNote = {
   emoji: string;
@@ -167,7 +168,7 @@ type GardenScreenProps = {
 export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenProps) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<"discover" | "my_garden" | "ranking">("my_garden");
+  const { gardenActiveSubTab: activeTab, setGardenActiveSubTab: setActiveTab } = useNavigationContext();
   const [garden, setGarden] = useState<Garden | null>(null);
   const [plants, setPlants] = useState<GardenPlant[]>([]);
   const [isLoading, setIsLoading] = useState(true);

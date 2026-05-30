@@ -13,6 +13,13 @@ export type Conversation = {
     displayName: string;
     avatarUrl: string | null;
   } | null;
+  lastMessage?: {
+    body: string;
+    senderId: string | null;
+    createdAt: string;
+  } | null;
+  lastReadAt?: string | null;
+  listingPhotoUrl?: string | null;
 };
 
 export type Message = {
@@ -42,11 +49,14 @@ type ConversationJoinRow = {
   garden_id: string | null;
   title: string | null;
   updated_at: string;
+  listings: any | null;
+  messages: any[] | null;
   conversation_members: MemberRow[];
 };
 
 type MemberQueryRow = {
   conversation_id: string;
+  last_read_at: string | null;
   conversations: ConversationJoinRow | null;
 };
 
@@ -57,6 +67,7 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
     .from("conversation_members")
     .select(`
       conversation_id,
+      last_read_at,
       conversations (
         id,
         type,
@@ -64,6 +75,19 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
         garden_id,
         title,
         updated_at,
+        listings (
+          id,
+          name,
+          listing_photos (
+            storage_path,
+            sort_order
+          )
+        ),
+        messages (
+          body,
+          sender_id,
+          created_at
+        ),
         conversation_members (
           user_id,
           profiles (
@@ -74,7 +98,9 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
         )
       )
     `)
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .order("created_at", { foreignTable: "conversations.messages", ascending: false })
+    .limit(1, { foreignTable: "conversations.messages" });
 
   if (error) {
     throw error;
@@ -91,6 +117,29 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
     const otherMemberRow = convo.conversation_members.find((m) => m.user_id !== userId);
     const otherProfile = otherMemberRow?.profiles;
 
+    // Resolve listing photo if available
+    const listingsRaw = convo.listings;
+    let listingPhotoUrl: string | null = null;
+    if (listingsRaw) {
+      const listingItem = Array.isArray(listingsRaw) ? listingsRaw[0] : listingsRaw;
+      const photos = listingItem?.listing_photos;
+      const photosArr = Array.isArray(photos) ? photos : photos ? [photos] : [];
+      const sortedPhotos = [...photosArr].sort((a, b) => a.sort_order - b.sort_order);
+      const photoPath = sortedPhotos[0]?.storage_path;
+      if (photoPath) {
+        listingPhotoUrl = supabase.storage.from("listing-photos").getPublicUrl(photoPath).data.publicUrl;
+      }
+    }
+
+    // Resolve last message if available
+    const messagesRaw = convo.messages;
+    const msgList = Array.isArray(messagesRaw) ? messagesRaw : [];
+    const lastMsg = msgList[0] ? {
+      body: msgList[0].body,
+      senderId: msgList[0].sender_id,
+      createdAt: msgList[0].created_at,
+    } : null;
+
     conversations.push({
       id: convo.id,
       type: convo.type,
@@ -105,6 +154,9 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
             avatarUrl: otherProfile.avatar_url,
           }
         : null,
+      lastMessage: lastMsg,
+      lastReadAt: row.last_read_at,
+      listingPhotoUrl,
     });
   }
 

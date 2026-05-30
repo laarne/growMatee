@@ -10,6 +10,7 @@ import { colors } from "../theme/colors";
 import { getSellerStats, type SellerStats } from "../services/profile";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { formatCurrency } from "../utils/currency";
+import { SkeletonBlock, SkeletonCard, SkeletonLine } from "./Skeleton";
 
 const units: ListingInput["unit"][] = ["Pot", "Cutting", "Seedling", "Node", "Pack"];
 const DELIVERY_ONLY = "Delivery";
@@ -613,7 +614,7 @@ export function SellerDashboard() {
               ))}
             </View>
           </View>
-          {isLoading && <ActivityIndicator color={colors.green} style={styles.loader} />}
+          {isLoading && <SellerListingSkeleton />}
           {!isLoading && listings.length === 0 && <Text style={styles.body}>No seller listings yet.</Text>}
           {!isLoading && listings.length > 0 && filteredListings.length === 0 && <Text style={styles.body}>No listings match that filter.</Text>}
           {!isLoading &&
@@ -722,7 +723,7 @@ export function SellerDashboard() {
         <View style={styles.subTabViewContainer}>
           <Card>
             <Text style={styles.subtitle}>Incoming Sales Orders</Text>
-          {isLoading && <ActivityIndicator color={colors.green} style={styles.loader} />}
+          {isLoading && <SellerListingSkeleton />}
           {!isLoading && salesOrders.length === 0 && <Text style={styles.body}>No incoming orders yet.</Text>}
           {!isLoading &&
             salesOrders.map((order) => {
@@ -1062,6 +1063,9 @@ const styles = StyleSheet.create({
   loader: {
     marginVertical: 10,
   },
+  sellerSkeletonList: {
+    gap: 10,
+  },
   // ── Listing list ─────────────────────────────────────────
   sectionHeaderRow: {
     alignItems: "center",
@@ -1140,21 +1144,23 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   listingVisualRow: {
+    alignItems: "flex-start",
     flexDirection: "row",
   },
   listingImageWrap: {
     backgroundColor: colors.sage,
-    minHeight: 154,
+    flexShrink: 0,
+    height: 154,
     position: "relative",
     width: 118,
   },
   listingThumb: {
-    height: "100%",
+    height: 154,
     width: "100%",
   },
   listingThumbFallback: {
     alignItems: "center",
-    height: "100%",
+    height: 154,
     justifyContent: "center",
     width: "100%",
   },
@@ -1178,6 +1184,7 @@ const styles = StyleSheet.create({
   listingContent: {
     flex: 1,
     gap: 10,
+    minHeight: 154,
     padding: 12,
   },
   listingName: {
@@ -1623,3 +1630,27 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
   },
 });
+
+function SellerListingSkeleton() {
+  return (
+    <View style={styles.sellerSkeletonList}>
+      {[0, 1].map((item) => (
+        <SkeletonCard key={item}>
+          <View style={styles.listingVisualRow}>
+            <SkeletonBlock height={154} width={118} borderRadius={14} />
+            <View style={styles.listingContent}>
+              <SkeletonLine width="76%" height={15} />
+              <SkeletonLine width="42%" height={11} />
+              <SkeletonLine width="58%" height={11} />
+              <SkeletonLine width="68%" height={11} />
+              <View style={styles.stockRow}>
+                <SkeletonBlock height={26} width={72} borderRadius={999} />
+                <SkeletonBlock height={30} width={104} borderRadius={10} />
+              </View>
+            </View>
+          </View>
+        </SkeletonCard>
+      ))}
+    </View>
+  );
+}

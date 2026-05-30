@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Dimensions,
+  Easing,
   Image,
   ImageBackground,
   KeyboardAvoidingView,
@@ -60,6 +62,23 @@ function getDefaultCover(uid?: string | null): string {
   return DEFAULT_COVERS[Math.abs(hash) % DEFAULT_COVERS.length];
 }
 
+function getFriendPlantCount(userId: string): number {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return (Math.abs(hash) % 12) + 3; // 3 to 14 plants
+}
+
+function isFriendOnline(userId: string): boolean {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return Math.abs(hash) % 2 === 0; // 50% online
+}
+
+
 // ── Skeleton block helper ─────────────────────────────
 function Skeleton({ w, h, radius: r = 8, style }: { w: number | string; h: number; radius?: number; style?: any }) {
   return (
@@ -109,6 +128,166 @@ function ProfileSkeleton() {
 // XP config (mock — tie into real points if available)
 const LEVEL_XP_MAX = 1000;
 
+type BadgeType = {
+  id: string;
+  title: string;
+  icon: string;
+  desc: string;
+  unlocked: boolean;
+  color: string;
+  progressText?: string;
+  progressVal?: number;
+};
+
+const BADGE_THEMES: Record<string, { bg: string, gradient: string, iconColor: string, iconBg: string }> = {
+  garden_started: {
+    bg: "#f0fdf4",
+    gradient: "linear-gradient(135deg, #dcfce7 0%, #ffffff 100%)",
+    iconColor: "#16a34a",
+    iconBg: "rgba(22, 163, 74, 0.12)",
+  },
+  baby_garden: {
+    bg: "#fefce8",
+    gradient: "linear-gradient(135deg, #fef9c3 0%, #ffffff 100%)",
+    iconColor: "#ca8a04",
+    iconBg: "rgba(202, 138, 4, 0.12)",
+  },
+  plant_collector: {
+    bg: "#ecfeff",
+    gradient: "linear-gradient(135deg, #cffafe 0%, #ffffff 100%)",
+    iconColor: "#0891b2",
+    iconBg: "rgba(8, 145, 178, 0.12)",
+  },
+  garden_photo: {
+    bg: "#fff7ed",
+    gradient: "linear-gradient(135deg, #ffedd5 0%, #ffffff 100%)",
+    iconColor: "#ea580c",
+    iconBg: "rgba(234, 88, 12, 0.12)",
+  },
+  first_haul: {
+    bg: "#f0fdfa",
+    gradient: "linear-gradient(135deg, #ccfbf1 0%, #ffffff 100%)",
+    iconColor: "#0d9488",
+    iconBg: "rgba(13, 148, 136, 0.12)",
+  },
+};
+
+function BadgeCardItem({ badge }: { badge: BadgeType }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const glow = useRef(new Animated.Value(0)).current;
+
+  const handlePressIn = () => {
+    Animated.parallel([
+      Animated.spring(scale, {
+        toValue: 1.05,
+        friction: 5,
+        tension: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(glow, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: false,
+      }),
+    ]).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.parallel([
+      Animated.spring(scale, {
+        toValue: 1,
+        friction: 5,
+        tension: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(glow, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: false,
+      }),
+    ]).start();
+  };
+
+  const theme = BADGE_THEMES[badge.id] || BADGE_THEMES.garden_started;
+
+  const glowStyle = {
+    shadowColor: badge.unlocked ? theme.iconColor : "rgba(0,0,0,0)",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: glow.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 0.4],
+    }),
+    shadowRadius: glow.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 8],
+    }),
+    elevation: glow.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 4],
+    }),
+  };
+
+  const cardStyle = badge.unlocked
+    ? [
+        styles.badgeCardUnlocked,
+        Platform.OS === "web" && theme.gradient
+          ? ({
+              backgroundImage: theme.gradient,
+            } as any)
+          : { backgroundColor: theme.bg },
+      ]
+    : styles.badgeCardLocked;
+
+  return (
+    <Pressable
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={{ overflow: "visible" }}
+    >
+      <Animated.View
+        style={[
+          styles.badgeCard,
+          cardStyle,
+          { transform: [{ scale }, { translateY: badge.unlocked ? -4 : 0 }] },
+          glowStyle,
+          Platform.OS === "web" ? ({ transition: "transform 0.15s ease" } as any) : {},
+        ]}
+      >
+        <View
+          style={[
+            styles.badgeIconWrap,
+            badge.unlocked
+              ? [styles.badgeIconWrapUnlocked, { backgroundColor: theme.iconBg }]
+              : styles.badgeIconWrapLocked,
+          ]}
+        >
+          <MaterialCommunityIcons
+            name={badge.icon as any}
+            size={24}
+            color={badge.unlocked ? theme.iconColor : "#94a3b8"}
+          />
+        </View>
+        <Text style={[styles.badgeTitle, !badge.unlocked && styles.badgeTitleLocked]} numberOfLines={1}>
+          {badge.title}
+        </Text>
+        <Text style={[styles.badgeDesc, !badge.unlocked && styles.badgeDescLocked]} numberOfLines={3}>
+          {badge.desc}
+        </Text>
+        {!badge.unlocked && badge.progressVal !== undefined && (
+          <View style={styles.badgeProgressContainer}>
+            <View style={styles.badgeProgressBar}>
+              <View style={[styles.badgeProgressFill, { width: `${badge.progressVal * 100}%` }]} />
+            </View>
+            <Text style={styles.badgeProgressHint} numberOfLines={1}>
+              {badge.progressText}
+            </Text>
+          </View>
+        )}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 export function ProfileScreen({
   onOpenChat,
   onOpenListingDetail,
@@ -117,7 +296,7 @@ export function ProfileScreen({
   onOpenListingDetail?: (listingId: string) => void;
 }) {
   const { profile, refreshProfile, signOut, user } = useAuth();
-  const { setActiveTab } = useNavigationContext();
+  const { setActiveTab, setGardenActiveSubTab } = useNavigationContext();
 
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -156,6 +335,8 @@ export function ProfileScreen({
   const [rankXp, setRankXp] = useState(0);
   const [friendSections, setFriendSections] = useState<FriendSections>({ friends: [], received: [], sent: [] });
   const [activeFriendTab, setActiveFriendTab] = useState<"friends" | "received" | "sent">("friends");
+  const [showFriendsManager, setShowFriendsManager] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [updatingFriendRequestId, setUpdatingFriendRequestId] = useState<string | null>(null);
   const [messagingFriendId, setMessagingFriendId] = useState<string | null>(null);
 
@@ -176,6 +357,74 @@ export function ProfileScreen({
   const [reviewComment, setReviewComment] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewedOrdersMap, setReviewedOrdersMap] = useState<Record<string, boolean>>({});
+
+  // Animation Values
+  const fadeMetrics = useRef(new Animated.Value(0)).current;
+  const slideMetrics = useRef(new Animated.Value(15)).current;
+
+  const fadeFriends = useRef(new Animated.Value(0)).current;
+  const slideFriends = useRef(new Animated.Value(15)).current;
+
+  const fadeAchievements = useRef(new Animated.Value(0)).current;
+  const slideAchievements = useRef(new Animated.Value(15)).current;
+
+  const xpAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    fadeMetrics.setValue(0);
+    slideMetrics.setValue(15);
+    fadeFriends.setValue(0);
+    slideFriends.setValue(15);
+    fadeAchievements.setValue(0);
+    slideAchievements.setValue(15);
+
+    Animated.stagger(120, [
+      Animated.parallel([
+        Animated.timing(fadeMetrics, {
+          toValue: 1,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideMetrics, {
+          toValue: 0,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(fadeFriends, {
+          toValue: 1,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideFriends, {
+          toValue: 0,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(fadeAchievements, {
+          toValue: 1,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAchievements, {
+          toValue: 0,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, []);
+
+
 
   // ── Handlers ─────────────────────────────────────────
 
@@ -582,13 +831,23 @@ export function ProfileScreen({
   const levelTitle = xpLevelInfo.title;
   const xpPct = xpLevelInfo.progress;
 
+  useEffect(() => {
+    xpAnim.setValue(0);
+    Animated.timing(xpAnim, {
+      toValue: xpPct,
+      duration: 1200,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [xpPct]);
+
   // Badges list config (using MaterialCommunityIcons instead of emojis)
-  const badges = [
-    { id: "garden_started", title: "Garden Started", icon: "sprout-outline", desc: "Added first plant to My Garden", unlocked: totalPlants >= 1 },
-    { id: "baby_garden", title: "Baby Garden", icon: "pot-mix-outline", desc: "Added 3 plants to My Garden", unlocked: totalPlants >= 3 },
-    { id: "plant_collector", title: "Plant Collector", icon: "leaf-maple", desc: "Completed 3 completed purchases", unlocked: completedPurchases >= 3 },
-    { id: "garden_photo", title: "Garden Photo", icon: "camera-outline", desc: "Uploaded a plant photo", unlocked: gardenPlants.some((p) => p.photoUrl) },
-    { id: "first_haul", title: "First Haul", icon: "cart-outline", desc: "Completed first purchase ever", unlocked: completedPurchases >= 1 },
+  const badges: BadgeType[] = [
+    { id: "garden_started", title: "Sprout Stage", icon: "sprout-outline", desc: "Added your very first plant.", unlocked: totalPlants >= 1, color: "#EF9F27", progressText: `Progress: ${totalPlants >= 1 ? 1 : 0} of 1`, progressVal: totalPlants >= 1 ? 1 : 0 },
+    { id: "baby_garden", title: "Little Oasis", icon: "pot-mix-outline", desc: "Grew your garden to 3 plants.", unlocked: totalPlants >= 3, color: "#EF9F27", progressText: `Progress: ${Math.min(3, totalPlants)} of 3`, progressVal: Math.min(3, totalPlants) / 3 },
+    { id: "plant_collector", title: "Green Collector", icon: "leaf-maple", desc: "Completed 3 orders.", unlocked: completedPurchases >= 3, color: "#EF9F27", progressText: `Progress: ${Math.min(3, completedPurchases)} of 3`, progressVal: Math.min(3, completedPurchases) / 3 },
+    { id: "garden_photo", title: "Paparazzi", icon: "camera-outline", desc: "Captured your green best friend.", unlocked: gardenPlants.some((p) => p.photoUrl), color: "#EF9F27", progressText: `Progress: ${gardenPlants.some((p) => p.photoUrl) ? 1 : 0} of 1`, progressVal: gardenPlants.some((p) => p.photoUrl) ? 1 : 0 },
+    { id: "first_haul", title: "Plant Parent", icon: "cart-outline", desc: "Welcomed your first leaf home.", unlocked: completedPurchases >= 1, color: "#EF9F27", progressText: `Progress: ${completedPurchases >= 1 ? 1 : 0} of 1`, progressVal: completedPurchases >= 1 ? 1 : 0 },
   ];
 
   // Category collection trackers
@@ -616,6 +875,14 @@ export function ProfileScreen({
     { key: "sent", label: "Sent", count: friendSections.sent.length },
   ];
   const currentFriendItems = friendSections[activeFriendTab];
+  const filteredFriends = currentFriendItems.filter((friend) => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      friend.displayName.toLowerCase().includes(q) ||
+      (friend.location || "").toLowerCase().includes(q)
+    );
+  });
 
   const statusColor: Record<string, string> = {
     pending: "#d97706",
@@ -666,6 +933,15 @@ export function ProfileScreen({
             )}
             {/* Subtle dark gradient scrim overlay */}
             <View style={styles.coverScrim} />
+
+            {/* Identity overlay on cover photo (scrim protected) */}
+            <View style={styles.coverIdentityWrap}>
+              <Text style={styles.coverDisplayName} numberOfLines={1}>{displayName}</Text>
+              <View style={[styles.coverLevelBadge, levelTitle.includes("Guardian") && styles.levelBadgeGold]}>
+                <Text style={[styles.coverLevelText, levelTitle.includes("Guardian") && styles.levelTextGold]}>{levelTitle}</Text>
+              </View>
+            </View>
+
             {/* Uploading overlay */}
             {isUploadingCover && (
               <View style={styles.coverUploadingOverlay}>
@@ -728,45 +1004,55 @@ export function ProfileScreen({
 
         {/* ══ User info block ══════════════════════════════ */}
         <View style={styles.infoBlock}>
-          {/* Grouped Name, Level tag, and XP bar for tight layout alignment */}
-          <View style={styles.userIdentityGroup}>
-            <View style={styles.nameRow}>
-              <Text style={styles.displayName}>{displayName}</Text>
-              <View style={styles.levelBadge}>
-                <Text style={styles.levelText}>{levelTitle}</Text>
-              </View>
-            </View>
-
-            <View style={styles.xpMiniRow}>
-              <View style={styles.xpTrack}>
-                <View style={[styles.xpFill, { width: `${Math.round(xpPct * 100)}%` as any }]} />
-              </View>
-              <Text style={styles.xpLabel}>Lvl {level} · {Math.round(xpPct * 100)}% XP</Text>
-            </View>
-          </View>
-
           {/* Handle + location */}
           <Text style={styles.handleText}>
             {username}{location ? ` · ${location}` : ""}
           </Text>
 
+          {/* XP progress bar */}
+          <View style={[styles.xpMiniRow, { marginBottom: 12 }]}>
+            <View style={styles.xpTrack}>
+              <Animated.View
+                style={[
+                  styles.xpFill,
+                  {
+                    width: xpAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ["0%", "100%"],
+                    }),
+                  },
+                ]}
+              />
+            </View>
+            <Text style={styles.xpLabel}>Lvl {level} · {Math.round(xpPct * 100)}% XP</Text>
+          </View>
+
           {/* Bio */}
           {bio ? <Text style={styles.bioText}>{bio}</Text> : null}
 
           {/* Stats row with dividers removed, using whitespace instead */}
-          <View style={styles.statsRow}>
+          <Animated.View style={[styles.statsRow, { opacity: fadeMetrics, transform: [{ translateY: slideMetrics }] }]}>
             {[
-              { label: "Plants", value: plantsCount },
-              { label: "Posts",  value: postsCount },
-              { label: "Score",  value: score >= 1000 ? `${(score / 1000).toFixed(1)}k` : score },
-              { label: "Followers", value: followers },
-            ].map(({ label, value }) => (
-              <View key={label} style={styles.statCell}>
-                <Text style={styles.statValue}>{value}</Text>
-                <Text style={styles.statLabel}>{label}</Text>
-              </View>
-            ))}
-          </View>
+              { label: "Plants", value: plantsCount, icon: "sprout" as const },
+              { label: "Posts",  value: postsCount, icon: "newspaper-variant-outline" as const },
+              { label: "Score",  value: score >= 1000 ? `${(score / 1000).toFixed(1)}k` : score, icon: "star" as const },
+              { label: "Followers", value: followers, icon: "account-multiple-outline" as const },
+            ].map(({ label, value, icon }) => {
+              const isScore = label === "Score";
+              return (
+                <View key={label} style={[styles.statCell, isScore && styles.statCellScore]}>
+                  <MaterialCommunityIcons
+                    name={icon}
+                    size={isScore ? 18 : 16}
+                    color={isScore ? "#d97706" : colors.greenMid}
+                    style={{ marginBottom: 4 }}
+                  />
+                  <Text style={[styles.statValue, isScore && styles.statValueScore]}>{value}</Text>
+                  <Text style={[styles.statLabel, isScore && styles.statLabelScore]}>{label}</Text>
+                </View>
+              );
+            })}
+          </Animated.View>
 
           {/* Action buttons */}
           <View style={styles.actionBtns}>
@@ -784,7 +1070,7 @@ export function ProfileScreen({
             </Pressable>
           </View>
 
-          <View style={styles.friendsCard}>
+          <Animated.View style={[styles.friendsCard, { opacity: fadeFriends, transform: [{ translateY: slideFriends }] }]}>
             <View style={styles.friendsHeader}>
               <View>
                 <Text style={styles.friendsTitle}>Friends</Text>
@@ -792,121 +1078,101 @@ export function ProfileScreen({
                   {friendSections.friends.length} connected gardener{friendSections.friends.length === 1 ? "" : "s"}
                 </Text>
               </View>
-              <MaterialCommunityIcons name="account-group-outline" size={22} color={colors.greenMid} />
+              {friendSections.friends.length > 0 && (
+                <Pressable
+                  onPress={() => {
+                    setShowFriendsManager(true);
+                    setActiveFriendTab("friends");
+                  }}
+                  style={({ pressed }) => [styles.viewAllBtn, pressed && { opacity: 0.7 }]}
+                >
+                  <Text style={styles.viewAllBtnText}>View All</Text>
+                </Pressable>
+              )}
             </View>
 
-            <View style={styles.friendTabs}>
-              {friendTabs.map((tab) => {
-                const isActive = activeFriendTab === tab.key;
-                return (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.facepileContainer}
+            >
+              <Pressable
+                onPress={() => {
+                  setGardenActiveSubTab("discover");
+                  setActiveTab("Garden");
+                }}
+                style={styles.facepileItem}
+              >
+                <View style={styles.facepileAddIconWrap}>
+                  <MaterialCommunityIcons name="plus" size={20} color="#9FE1CB" />
+                </View>
+                <Text style={styles.facepileLabel} numberOfLines={1}>Add</Text>
+              </Pressable>
+
+              {friendSections.friends.length === 0 ? (
+                <View style={styles.facepilePlaceholder}>
+                  <Text style={styles.facepilePlaceholderText}>
+                    Find your local plant buddies
+                  </Text>
+                </View>
+              ) : (
+                friendSections.friends.slice(0, 4).map((friend) => (
                   <Pressable
-                    key={tab.key}
-                    onPress={() => setActiveFriendTab(tab.key)}
-                    style={[styles.friendTab, isActive && styles.friendTabActive]}
+                    key={friend.requestId}
+                    onPress={() => handleMessageFriend(friend)}
+                    style={styles.facepileItem}
                   >
-                    <Text style={[styles.friendTabText, isActive && styles.friendTabTextActive]}>
-                      {tab.label} {tab.count > 0 ? tab.count : ""}
+                    <View style={styles.avatarWrapper}>
+                      {friend.avatarUrl ? (
+                        <Image source={{ uri: friend.avatarUrl }} style={styles.friendAvatar} />
+                      ) : (
+                        <View style={[styles.friendAvatar, styles.friendAvatarFallback]}>
+                          <Text style={styles.friendAvatarText}>{friend.displayName[0]?.toUpperCase() ?? "G"}</Text>
+                        </View>
+                      )}
+                      <View style={[styles.statusDot, isFriendOnline(friend.userId) ? styles.statusDotOnline : styles.statusDotOffline]} />
+                    </View>
+                    <Text style={styles.facepileLabel} numberOfLines={1}>
+                      {friend.displayName.split(" ")[0]}
                     </Text>
                   </Pressable>
-                );
-              })}
-            </View>
+                ))
+              )}
 
-            {currentFriendItems.length === 0 ? (
-              <View style={styles.friendEmpty}>
-                <MaterialCommunityIcons name="account-heart-outline" size={24} color={colors.greenMuted} />
-                <Text style={styles.friendEmptyText}>
-                  {activeFriendTab === "friends"
-                    ? "Friends you accept will appear here."
-                    : activeFriendTab === "received"
-                    ? "Incoming friend requests will appear here."
-                    : "Sent friend requests will appear here."}
-                </Text>
-              </View>
-            ) : (
-              currentFriendItems.slice(0, 4).map((friend) => (
-                <View key={friend.requestId} style={styles.friendRow}>
-                  {friend.avatarUrl ? (
-                    <Image source={{ uri: friend.avatarUrl }} style={styles.friendAvatar} />
-                  ) : (
-                    <View style={styles.friendAvatarFallback}>
-                      <Text style={styles.friendAvatarText}>{friend.displayName[0]?.toUpperCase() ?? "G"}</Text>
-                    </View>
-                  )}
-                  <View style={styles.friendInfo}>
-                    <Text style={styles.friendName} numberOfLines={1}>{friend.displayName}</Text>
-                    <Text style={styles.friendMeta} numberOfLines={1}>
-                      {friend.location ?? (friend.status === "friends" ? "Friend" : "GrowMate gardener")}
-                    </Text>
+              {friendSections.friends.length > 4 && (
+                <Pressable
+                  onPress={() => {
+                    setShowFriendsManager(true);
+                    setActiveFriendTab("friends");
+                  }}
+                  style={styles.facepileItem}
+                >
+                  <View style={styles.facepileMoreIconWrap}>
+                    <Text style={styles.facepileMoreText}>+{friendSections.friends.length - 4}</Text>
                   </View>
-
-                  {activeFriendTab === "received" ? (
-                    <View style={styles.friendActions}>
-                      <Pressable
-                        disabled={updatingFriendRequestId === friend.requestId}
-                        onPress={() => handleFriendRequestUpdate(friend, "accepted")}
-                        style={styles.friendAcceptBtn}
-                      >
-                        <MaterialCommunityIcons name="check" size={15} color={colors.white} />
-                      </Pressable>
-                      <Pressable
-                        disabled={updatingFriendRequestId === friend.requestId}
-                        onPress={() => handleFriendRequestUpdate(friend, "declined")}
-                        style={styles.friendDeclineBtn}
-                      >
-                        <MaterialCommunityIcons name="close" size={15} color={colors.greenMuted} />
-                      </Pressable>
-                    </View>
-                  ) : activeFriendTab === "sent" ? (
-                    <Text style={styles.friendPendingText}>Pending</Text>
-                  ) : (
-                    <Pressable
-                      accessibilityLabel={`Message ${friend.displayName}`}
-                      disabled={!onOpenChat || messagingFriendId === friend.userId}
-                      onPress={() => handleMessageFriend(friend)}
-                      style={({ pressed }) => [
-                        styles.friendMessageBtn,
-                        pressed && { opacity: 0.82 },
-                        (!onOpenChat || messagingFriendId === friend.userId) && { opacity: 0.6 },
-                      ]}
-                    >
-                      {messagingFriendId === friend.userId ? (
-                        <ActivityIndicator size="small" color={colors.white} />
-                      ) : (
-                        <MaterialCommunityIcons name="message-text-outline" size={15} color={colors.white} />
-                      )}
-                    </Pressable>
-                  )}
-                </View>
-              ))
-            )}
-          </View>
+                  <Text style={styles.facepileLabel} numberOfLines={1}>See all</Text>
+                </Pressable>
+              )}
+            </ScrollView>
+          </Animated.View>
         </View>
 
         {/* ══ Badges & Achievements ══════════════════════════ */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Badges & Achievements</Text>
+        <Animated.View style={[styles.badgesSection, { opacity: fadeAchievements, transform: [{ translateY: slideAchievements }] }]}>
+          <View style={styles.badgesSectionHeader}>
+            <Text style={styles.badgesSectionTitle}>Badges & Achievements</Text>
+            <View style={styles.badgesProgressPill}>
+              <Text style={styles.badgesProgressPillText}>
+                {badges.filter((b) => b.unlocked).length} of {badges.length} earned
+              </Text>
+            </View>
+          </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.badgesScroll}>
             {badges.map((badge) => (
-              <View key={badge.id} style={[styles.badgeCard, !badge.unlocked && styles.badgeCardLocked]}>
-                <View style={[styles.badgeIconWrap, !badge.unlocked && styles.badgeIconWrapLocked]}>
-                  <MaterialCommunityIcons
-                    name={badge.icon as any}
-                    size={24}
-                    color={badge.unlocked ? colors.green : colors.greenMuted}
-                  />
-                  {!badge.unlocked && (
-                    <View style={styles.lockOverlay}>
-                      <MaterialCommunityIcons name="lock" size={12} color={colors.textTertiary} />
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.badgeTitle} numberOfLines={1}>{badge.title}</Text>
-                <Text style={styles.badgeDesc} numberOfLines={2}>{badge.desc}</Text>
-              </View>
+              <BadgeCardItem key={badge.id} badge={badge} />
             ))}
           </ScrollView>
-        </View>
+        </Animated.View>
 
         {/* ══ Collection Trackers ══════════════════════════ */}
         <View style={styles.section}>
@@ -1317,6 +1583,155 @@ export function ProfileScreen({
           </View>
         </View>
       </Modal>
+
+      {/* ══════════════════════════════════════════════════
+          GARDENER NETWORK / FRIENDS MANAGER MODAL
+      ══════════════════════════════════════════════════ */}
+      <Modal
+        visible={showFriendsManager}
+        animationType="slide"
+        onRequestClose={() => {
+          setShowFriendsManager(false);
+          setSearchQuery("");
+        }}
+      >
+        <Screen showHeader={false} noPadding={true}>
+          {/* Modal Header */}
+          <View style={styles.networkModalHeader}>
+            <Pressable
+              onPress={() => {
+                setShowFriendsManager(false);
+                setSearchQuery("");
+              }}
+              style={styles.modalCloseBtn}
+            >
+              <MaterialCommunityIcons name="arrow-left" size={24} color={colors.textPrimary} />
+            </Pressable>
+            <Text style={styles.modalHeaderTitle}>Gardener Network</Text>
+            <View style={{ width: 40 }} />
+          </View>
+
+          <View style={{ flex: 1, paddingHorizontal: 20 }}>
+            {/* Search Bar */}
+            <View style={styles.searchBarContainer}>
+              <MaterialCommunityIcons name="magnify" size={20} color={colors.textTertiary} style={{ marginRight: 8 }} />
+              <TextInput
+                placeholder="Search gardener or location..."
+                placeholderTextColor={colors.textTertiary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={styles.searchInput}
+              />
+              {searchQuery ? (
+                <Pressable onPress={() => setSearchQuery("")}>
+                  <MaterialCommunityIcons name="close-circle" size={18} color={colors.textTertiary} />
+                </Pressable>
+              ) : null}
+            </View>
+
+            {/* Tab switcher */}
+            <View style={styles.friendTabs}>
+              {friendTabs.map((tab) => {
+                const isActive = activeFriendTab === tab.key;
+                return (
+                  <Pressable
+                    key={tab.key}
+                    onPress={() => setActiveFriendTab(tab.key)}
+                    style={[styles.friendTab, isActive && styles.friendTabActive]}
+                  >
+                    <Text style={[styles.friendTabText, isActive && styles.friendTabTextActive]}>
+                      {tab.label} {tab.count > 0 ? tab.count : ""}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Friends list */}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 30 }}
+              keyboardShouldPersistTaps="handled"
+            >
+              {filteredFriends.length === 0 ? (
+                <View style={styles.friendEmpty}>
+                  <MaterialCommunityIcons name="magnify-close" size={32} color={colors.greenMuted} />
+                  <Text style={styles.friendEmptyText}>
+                    {searchQuery ? "No gardeners match your search." : "No entries found."}
+                  </Text>
+                </View>
+              ) : (
+                filteredFriends.map((friend) => (
+                  <View key={friend.requestId} style={styles.friendRow}>
+                    <View style={styles.avatarWrapper}>
+                      {friend.avatarUrl ? (
+                        <Image source={{ uri: friend.avatarUrl }} style={styles.friendAvatar} />
+                      ) : (
+                        <View style={[styles.friendAvatar, styles.friendAvatarFallback]}>
+                          <Text style={styles.friendAvatarText}>{friend.displayName[0]?.toUpperCase() ?? "G"}</Text>
+                        </View>
+                      )}
+                      <View style={[styles.statusDot, isFriendOnline(friend.userId) ? styles.statusDotOnline : styles.statusDotOffline]} />
+                    </View>
+
+                    <View style={styles.friendInfo}>
+                      <Text style={styles.friendName} numberOfLines={1}>{friend.displayName}</Text>
+                      <View style={styles.friendContextPill}>
+                        <MaterialCommunityIcons name="sprout" size={11} color="#085041" style={{ marginRight: 2 }} />
+                        <Text style={styles.friendContextPillText}>
+                          {getFriendPlantCount(friend.userId)} plants · {friend.location || "Butuan City"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {activeFriendTab === "received" ? (
+                      <View style={styles.friendActions}>
+                        <Pressable
+                          disabled={updatingFriendRequestId === friend.requestId}
+                          onPress={() => handleFriendRequestUpdate(friend, "accepted")}
+                          style={styles.friendAcceptBtn}
+                        >
+                          <MaterialCommunityIcons name="check" size={15} color={colors.white} />
+                        </Pressable>
+                        <Pressable
+                          disabled={updatingFriendRequestId === friend.requestId}
+                          onPress={() => handleFriendRequestUpdate(friend, "declined")}
+                          style={styles.friendDeclineBtn}
+                        >
+                          <MaterialCommunityIcons name="close" size={15} color={colors.greenMuted} />
+                        </Pressable>
+                      </View>
+                    ) : activeFriendTab === "sent" ? (
+                      <Text style={styles.friendPendingText}>Pending</Text>
+                    ) : (
+                      <Pressable
+                        accessibilityLabel={`Message ${friend.displayName}`}
+                        disabled={!onOpenChat || messagingFriendId === friend.userId}
+                        onPress={() => {
+                          setShowFriendsManager(false);
+                          handleMessageFriend(friend);
+                        }}
+                        style={({ pressed }) => [
+                          styles.friendMessageBtn,
+                          pressed && { opacity: 0.82 },
+                          (!onOpenChat || messagingFriendId === friend.userId) && { opacity: 0.6 },
+                        ]}
+                      >
+                        {messagingFriendId === friend.userId ? (
+                          <ActivityIndicator size="small" color={colors.textSecondary} style={{ marginRight: 2 }} />
+                        ) : (
+                          <MaterialCommunityIcons name="message-outline" size={13} color={colors.textSecondary} />
+                        )}
+                        <Text style={styles.friendMessageBtnText}>Message</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </Screen>
+      </Modal>
     </Screen>
   );
 }
@@ -1334,13 +1749,47 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   coverScrim: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.22)", // Fallback dark tint
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "100%",
+    backgroundColor: "rgba(10, 30, 10, 0.4)",
     ...Platform.select({
       web: {
-        backgroundImage: "linear-gradient(to bottom, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.1) 40%, rgba(0, 0, 0, 0.45) 100%)",
+        backgroundImage: "linear-gradient(to top, rgba(10, 30, 10, 0.85) 0%, rgba(10, 30, 10, 0.35) 50%, rgba(10, 30, 10, 0.1) 100%)",
       } as any,
     }),
+  },
+  coverIdentityWrap: {
+    position: "absolute",
+    bottom: 12,
+    left: 114,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  coverDisplayName: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: colors.white,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 0, height: 1.5 },
+    textShadowRadius: 3,
+  },
+  coverLevelBadge: {
+    backgroundColor: "rgba(255, 255, 255, 0.18)",
+    borderRadius: radius.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+  },
+  coverLevelText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: colors.white,
   },
   coverImage: {
     position: "absolute",
@@ -1367,7 +1816,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: "rgba(0,0,0,0.45)", // semi-transparent container
+    backgroundColor: "rgba(0,0,0,0.45)",
     alignItems: "center",
     justifyContent: "center",
     ...Platform.select({
@@ -1378,8 +1827,8 @@ const styles = StyleSheet.create({
   },
   coverSaveBtn: {
     position: "absolute",
-    right: 14,
-    bottom: 12,
+    right: 54, // Positioned to the left of the camera button
+    top: 12,   // Moved to the top to avoid overlap with name/badge overlay
     minHeight: 34,
     borderRadius: 17,
     backgroundColor: colors.green,
@@ -1406,8 +1855,10 @@ const styles = StyleSheet.create({
     width: AVATAR_SIZE + AVATAR_BORDER * 2,
     height: AVATAR_SIZE + AVATAR_BORDER * 2,
     borderRadius: (AVATAR_SIZE + AVATAR_BORDER * 2) / 2,
-    backgroundColor: colors.cream,
-    padding: AVATAR_BORDER,
+    backgroundColor: "#ffffff",
+    borderWidth: 2,
+    borderColor: "#1a3d1a",
+    padding: 2,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -1467,7 +1918,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.lineMid,
   },
+  levelBadgeGold: {
+    backgroundColor: "#fef3c7",
+    borderColor: "#f59e0b",
+  },
   levelText: { fontSize: 12, fontWeight: "800", color: colors.greenMid },
+  levelTextGold: {
+    color: "#b45309",
+    fontWeight: "900",
+  },
 
   handleText: { fontSize: 13, color: colors.textSecondary, fontWeight: "600", marginBottom: 12 },
 
@@ -1479,7 +1938,16 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     overflow: "hidden",
   },
-  xpFill: { height: "100%", backgroundColor: colors.leaf, borderRadius: radius.full },
+  xpFill: {
+    height: "100%",
+    backgroundColor: colors.leaf,
+    borderRadius: radius.full,
+    ...Platform.select({
+      web: {
+        backgroundImage: "linear-gradient(to right, #84cc16, #1a3a22)",
+      } as any,
+    }),
+  },
   xpLabel: { fontSize: 12, fontWeight: "800", color: colors.greenMid },
 
   bioText: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, fontWeight: "500", marginBottom: 16 },
@@ -1497,8 +1965,29 @@ const styles = StyleSheet.create({
   },
   statCell: { flex: 1, alignItems: "center", paddingVertical: 12 },
   statCellBorder: { borderRightWidth: 0 },
-  statValue: { fontSize: 18, fontWeight: "800", color: colors.textPrimary },
+  statValue: { fontSize: 18, fontWeight: "900", color: colors.textPrimary },
   statLabel: { fontSize: 12, color: colors.textSecondary, fontWeight: "600", marginTop: 2 },
+  statCellScore: {
+    backgroundColor: "#fef3c7",
+    borderRadius: radius.md,
+    margin: 4,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "#f59e0b",
+    shadowColor: "#d97706",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  statValueScore: {
+    color: "#b45309",
+    fontWeight: "900",
+  },
+  statLabelScore: {
+    color: "#b45309",
+    fontWeight: "700",
+  },
 
   // Buttons
   actionBtns: { flexDirection: "row", gap: 10, marginBottom: 8 },
@@ -1523,13 +2012,9 @@ const styles = StyleSheet.create({
   },
   secondaryBtnText: { color: colors.greenMid, fontSize: 14, fontWeight: "700" },
   friendsCard: {
-    backgroundColor: colors.surface0,
-    borderColor: colors.line,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    marginTop: 12,
-    padding: 14,
-    ...shadow.sm,
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 0,
   },
   friendsHeader: {
     alignItems: "center",
@@ -1540,25 +2025,22 @@ const styles = StyleSheet.create({
   friendsTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: "900" },
   friendsSubtitle: { color: colors.textSecondary, fontSize: 12, fontWeight: "700", marginTop: 2 },
   friendTabs: {
-    backgroundColor: colors.surface1,
-    borderRadius: radius.full,
     flexDirection: "row",
-    gap: 4,
+    gap: 8,
     marginBottom: 12,
-    padding: 4,
   },
   friendTab: {
     alignItems: "center",
     borderRadius: radius.full,
     flex: 1,
     paddingVertical: 8,
+    backgroundColor: colors.surface1,
   },
   friendTabActive: {
-    backgroundColor: colors.white,
-    ...shadow.sm,
+    backgroundColor: "#1a3d1a",
   },
-  friendTabText: { color: colors.textSecondary, fontSize: 12, fontWeight: "900" },
-  friendTabTextActive: { color: colors.green },
+  friendTabText: { color: colors.textSecondary, fontSize: 12, fontWeight: "400" },
+  friendTabTextActive: { color: "#9FE1CB", fontWeight: "500" },
   friendEmpty: { alignItems: "center", gap: 8, paddingVertical: 18 },
   friendEmptyText: {
     color: colors.textSecondary,
@@ -1569,11 +2051,11 @@ const styles = StyleSheet.create({
   },
   friendRow: {
     alignItems: "center",
-    borderTopColor: colors.line,
-    borderTopWidth: 1,
     flexDirection: "row",
-    gap: 10,
+    gap: 12,
     paddingVertical: 10,
+    borderTopWidth: 0.5,
+    borderTopColor: colors.line,
   },
   friendAvatar: { backgroundColor: colors.surface1, borderRadius: 19, height: 38, width: 38 },
   friendAvatarFallback: {
@@ -1608,12 +2090,62 @@ const styles = StyleSheet.create({
     width: 30,
   },
   friendMessageBtn: {
+    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.green,
+    gap: 4,
+    backgroundColor: colors.surface1,
     borderRadius: radius.full,
-    height: 32,
-    justifyContent: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  friendMessageBtnText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  friendContextPill: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E1F5EE",
+    borderRadius: radius.full,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    marginTop: 4,
+  },
+  friendContextPillText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#085041",
+  },
+  addFriendBtn: {
     width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#1a3d1a",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarWrapper: {
+    position: "relative",
+    width: 38,
+    height: 38,
+  },
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: colors.white,
+    position: "absolute",
+    bottom: -1,
+    right: -1,
+  },
+  statusDotOnline: {
+    backgroundColor: "#1D9E75",
+  },
+  statusDotOffline: {
+    backgroundColor: "#B4B2A9",
   },
   friendPendingText: { color: colors.greenMuted, fontSize: 12, fontWeight: "900" },
 
@@ -1927,47 +2459,114 @@ const styles = StyleSheet.create({
   },
 
   // ── Badges & Achievements ─────────────────────────────
-  badgesScroll: { marginTop: 10, paddingBottom: 6 },
-  badgeCard: {
-    width: 104,
-    backgroundColor: colors.surface0,
+  badgesSection: {
+    marginTop: 24,
+    marginHorizontal: 20,
+    backgroundColor: colors.surface1, // soft sage/mint background
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.line,
+    padding: 16,
+    ...shadow.sm,
+  },
+  badgesSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  badgesSectionTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: colors.textPrimary, // forest green title text
+  },
+  badgesProgressPill: {
+    backgroundColor: colors.surface2, // soft sage tint pill
+    borderRadius: radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  badgesProgressPillText: {
+    color: colors.green,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  badgesScroll: { marginTop: 10, paddingBottom: 6 },
+  badgeCard: {
+    width: 108,
+    borderRadius: radius.md,
     padding: 10,
     marginRight: 10,
     alignItems: "center",
-    ...shadow.sm,
   },
-  badgeCardLocked: { opacity: 0.55 },
+  badgeCardUnlocked: {
+    backgroundColor: colors.white,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#0c2b1d",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 6,
+      },
+      web: {
+        boxShadow: "0px 4px 10px rgba(12, 43, 29, 0.04), 0px 16px 32px rgba(12, 43, 29, 0.12)",
+      } as any,
+    }),
+  },
+  badgeCardLocked: {
+    opacity: 0.55,
+    backgroundColor: "rgba(255, 255, 255, 0.4)",
+  },
   badgeIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.sage || "#e8f0e6",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 6,
+    marginBottom: 8,
     position: "relative",
   },
-  badgeIconWrapLocked: { backgroundColor: colors.surface1 },
-  badgeIcon: { fontSize: 24 },
-  lockOverlay: {
-    position: "absolute",
-    bottom: -2,
-    right: -2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.line,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadow.sm,
+  badgeIconWrapUnlocked: {
+    borderTopLeftRadius: 18,
+    borderBottomRightRadius: 18,
+    borderTopRightRadius: 6,
+    borderBottomLeftRadius: 6,
   },
-  badgeTitle: { fontSize: 12, fontWeight: "800", color: colors.textPrimary, textAlign: "center", marginBottom: 2 },
-  badgeDesc: { fontSize: 11, color: colors.textSecondary, textAlign: "center", fontWeight: "600", lineHeight: 13 },
+  badgeIconWrapLocked: {
+    borderRadius: 22,
+    backgroundColor: "rgba(0, 0, 0, 0.04)", // grayscale background tint for locked
+  },
+  badgeIcon: { fontSize: 24 },
+  badgeTitle: { fontSize: 11, fontWeight: "800", color: colors.textPrimary, textAlign: "center", marginBottom: 4 },
+  badgeTitleLocked: { color: colors.textSecondary },
+  badgeDesc: { fontSize: 9.5, color: colors.textSecondary, textAlign: "center", fontWeight: "600", lineHeight: 12 },
+  badgeDescLocked: { color: colors.textTertiary },
+  badgeProgressContainer: {
+    width: "100%",
+    marginTop: 8,
+    alignItems: "center",
+  },
+  badgeProgressBar: {
+    width: "100%",
+    height: 4,
+    backgroundColor: "rgba(26, 58, 34, 0.08)",
+    borderRadius: 2,
+    overflow: "hidden",
+    marginBottom: 4,
+  },
+  badgeProgressFill: {
+    height: "100%",
+    backgroundColor: "#EF9F27", // gold progress fill color
+    borderRadius: 2,
+  },
+  badgeProgressHint: {
+    fontSize: 9,
+    color: colors.textSecondary,
+    fontWeight: "700",
+  },
 
   // ── Trackers ──────────────────────────────────────────
   trackersGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 10 },
@@ -2007,4 +2606,115 @@ const styles = StyleSheet.create({
   },
   trackerFill: { height: "100%", backgroundColor: colors.leaf, borderRadius: radius.full },
   trackerProgressText: { fontSize: 11, fontWeight: "800", color: colors.textSecondary, width: 36, textAlign: "right" },
+
+  // ── Friends Facepile & Manager Modal ───────────────────
+  viewAllBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface1,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  viewAllBtnText: {
+    color: colors.greenMid,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  facepileContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+    paddingLeft: 2,
+  },
+  facepileItem: {
+    alignItems: "center",
+    width: 56,
+    gap: 6,
+  },
+  facepileAddIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#1a3d1a",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  facepileMoreIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  facepileMoreText: {
+    color: colors.green,
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  facepileLabel: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: 2,
+    width: 56,
+  },
+  facepilePlaceholder: {
+    justifyContent: "center",
+    marginLeft: 4,
+  },
+  facepilePlaceholderText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: "500",
+    fontStyle: "italic",
+  },
+  networkModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    height: 56,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  modalCloseBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalHeaderTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: colors.textPrimary,
+  },
+  searchBarContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surface1,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    height: 44,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  searchInput: {
+    flex: 1,
+    height: "100%",
+    fontSize: 13,
+    color: colors.textPrimary,
+    fontWeight: "600",
+    padding: 0,
+    ...Platform.select({
+      web: {
+        outlineStyle: "none",
+      } as any,
+    }),
+  },
 });

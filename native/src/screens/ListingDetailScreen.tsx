@@ -31,8 +31,10 @@ import { supabase } from "../services/supabase";
 import { colors } from "../theme/colors";
 import { formatCurrency } from "../utils/currency";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SellerGardenModal } from "../components/SellerGardenModal";
 import { ImageZoomModal } from "../components/ImageZoomModal";
+import { SkeletonBlock, SkeletonCard, SkeletonLine } from "../components/Skeleton";
 
 type ListingDetailScreenProps = {
   listingId: string;
@@ -44,8 +46,44 @@ type DeliveryOption = "Delivery";
 
 const DELIVERY_OPTS: DeliveryOption[] = ["Delivery"];
 
+function ListingDetailSkeleton() {
+  return (
+    <View style={styles.root}>
+      <View style={styles.header}>
+        <SkeletonBlock height={36} width={36} borderRadius={18} />
+        <SkeletonLine width="58%" height={17} style={{ marginLeft: 12 }} />
+      </View>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <SkeletonBlock height={260} borderRadius={0} />
+        <View style={styles.content}>
+          <SkeletonLine width="34%" height={12} />
+          <SkeletonLine width="84%" height={24} />
+          <SkeletonLine width="50%" height={13} />
+          <SkeletonBlock height={104} borderRadius={14} style={{ marginTop: 18 }} />
+          <SkeletonLine width="36%" height={15} style={{ marginTop: 20 }} />
+          <SkeletonLine width="100%" height={13} />
+          <SkeletonLine width="88%" height={13} />
+          <SkeletonLine width="62%" height={13} />
+          <SkeletonCard style={{ marginTop: 20 }}>
+            <View style={styles.skeletonSellerRow}>
+              <SkeletonBlock height={44} width={44} borderRadius={22} />
+              <View style={styles.skeletonFlex}>
+                <SkeletonLine width="58%" height={14} />
+                <SkeletonLine width="42%" height={11} />
+              </View>
+            </View>
+            <SkeletonBlock height={56} borderRadius={12} />
+          </SkeletonCard>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
 export function ListingDetailScreen({ listingId, onClose, onOpenChat }: ListingDetailScreenProps) {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const footerBottomOffset = Math.max(insets.bottom, Platform.OS === "android" ? 28 : 0);
   const [currentListingId, setCurrentListingId] = useState(listingId);
   const [listing, setListing] = useState<ListingDetail | null>(null);
   const [seller, setSeller] = useState<SellerProfile | null>(null);
@@ -196,12 +234,7 @@ export function ListingDetailScreen({ listingId, onClose, onOpenChat }: ListingD
 
   // ─── Loading / Error ─────────────────────────────────────────────────────────
   if (isLoading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.green} size="large" />
-        <Text style={styles.loadingText}>Loading listing...</Text>
-      </View>
-    );
+    return <ListingDetailSkeleton />;
   }
 
   if (error || !listing) {
@@ -244,7 +277,7 @@ export function ListingDetailScreen({ listingId, onClose, onOpenChat }: ListingD
       </View>
 
       {/* ── Scrollable content ── */}
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 150 + footerBottomOffset }]} showsVerticalScrollIndicator={false}>
         {/* Photo carousel */}
         <ScrollView
           horizontal
@@ -407,7 +440,7 @@ export function ListingDetailScreen({ listingId, onClose, onOpenChat }: ListingD
       </ScrollView>
 
       {/* ── Fixed footer: structured horizontally ── */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { bottom: footerBottomOffset }]}>
         <View style={styles.horizontalFooter}>
           <View style={styles.footerPriceBlock}>
             <Text style={styles.footerPriceLabel}>Price</Text>
@@ -898,6 +931,15 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.line,
     paddingTop: 8,
+  },
+  skeletonSellerRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+  },
+  skeletonFlex: {
+    flex: 1,
+    gap: 8,
   },
 
   statusCard: {

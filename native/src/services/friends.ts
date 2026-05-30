@@ -129,10 +129,10 @@ export async function getFriendSections(currentUserId: string): Promise<FriendSe
 export async function updateFriendRequestStatus(requestId: string, status: "accepted" | "declined" | "cancelled") {
   if (!supabase) throw new Error("Supabase is not configured.");
 
-  const { error } = await supabase
-    .from("friend_requests")
-    .update({ status })
-    .eq("id", requestId);
+  const { error } = await supabase.rpc("respond_to_friend_request", {
+    p_request_id: requestId,
+    p_status: status,
+  });
 
   if (error) throw error;
 }

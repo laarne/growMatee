@@ -26,25 +26,26 @@ const tabs: TabKey[] = ["Market", "Feed", "Garden", "Orders", "Profile"];
 const logoSource = require("./assets/growmate-logo.png");
 const splashLogoSource = require("./assets/growmate-logo-transparent.png");
 
-// Prototype-matching icons: outline for inactive, filled/solid for active
+// Inactive outline icons
 const tabIconsInactive: Record<TabKey, keyof typeof MaterialCommunityIcons.glyphMap> = {
   Market: "storefront-outline",
-  Feed: "message-text-outline",
+  Feed: "view-list-outline",
   Garden: "sprout-outline",
+  Orders: "receipt-outline",
+  Profile: "account-circle-outline",
   Messages: "email-outline",
   Rankings: "trophy-outline",
-  Orders: "clipboard-text-outline",
-  Profile: "account-circle-outline",
 };
 
+// Active solid filled icons
 const tabIconsActive: Record<TabKey, keyof typeof MaterialCommunityIcons.glyphMap> = {
   Market: "storefront",
-  Feed: "message-text",
+  Feed: "view-list",
   Garden: "sprout",
+  Orders: "receipt",
+  Profile: "account-circle",
   Messages: "email",
   Rankings: "trophy",
-  Orders: "clipboard-text",
-  Profile: "account-circle",
 };
 
 export default function App() {
@@ -74,6 +75,7 @@ function BottomNavItem({
 }) {
   const activeProgress = useRef(new Animated.Value(isActive ? 1 : 0)).current;
   const pressScale = useRef(new Animated.Value(1)).current;
+  const popAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.spring(activeProgress, {
@@ -84,6 +86,25 @@ function BottomNavItem({
       useNativeDriver: true,
     }).start();
   }, [activeProgress, isActive]);
+
+  useEffect(() => {
+    if (isActive) {
+      popAnim.setValue(1);
+      Animated.sequence([
+        Animated.timing(popAnim, {
+          toValue: 1.2,
+          duration: 120,
+          useNativeDriver: true,
+        }),
+        Animated.spring(popAnim, {
+          toValue: 1,
+          friction: 4,
+          tension: 40,
+          useNativeDriver: true,
+        })
+      ]).start();
+    }
+  }, [isActive]);
 
   const handlePressIn = () => {
     Animated.spring(pressScale, {
@@ -105,19 +126,7 @@ function BottomNavItem({
 
   const translateY = activeProgress.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, -5],
-  });
-  const iconScale = activeProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.08],
-  });
-  const activeOpacity = activeProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-  });
-  const inactiveOpacity = activeProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0],
+    outputRange: [0, -3],
   });
 
   return (
@@ -127,27 +136,35 @@ function BottomNavItem({
       onPressOut={handlePressOut}
       style={styles.navItem}
     >
-      <Animated.View style={[styles.navItemAnimated, { transform: [{ scale: pressScale }, { translateY }] }]}>
-        <View style={styles.iconStage}>
-          <Animated.View style={[styles.iconGlow, { opacity: activeOpacity, transform: [{ scale: iconScale }] }]} />
-          <Animated.View style={[styles.iconHalo, { opacity: inactiveOpacity }]} />
-          <Animated.View style={{ transform: [{ scale: iconScale }] }}>
+      <Animated.View
+        style={[
+          styles.navItemAnimated,
+          { transform: [{ scale: pressScale }, { translateY }] },
+        ]}
+      >
+        <View style={styles.iconContainer}>
+          <Animated.View style={{ transform: [{ scale: popAnim }] }}>
             <MaterialCommunityIcons
-              color={isActive ? colors.green : colors.greenMuted}
+              color={isActive ? "#0c2b1d" : "#8c8c8c"}
               name={isActive ? tabIconsActive[tab] : tabIconsInactive[tab]}
-              size={isActive ? 24 : 22}
+              size={22}
             />
-            {badgeCount > 0 && (
-              <View style={styles.navBadge}>
-                <Text style={styles.navBadgeText}>{badgeCount > 9 ? "9+" : badgeCount}</Text>
-              </View>
-            )}
           </Animated.View>
+          {badgeCount > 0 && (
+            <View style={styles.navBadge}>
+              <Text style={styles.navBadgeText}>{badgeCount > 9 ? "9+" : badgeCount}</Text>
+            </View>
+          )}
         </View>
-        <Text style={[styles.navLabel, isActive && styles.navLabelActive]} numberOfLines={1}>
+        <Text
+          style={[
+            styles.navLabel,
+            isActive ? styles.navLabelActive : styles.navLabelInactive,
+          ]}
+          numberOfLines={1}
+        >
           {tab}
         </Text>
-        <Animated.View style={[styles.activeDot, { opacity: activeOpacity }]} />
       </Animated.View>
     </Pressable>
   );
@@ -161,6 +178,13 @@ function AppContent() {
   const { activeTheme } = useTheme();
   const [ordersBadgeCount, setOrdersBadgeCount] = useState(0);
   const insets = useSafeAreaInsets();
+  const [lastMainTab, setLastMainTab] = useState<TabKey>("Feed");
+
+  useEffect(() => {
+    if (tabs.includes(activeTab)) {
+      setLastMainTab(activeTab);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     let isMounted = true;
@@ -270,9 +294,9 @@ function AppContent() {
       </View>
 
       {/* Bottom nav — NOT absolutely positioned; sits as a flex child */}
-      <View style={[styles.nav, { height: 58 + Math.max(insets.bottom, 12), paddingBottom: Math.max(insets.bottom, 8) }]}>
+      <View style={[styles.nav, { height: 52 + Math.max(insets.bottom, 10), paddingBottom: Math.max(insets.bottom, 10) }]}>
         {tabs.map((tab) => {
-          const isActive = tab === activeTab;
+          const isActive = tab === activeTab || (activeTab === "Messages" && tab === lastMainTab);
           return (
             <BottomNavItem
               key={tab}
@@ -314,19 +338,25 @@ const styles = StyleSheet.create({
   },
   nav: {
     flexDirection: "row",
-    justifyContent: "space-around",
     alignItems: "center",
-    borderTopColor: "rgba(26,58,34,0.08)",
+    justifyContent: "space-around",
+    backgroundColor: "#ffffff",
     borderTopWidth: 1,
-    backgroundColor: "rgba(255,255,255,0.96)",
-    paddingTop: 9,
-    paddingHorizontal: 10,
-    shadowColor: colors.green,
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 12,
+    borderTopColor: "#f0f0f0",
+    paddingTop: 6,
+    paddingHorizontal: 6,
     overflow: "visible",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000000",
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.03,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   navItem: {
     alignItems: "center",
@@ -338,56 +368,31 @@ const styles = StyleSheet.create({
   navItemAnimated: {
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
-    minHeight: 54,
+    gap: 3,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    borderRadius: 10,
     width: "100%",
     overflow: "visible",
   },
-  iconStage: {
+  iconContainer: {
+    position: "relative",
     alignItems: "center",
-    height: 36,
     justifyContent: "center",
-    width: 46,
-    overflow: "visible",
-  },
-  iconGlow: {
-    backgroundColor: colors.surface1,
-    borderColor: colors.line,
-    borderRadius: 18,
-    borderWidth: 1,
-    height: 36,
-    position: "absolute",
-    width: 46,
-    shadowColor: colors.green,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  iconHalo: {
-    backgroundColor: colors.sage,
-    borderRadius: 15,
-    height: 30,
-    position: "absolute",
-    width: 30,
   },
   navLabel: {
-    color: colors.greenMuted,
-    fontSize: 9,
-    fontWeight: "800",
+    fontSize: 10,
     maxWidth: 58,
     textAlign: "center",
+    lineHeight: 12,
   },
   navLabelActive: {
-    color: colors.green,
-    fontWeight: "900",
+    color: "#0c2b1d",
+    fontWeight: "700",
   },
-  activeDot: {
-    backgroundColor: colors.leaf,
-    borderRadius: 2,
-    height: 4,
-    marginTop: 1,
-    width: 8,
+  navLabelInactive: {
+    color: "#8c8c8c",
+    fontWeight: "400",
   },
   navBadge: {
     alignItems: "center",
@@ -400,8 +405,8 @@ const styles = StyleSheet.create({
     minWidth: 15,
     paddingHorizontal: 3,
     position: "absolute",
-    right: -4,
-    top: -4,
+    right: -6,
+    top: -6,
     shadowColor: "#7f1d1d",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,

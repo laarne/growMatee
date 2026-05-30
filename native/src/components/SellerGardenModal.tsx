@@ -23,6 +23,7 @@ import { getFriendStatus, sendFriendRequest, type FriendStatus } from "../servic
 import { colors } from "../theme/colors";
 import { EmptyState } from "./EmptyState";
 import { isFollowingGarden, toggleFollowGarden } from "../services/gardenFollows";
+import { SkeletonBlock, SkeletonCard, SkeletonLine } from "./Skeleton";
 
 type ParsedCareNote = {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
@@ -200,6 +201,36 @@ type SellerGardenModalProps = {
   onOpenChat: (convoId: string, title: string) => void;
   onOpenListingDetail?: (listingId: string) => void;
 };
+
+function PublicGardenSkeleton() {
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <SkeletonBlock height={250} borderRadius={0} />
+      <SkeletonCard style={styles.statsCard}>
+        <View style={styles.skeletonStatsRow}>
+          {[0, 1, 2].map((item) => (
+            <View key={item} style={styles.statCell}>
+              <SkeletonLine width="48%" height={18} />
+              <SkeletonLine width="66%" height={10} />
+            </View>
+          ))}
+        </View>
+      </SkeletonCard>
+      <View style={styles.section}>
+        <SkeletonLine width="46%" height={18} />
+        <View style={styles.grid}>
+          {[0, 1, 2, 3].map((item) => (
+            <SkeletonCard key={item} style={styles.plantCard}>
+              <SkeletonBlock height={112} borderRadius={14} />
+              <SkeletonLine width="70%" height={13} />
+              <SkeletonLine width="44%" height={10} />
+            </SkeletonCard>
+          ))}
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
 
 export function SellerGardenModal({
   visible,
@@ -402,10 +433,7 @@ export function SellerGardenModal({
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
       <View style={styles.container}>
         {isLoading ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={colors.green} size="large" />
-            <Text style={styles.loadingText}>Loading public garden...</Text>
-          </View>
+          <PublicGardenSkeleton />
         ) : (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
             {/* ══ Cover Carousel ══════════════════════════════ */}
@@ -797,7 +825,7 @@ const styles = StyleSheet.create({
   },
   coverOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.38)",
+    backgroundColor: "rgba(0,0,0,0.12)",
   },
   backBtn: {
     position: "absolute",
@@ -890,9 +918,9 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 22,
     fontWeight: "900",
-    textShadowColor: "rgba(0,0,0,0.4)",
+    textShadowColor: "rgba(0,0,0,0.68)",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    textShadowRadius: 5,
   },
   coverSubText: {
     color: "rgba(255,255,255,0.85)",
@@ -945,6 +973,10 @@ const styles = StyleSheet.create({
   statCell: {
     flex: 1,
     alignItems: "center",
+  },
+  skeletonStatsRow: {
+    flex: 1,
+    flexDirection: "row",
   },
   statCellBorder: {
     borderLeftWidth: 1,
@@ -1280,15 +1312,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: "55%",
+    height: "46%",
     zIndex: 9,
     elevation: 9,
     ...Platform.select({
       web: {
-        backgroundImage: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)",
+        backgroundImage: "linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.22) 55%, transparent 100%)",
       },
       default: {
-        backgroundColor: "rgba(0,0,0,0.5)",
+        backgroundColor: "rgba(0,0,0,0.22)",
       }
     })
   },
