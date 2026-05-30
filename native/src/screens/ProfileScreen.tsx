@@ -210,22 +210,36 @@ function BadgeCardItem({ badge }: { badge: BadgeType }) {
 
   const theme = BADGE_THEMES[badge.id] || BADGE_THEMES.garden_started;
 
-  const glowStyle = {
-    shadowColor: badge.unlocked ? theme.iconColor : "rgba(0,0,0,0)",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: glow.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, 0.4],
-    }),
-    shadowRadius: glow.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, 8],
-    }),
-    elevation: glow.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, 4],
-    }),
-  };
+  const glowStyle = Platform.select({
+    ios: {
+      shadowColor: badge.unlocked ? theme.iconColor : "rgba(0,0,0,0)",
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: glow.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 0.4],
+      }),
+      shadowRadius: glow.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 8],
+      }),
+    },
+    web: {
+      shadowColor: badge.unlocked ? theme.iconColor : "rgba(0,0,0,0)",
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: glow.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 0.4],
+      }),
+      shadowRadius: glow.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 8],
+      }),
+    },
+    android: {
+      // Static elevation prevents native cast exception crash on Android when animating
+      elevation: badge.unlocked ? 3 : 0,
+    },
+  });
 
   const cardStyle = badge.unlocked
     ? [
