@@ -2035,6 +2035,7 @@
 
       // 10. Render analytics graphs, logs and revenue totals
       initLogs();
+      initSystemConfig();
       renderDashboardCharts();
       renderAIAnalytics();
       renderRevenueAnalytics();
@@ -3148,6 +3149,37 @@
         `;
         container.appendChild(log);
       });
+    }
+
+    let configInitialized = false;
+    function initSystemConfig() {
+      const keys = ['buyer-scans', 'seller-scans', 'fee', 'featured-price', 'mod-mode', 'maintenance'];
+      
+      keys.forEach(k => {
+        const el = document.getElementById('cfg-' + k);
+        if (!el) return;
+
+        // Load persisted setting
+        const persisted = localStorage.getItem('cfg-' + k);
+        if (persisted !== null) {
+          if (el.type === 'checkbox') {
+            el.checked = persisted === 'true';
+          } else {
+            el.value = persisted;
+          }
+        }
+
+        if (configInitialized) return;
+
+        // Bind change handler
+        el.addEventListener('change', () => {
+          let val = el.type === 'checkbox' ? el.checked : el.value;
+          localStorage.setItem('cfg-' + k, val);
+          logSystemActivity("System", `Config updated: ${k.replace('-', ' ')} set to ${val}`);
+        });
+      });
+
+      configInitialized = true;
     }
 
     function triggerAlert() {
