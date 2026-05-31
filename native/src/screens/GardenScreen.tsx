@@ -23,6 +23,7 @@ import { Screen } from "../components/Screen";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
 import { EmptyState } from "../components/EmptyState";
+import { SkeletonBlock, SkeletonCard, SkeletonLine } from "../components/Skeleton";
 import {
   createGardenPlant,
   updateGardenPlant,
@@ -164,6 +165,20 @@ type GardenScreenProps = {
   onOpenChat?: (conversationId: string, title: string) => void;
   onOpenListingDetail?: (listingId: string) => void;
 };
+
+function GardenPlantSkeletonGrid() {
+  return (
+    <View style={styles.grid}>
+      {[0, 1, 2, 3].map((item) => (
+        <SkeletonCard key={item} style={styles.gardenSkeletonCard}>
+          <SkeletonBlock height={CARD_WIDTH * 0.9} borderRadius={16} />
+          <SkeletonLine width="72%" height={13} />
+          <SkeletonLine width="46%" height={10} />
+        </SkeletonCard>
+      ))}
+    </View>
+  );
+}
 
 export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenProps) {
   const { user } = useAuth();
@@ -685,9 +700,7 @@ export function GardenScreen({ onOpenChat, onOpenListingDetail }: GardenScreenPr
 
             {/* Loading */}
             {isLoading && (
-              <View style={styles.center}>
-                <ActivityIndicator color={colors.green} size="large" />
-              </View>
+              <GardenPlantSkeletonGrid />
             )}
 
             {/* Empty */}
@@ -1759,6 +1772,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     ...shadow.sm,
+  },
+  gardenSkeletonCard: {
+    width: CARD_WIDTH,
+    padding: 10,
   },
   plantPhoto: {
     width: "100%",
