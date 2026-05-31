@@ -135,8 +135,6 @@ function BottomNavItem({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       style={styles.navItem}
-      accessibilityRole="button"
-      accessibilityLabel={`Open ${tab}`}
     >
       <Animated.View
         style={[
@@ -144,12 +142,12 @@ function BottomNavItem({
           { transform: [{ scale: pressScale }, { translateY }] },
         ]}
       >
-        <View style={[styles.iconContainer, isActive && styles.iconContainerActive]}>
+        <View style={styles.iconContainer}>
           <Animated.View style={{ transform: [{ scale: popAnim }] }}>
             <MaterialCommunityIcons
-              color={isActive ? colors.white : "#6f7d73"}
+              color={isActive ? "#0c2b1d" : "#8c8c8c"}
               name={isActive ? tabIconsActive[tab] : tabIconsInactive[tab]}
-              size={21}
+              size={22}
             />
           </Animated.View>
           {badgeCount > 0 && (
@@ -345,7 +343,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     borderTopWidth: 1,
     borderTopColor: "#f0f0f0",
-    paddingTop: 7,
+    paddingTop: 6,
     paddingHorizontal: 6,
     overflow: "visible",
     ...Platform.select({
@@ -370,7 +368,7 @@ const styles = StyleSheet.create({
   navItemAnimated: {
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
+    gap: 3,
     paddingVertical: 6,
     paddingHorizontal: 4,
     borderRadius: 10,
@@ -380,14 +378,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     position: "relative",
     alignItems: "center",
-    backgroundColor: "#f2f6ef",
-    borderRadius: 16,
-    height: 32,
     justifyContent: "center",
-    width: 32,
-  },
-  iconContainerActive: {
-    backgroundColor: colors.green,
   },
   navLabel: {
     fontSize: 10,
