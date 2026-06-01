@@ -46,6 +46,24 @@
     onScroll();
   }
 
+  document.querySelectorAll('.phone img, .pw-phone-frame img, .card-plant img, .card-avatar').forEach((img) => {
+    const holder = img.parentElement;
+    if (!holder) return;
+
+    holder.classList.add('media-skeleton');
+    const markLoaded = () => {
+      holder.classList.add('media-loaded');
+      holder.classList.remove('media-skeleton');
+    };
+
+    if (img.complete && img.naturalWidth > 0) {
+      markLoaded();
+    } else {
+      img.addEventListener('load', markLoaded, { once: true });
+      img.addEventListener('error', markLoaded, { once: true });
+    }
+  });
+
   /* ── Hero phone parallax (desktop only) ─────────────────── */
   const heroPhones = document.getElementById('hero-phones');
   if (heroPhones && window.matchMedia('(min-width: 1024px)').matches) {

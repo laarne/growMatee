@@ -382,6 +382,7 @@ h3 {
 .hero-chips span {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   height: 34px;
   padding: 0 14px;
   border-radius: var(--radius-pill);
@@ -390,6 +391,16 @@ h3 {
   color: rgba(255,255,255,0.82);
   font-size: 0.85rem;
   font-weight: 750;
+}
+
+.hero-chip-icon {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .hero-actions {
@@ -545,8 +556,17 @@ h3 {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  font-size: 1.3rem;
   flex-shrink: 0;
+}
+
+.chip-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .chip-icon.moss { background: rgba(191, 234, 85, 0.25); }
@@ -922,7 +942,9 @@ h3 {
 .pw-copy { color: rgba(255,255,255,0.85); }
 
 .pw-tag {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   padding: 5px 14px;
   border-radius: var(--radius-pill);
   font-size: 0.82rem;
@@ -930,8 +952,55 @@ h3 {
   margin-bottom: 14px;
 }
 
+.pw-tag svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .moss-tag { background: rgba(191,234,85,0.18); color: var(--moss); }
 .sky-tag  { background: rgba(157,224,244,0.18); color: var(--sky); }
+
+.media-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255,255,255,0.08);
+}
+
+.media-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background:
+    linear-gradient(100deg, transparent 0%, rgba(255,255,255,0.2) 45%, transparent 80%),
+    linear-gradient(120deg, rgba(191,234,85,0.08), rgba(157,224,244,0.08));
+  transform: translateX(-100%);
+  animation: skeletonSweep 1.15s ease-in-out infinite;
+}
+
+.media-skeleton img {
+  opacity: 0;
+}
+
+.media-loaded::after {
+  animation: none;
+  opacity: 0;
+}
+
+.media-loaded img {
+  opacity: 1;
+  transition: opacity 260ms ease;
+}
+
+@keyframes skeletonSweep {
+  to { transform: translateX(100%); }
+}
 
 .pw-copy h3 {
   color: #ffffff;
@@ -1189,9 +1258,24 @@ blockquote {
 
 .leaf {
   position: absolute;
-  font-size: clamp(1.5rem, 4vw, 3rem);
-  opacity: 0.12;
+  width: clamp(20px, 4vw, 42px);
+  height: clamp(34px, 6vw, 68px);
+  border-radius: 100% 0 100% 0;
+  background: linear-gradient(135deg, rgba(191,234,85,0.28), rgba(157,224,244,0.16));
+  opacity: 0.45;
   animation: drift 12s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+
+.leaf::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 18%;
+  bottom: 12%;
+  width: 1px;
+  background: rgba(255,255,255,0.26);
+  transform: rotate(18deg);
 }
 
 .l1 { top: 10%; left: 5%;  animation-delay: 0s; }
