@@ -325,6 +325,7 @@ export function ProfileScreen({
   const [isApplyingSeller, setIsApplyingSeller] = useState(false);
   const [sellerAppMessage, setSellerAppMessage] = useState<string | null>(null);
   const [sellerAppError, setSellerAppError] = useState<string | null>(null);
+  const [isCreateListingOpen, setIsCreateListingOpen] = useState(false);
   const [sellerAppStep, setSellerAppStep] = useState(1);
   const [appShopName, setAppShopName] = useState("");
   const [appReason, setAppReason] = useState("");
@@ -910,6 +911,14 @@ export function ProfileScreen({
   // Use uploaded cover, then profile cover_url, then a stable default garden landscape
   const coverUri = localCoverUri ?? profile?.cover_url ?? getDefaultCover(user?.id);
 
+  if (isCreateListingOpen && canSeeSellerDashboard) {
+    return (
+      <Screen showHeader={false} scroll={true}>
+        <SellerDashboard mode="create" onCloseCreateListing={() => setIsCreateListingOpen(false)} />
+      </Screen>
+    );
+  }
+
   // ─────────────────────────────────────────────────────
   return (
     <Screen showHeader={false} scroll={false} noPadding={true}>
@@ -1269,7 +1278,7 @@ export function ProfileScreen({
                 </View>
               </View>
             </View>
-            <SellerDashboard />
+            <SellerDashboard onOpenCreateListing={() => setIsCreateListingOpen(true)} />
           </View>
         )}
 

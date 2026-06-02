@@ -36,6 +36,7 @@ const DELIVERY_ONLY = "Delivery";
 const listingStatusFilters = ["all", "active", "review", "needs_more_documents", "archived"] as const;
 type ListingStatusFilter = (typeof listingStatusFilters)[number];
 type SellerTab = "dashboard" | "new" | "inventory" | "orders";
+type SellerDashboardMode = "hub" | "create";
 
 function getOrderStatusMeta(order: Order) {
   const createdTime = new Date(order.createdAt).getTime();
@@ -61,7 +62,15 @@ function getOrderStatusMeta(order: Order) {
   }
 }
 
-export function SellerDashboard() {
+export function SellerDashboard({
+  mode = "hub",
+  onCloseCreateListing,
+  onOpenCreateListing,
+}: {
+  mode?: SellerDashboardMode;
+  onCloseCreateListing?: () => void;
+  onOpenCreateListing?: () => void;
+} = {}) {
   const { profile, user } = useAuth();
   const [listings, setListings] = useState<SellerListing[]>([]);
   const [salesOrders, setSalesOrders] = useState<Order[]>([]);
@@ -90,7 +99,7 @@ export function SellerDashboard() {
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [showAllListings, setShowAllListings] = useState(false);
-  const [activeTab, setActiveTab] = useState<SellerTab>("dashboard");
+  const [activeTab, setActiveTab] = useState<SellerTab>(mode === "create" ? "new" : "dashboard");
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [showScanDetails, setShowScanDetails] = useState(false);
   const sellerRegulation = getSellerRegulationCategory(scanResult?.regulationStatus ?? (scanResult?.saleStatus === "safe_to_sell" ? "safe_to_sell" : null));
@@ -297,8 +306,12 @@ export function SellerDashboard() {
       setPermitDocument(null);
       setScanResult(null);
       setShowScanDetails(false);
-      setActiveTab("inventory");
       await loadDashboardData();
+      if (mode === "create") {
+        onCloseCreateListing?.();
+      } else {
+        setActiveTab("inventory");
+      }
     } catch (saveError) {
       const nextMessage = saveError instanceof Error ? saveError.message : "Unable to create listing.";
       setError(nextMessage);
@@ -396,6 +409,7 @@ export function SellerDashboard() {
 
   return (
     <View style={styles.dashboardContainer}>
+      {mode === "hub" && (
       <Card>
         <Text style={styles.title}>Seller Management Hub</Text>
         <Text style={styles.body}>Track performance, create listings, manage inventory, and process buyer orders.</Text>
@@ -443,67 +457,10 @@ export function SellerDashboard() {
             </View>
           </ScrollView>
         )}
-
-        <View style={styles.tabContainer}>
-          <Pressable
-            onPress={() => setActiveTab("dashboard")}
-            style={[styles.tabButton, activeTab === "dashboard" && styles.tabButtonActive]}
-          >
-            <MaterialCommunityIcons
-              name={activeTab === "dashboard" ? "view-dashboard" : "view-dashboard-outline"}
-              size={15}
-              color={activeTab === "dashboard" ? colors.white : colors.green}
-            />
-            <Text style={[styles.tabButtonText, activeTab === "dashboard" && styles.tabButtonTextActive]}>
-              Dashboard
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setActiveTab("new")}
-            style={[styles.tabButton, activeTab === "new" && styles.tabButtonActive]}
-          >
-            <MaterialCommunityIcons
-              name="tag-plus-outline"
-              size={15}
-              color={activeTab === "new" ? colors.white : colors.green}
-            />
-            <Text style={[styles.tabButtonText, activeTab === "new" && styles.tabButtonTextActive]}>
-              New Listing
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setActiveTab("inventory")}
-            style={[styles.tabButton, activeTab === "inventory" && styles.tabButtonActive]}
-          >
-            <MaterialCommunityIcons
-              name="package-variant-closed"
-              size={15}
-              color={activeTab === "inventory" ? colors.white : colors.green}
-            />
-            <Text style={[styles.tabButtonText, activeTab === "inventory" && styles.tabButtonTextActive]}>
-              Inventory
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setActiveTab("orders")}
-            style={[styles.tabButton, activeTab === "orders" && styles.tabButtonActive]}
-          >
-            <MaterialCommunityIcons
-              name="cash-register"
-              size={15}
-              color={activeTab === "orders" ? colors.white : colors.green}
-            />
-            <Text style={[styles.tabButtonText, activeTab === "orders" && styles.tabButtonTextActive]}>
-              Orders
-            </Text>
-          </Pressable>
-        </View>
       </Card>
+      )}
 
-      {activeTab === "dashboard" && (
+      {mode === "hub" && activeTab === "dashboard" && (
         <View style={styles.subTabViewContainer}>
           <Card>
             <View style={styles.sectionHeaderRow}>
@@ -515,31 +472,42 @@ export function SellerDashboard() {
                 <MaterialCommunityIcons name="chart-line" size={18} color={colors.green} />
               </View>
             </View>
-            <View style={styles.dashboardActionRow}>
-              <View style={styles.flexItem}>
-                <Button icon="tag-plus-outline" onPress={() => setActiveTab("new")}>Create Listing</Button>
-              </View>
-              <View style={styles.flexItem}>
-                <Button icon="package-variant-closed" variant="secondary" onPress={() => setActiveTab("inventory")}>
-                  View Inventory
-                </Button>
-              </View>
-            </View>
-            <View style={styles.dashboardActionRow}>
-              <View style={styles.flexItem}>
-                <Button icon="cash-register" variant="secondary" onPress={() => setActiveTab("orders")}>
-                  Review Orders
-                </Button>
-              </View>
+            <View style={styles.sellerActionGrid}>
+              <Pressable style={styles.sellerActionCard} onPress={() => setActiveTab("dashboard")}>
+                <MaterialCommunityIcons name="view-dashboard-outline" size={22} color={colors.green} />
+                <Text style={styles.sellerActionTitle}>Dashboard</Text>
+                <Text style={styles.sellerActionHint}>Stats and signals</Text>
+              </Pressable>
+              <Pressable style={[styles.sellerActionCard, styles.sellerActionCardPrimary]} onPress={() => onOpenCreateListing?.() ?? setActiveTab("new")}>
+                <MaterialCommunityIcons name="tag-plus-outline" size={22} color={colors.white} />
+                <Text style={styles.sellerActionTitlePrimary}>Create Listing</Text>
+                <Text style={styles.sellerActionHintPrimary}>Add a plant</Text>
+              </Pressable>
+              <Pressable style={styles.sellerActionCard} onPress={() => setActiveTab("inventory")}>
+                <MaterialCommunityIcons name="package-variant-closed" size={22} color={colors.green} />
+                <Text style={styles.sellerActionTitle}>Inventory</Text>
+                <Text style={styles.sellerActionHint}>Live and review</Text>
+              </Pressable>
+              <Pressable style={styles.sellerActionCard} onPress={() => setActiveTab("orders")}>
+                <MaterialCommunityIcons name="cash-register" size={22} color={colors.green} />
+                <Text style={styles.sellerActionTitle}>Orders</Text>
+                <Text style={styles.sellerActionHint}>Incoming sales</Text>
+              </Pressable>
             </View>
           </Card>
         </View>
       )}
 
       {/* activeTab === "new" */}
-      {activeTab === "new" && (
+      {(mode === "create" || activeTab === "new") && (
         <View style={styles.subTabViewContainer}>
           <Card>
+          {mode === "create" && (
+            <Pressable onPress={onCloseCreateListing} style={styles.createScreenBack}>
+              <MaterialCommunityIcons name="arrow-left" size={18} color={colors.green} />
+              <Text style={styles.createScreenBackText}>Seller Hub</Text>
+            </Pressable>
+          )}
           <Text style={styles.subtitle}>Create New Listing</Text>
           <View style={styles.form}>
             {/* Photo preview with scanning overlay */}
@@ -775,9 +743,13 @@ export function SellerDashboard() {
       )}
 
       {/* activeTab === "inventory" */}
-      {activeTab === "inventory" && (
+      {mode === "hub" && activeTab === "inventory" && (
         <View style={styles.subTabViewContainer}>
           <Card>
+            <Pressable onPress={() => setActiveTab("dashboard")} style={styles.createScreenBack}>
+              <MaterialCommunityIcons name="arrow-left" size={18} color={colors.green} />
+              <Text style={styles.createScreenBackText}>Seller Hub</Text>
+            </Pressable>
             <View style={styles.sectionHeaderRow}>
             <View>
               <Text style={styles.subtitle}>My listings</Text>
@@ -930,9 +902,13 @@ export function SellerDashboard() {
       )}
 
       {/* activeTab === "orders" */}
-      {activeTab === "orders" && (
+      {mode === "hub" && activeTab === "orders" && (
         <View style={styles.subTabViewContainer}>
           <Card>
+            <Pressable onPress={() => setActiveTab("dashboard")} style={styles.createScreenBack}>
+              <MaterialCommunityIcons name="arrow-left" size={18} color={colors.green} />
+              <Text style={styles.createScreenBackText}>Seller Hub</Text>
+            </Pressable>
             <Text style={styles.subtitle}>Incoming Sales Orders</Text>
           {isLoading && <SellerListingSkeleton />}
           {!isLoading && salesOrders.length === 0 && <Text style={styles.body}>No incoming orders yet.</Text>}
@@ -1644,6 +1620,61 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 10,
   },
+  sellerActionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  sellerActionCard: {
+    backgroundColor: colors.cream,
+    borderColor: colors.line,
+    borderRadius: 16,
+    borderWidth: 1,
+    minHeight: 98,
+    padding: 12,
+    width: "48%",
+  },
+  sellerActionCardPrimary: {
+    backgroundColor: colors.green,
+    borderColor: colors.green,
+  },
+  sellerActionTitle: {
+    color: colors.green,
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 8,
+  },
+  sellerActionTitlePrimary: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 8,
+  },
+  sellerActionHint: {
+    color: colors.greenMuted,
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 3,
+  },
+  sellerActionHintPrimary: {
+    color: "#dcfce7",
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 3,
+  },
+  createScreenBack: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 12,
+    paddingVertical: 4,
+  },
+  createScreenBackText: {
+    color: colors.green,
+    fontSize: 13,
+    fontWeight: "900",
+  },
   formRow: {
     flexDirection: "row",
     gap: 12,
@@ -1853,37 +1884,6 @@ const styles = StyleSheet.create({
   },
   subTabViewContainer: {
     paddingBottom: 32,
-  },
-  tabContainer: {
-    flexDirection: "row",
-    backgroundColor: "transparent",
-    borderRadius: 0,
-    marginTop: 14,
-    gap: 6,
-  },
-  tabButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    backgroundColor: colors.cream,
-    borderColor: colors.line,
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingVertical: 9,
-  },
-  tabButtonActive: {
-    backgroundColor: colors.green,
-    borderColor: colors.green,
-  },
-  tabButtonText: {
-    color: colors.greenMuted,
-    fontSize: 11,
-    fontWeight: "900",
-  },
-  tabButtonTextActive: {
-    color: colors.white,
   },
   dropdownSelector: {
     flexDirection: "row",
