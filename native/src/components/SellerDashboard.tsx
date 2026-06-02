@@ -1986,36 +1986,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     minHeight: 52,
     paddingHorizontal: 14,
-    paddingTop: 7,
+    justifyContent: "center",
   },
   floatingFieldFocused: {
     borderColor: colors.green,
     backgroundColor: colors.white,
-  },
-  floatingLabel: {
-    color: "#8a9583",
-    fontSize: 13,
-    fontWeight: "700",
-    left: 14,
-    maxWidth: "82%",
-    position: "absolute",
-    top: 15,
   },
   floatingLabelActive: {
     color: colors.greenMid,
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 0.2,
+    marginBottom: 1,
     textTransform: "uppercase",
-    top: 6,
   },
   floatingInput: {
     color: "#0c2b1d",
     fontSize: 14,
     fontWeight: "700",
-    paddingBottom: 10,
+    paddingBottom: 0,
     paddingHorizontal: 0,
-    paddingTop: 15,
+    paddingTop: 0,
+  },
+  floatingInputWithLabel: {
+    paddingTop: 1,
   },
 });
 
@@ -2030,9 +2024,11 @@ function FloatingField({ label, inputStyle, value, onFocus, onBlur, ...props }: 
 
   return (
     <View style={[styles.floatingField, isFocused && styles.floatingFieldFocused]}>
-      <Text style={[styles.floatingLabel, (isFocused || hasValue) && styles.floatingLabelActive]} numberOfLines={1}>
-        {label}
-      </Text>
+      {(isFocused || hasValue) && (
+        <Text style={styles.floatingLabelActive} numberOfLines={1}>
+          {label}
+        </Text>
+      )}
       <TextInput
         {...props}
         onBlur={(event) => {
@@ -2045,7 +2041,7 @@ function FloatingField({ label, inputStyle, value, onFocus, onBlur, ...props }: 
         }}
         placeholder={isFocused || hasValue ? "" : label}
         placeholderTextColor="#8a9583"
-        style={[styles.floatingInput, inputStyle]}
+        style={[styles.floatingInput, (isFocused || hasValue) && styles.floatingInputWithLabel, inputStyle]}
         value={value}
       />
     </View>
