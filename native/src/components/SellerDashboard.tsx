@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Image, StyleSheet, Text, TextInput, View, Pressable, Platform } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, Text, TextInput, View, Pressable, Platform, ScrollView, type TextInputProps, type StyleProp, type TextStyle } from "react-native";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { useAuth } from "../context/AuthContext";
@@ -35,6 +35,31 @@ const units: ListingInput["unit"][] = ["Pot", "Cutting", "Seedling", "Node", "Pa
 const DELIVERY_ONLY = "Delivery";
 const listingStatusFilters = ["all", "active", "review", "needs_more_documents", "archived"] as const;
 type ListingStatusFilter = (typeof listingStatusFilters)[number];
+type SellerTab = "dashboard" | "new" | "inventory" | "orders";
+
+function getOrderStatusMeta(order: Order) {
+  const createdTime = new Date(order.createdAt).getTime();
+  const isReadyStale = order.status === "paid" && Number.isFinite(createdTime) && Date.now() - createdTime > 24 * 60 * 60 * 1000;
+
+  switch (order.status) {
+    case "pending":
+      return { label: "Awaiting Payment", color: "#78350f", bg: "#fde68a", icon: "clock-alert-outline" as const, urgent: false };
+    case "accepted":
+      return { label: "Accepted", color: "#064e3b", bg: "#a7f3d0", icon: "check-circle-outline" as const, urgent: false };
+    case "paid":
+      return { label: "Ready", color: "#075985", bg: "#bae6fd", icon: "package-variant" as const, urgent: isReadyStale };
+    case "completed":
+      return { label: "Completed", color: "#052e16", bg: "#bbf7d0", icon: "check-all" as const, urgent: false };
+    case "cancelled":
+      return { label: "Cancelled", color: "#b91c1c", bg: "#fee2e2", icon: "close-circle-outline" as const, urgent: false };
+    case "refunded":
+      return { label: "Refunded", color: "#6b21a8", bg: "#f3e8ff", icon: "cash-refund" as const, urgent: false };
+    case "disputed":
+      return { label: "Disputed", color: "#be123c", bg: "#ffe4e6", icon: "alert-circle-outline" as const, urgent: true };
+    default:
+      return { label: order.status, color: colors.greenMuted, bg: colors.surface1, icon: "information-outline" as const, urgent: false };
+  }
+}
 
 export function SellerDashboard() {
   const { profile, user } = useAuth();
@@ -62,9 +87,12 @@ export function SellerDashboard() {
   const [listingSearch, setListingSearch] = useState("");
   const [listingStatusFilter, setListingStatusFilter] = useState<ListingStatusFilter>("all");
   const [updatingListingId, setUpdatingListingId] = useState<string | null>(null);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [showAllListings, setShowAllListings] = useState(false);
-  const [activeTab, setActiveTab] = useState<"new" | "stock" | "orders">("new");
+  const [activeTab, setActiveTab] = useState<SellerTab>("dashboard");
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [showScanDetails, setShowScanDetails] = useState(false);
   const sellerRegulation = getSellerRegulationCategory(scanResult?.regulationStatus ?? (scanResult?.saleStatus === "safe_to_sell" ? "safe_to_sell" : null));
   const hasSuccessfulScan = Boolean(scanResult);
   const canPublishImmediately = hasSuccessfulScan && sellerRegulation.shouldPublish;
@@ -132,6 +160,7 @@ export function SellerDashboard() {
       const result = await scanPlantWithLeafy(pickedPhoto);
       const nextSellerRegulation = getSellerRegulationCategory(result.regulationStatus ?? (result.saleStatus === "safe_to_sell" ? "safe_to_sell" : null));
       setScanResult(result);
+      setShowScanDetails(false);
       // Auto-fill fields — only overwrite if the field is currently empty
       setName((current) => current.trim() || result.bestMatch);
       setScientificName((current) => current.trim() || result.scientificName || "");
@@ -161,6 +190,7 @@ export function SellerDashboard() {
       if (pickedPhoto) {
         // Reset previous scan state when a new photo is chosen
         setScanResult(null);
+        setShowScanDetails(false);
         setPermitDocument(null);
         setMessage(null);
         setPhoto(pickedPhoto);
@@ -266,6 +296,8 @@ export function SellerDashboard() {
       setPhoto(null);
       setPermitDocument(null);
       setScanResult(null);
+      setShowScanDetails(false);
+      setActiveTab("inventory");
       await loadDashboardData();
     } catch (saveError) {
       const nextMessage = saveError instanceof Error ? saveError.message : "Unable to create listing.";
@@ -343,17 +375,22 @@ export function SellerDashboard() {
   }
 
   async function handleUpdateSalesOrderStatus(orderId: string, nextStatus: Order["status"]) {
-    setIsLoading(true);
+    const previousOrders = salesOrders;
+    setUpdatingOrderId(orderId);
     setError(null);
     setMessage(null);
+    setSalesOrders((current) =>
+      current.map((order) => (order.id === orderId ? { ...order, status: nextStatus } : order)),
+    );
     try {
       await updateOrderStatus(orderId, nextStatus);
-      setMessage(`Order status updated to: ${nextStatus}`);
-      await loadDashboardData();
+      const updatedOrder = previousOrders.find((order) => order.id === orderId);
+      setMessage(updatedOrder ? `Order status updated to ${getOrderStatusMeta({ ...updatedOrder, status: nextStatus }).label}.` : "Order status updated.");
     } catch (err) {
+      setSalesOrders(previousOrders);
       setError(err instanceof Error ? err.message : "Failed to update order status.");
     } finally {
-      setIsLoading(false);
+      setUpdatingOrderId(null);
     }
   }
 
@@ -361,10 +398,14 @@ export function SellerDashboard() {
     <View style={styles.dashboardContainer}>
       <Card>
         <Text style={styles.title}>Seller Management Hub</Text>
-        <Text style={styles.body}>Track your metrics, manage inventory stock, and process incoming buyer orders.</Text>
+        <Text style={styles.body}>Track performance, create listings, manage inventory, and process buyer orders.</Text>
 
-        {stats && (
-          <View style={styles.statsGrid}>
+        {stats && activeTab === "dashboard" && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.statsCarousel}
+          >
             <View style={styles.statsCardCol}>
               <View style={styles.statsIconWrap}>
                 <MaterialCommunityIcons name="currency-php" size={18} color={colors.green} />
@@ -400,10 +441,24 @@ export function SellerDashboard() {
               </Text>
               <Text style={styles.statsLabel}>{stats.ratingsCount} review{stats.ratingsCount !== 1 ? "s" : ""}</Text>
             </View>
-          </View>
+          </ScrollView>
         )}
 
         <View style={styles.tabContainer}>
+          <Pressable
+            onPress={() => setActiveTab("dashboard")}
+            style={[styles.tabButton, activeTab === "dashboard" && styles.tabButtonActive]}
+          >
+            <MaterialCommunityIcons
+              name={activeTab === "dashboard" ? "view-dashboard" : "view-dashboard-outline"}
+              size={15}
+              color={activeTab === "dashboard" ? colors.white : colors.green}
+            />
+            <Text style={[styles.tabButtonText, activeTab === "dashboard" && styles.tabButtonTextActive]}>
+              Dashboard
+            </Text>
+          </Pressable>
+
           <Pressable
             onPress={() => setActiveTab("new")}
             style={[styles.tabButton, activeTab === "new" && styles.tabButtonActive]}
@@ -419,16 +474,16 @@ export function SellerDashboard() {
           </Pressable>
 
           <Pressable
-            onPress={() => setActiveTab("stock")}
-            style={[styles.tabButton, activeTab === "stock" && styles.tabButtonActive]}
+            onPress={() => setActiveTab("inventory")}
+            style={[styles.tabButton, activeTab === "inventory" && styles.tabButtonActive]}
           >
             <MaterialCommunityIcons
               name="package-variant-closed"
               size={15}
-              color={activeTab === "stock" ? colors.white : colors.green}
+              color={activeTab === "inventory" ? colors.white : colors.green}
             />
-            <Text style={[styles.tabButtonText, activeTab === "stock" && styles.tabButtonTextActive]}>
-              My Stock ({listings.length})
+            <Text style={[styles.tabButtonText, activeTab === "inventory" && styles.tabButtonTextActive]}>
+              Inventory
             </Text>
           </Pressable>
 
@@ -442,11 +497,44 @@ export function SellerDashboard() {
               color={activeTab === "orders" ? colors.white : colors.green}
             />
             <Text style={[styles.tabButtonText, activeTab === "orders" && styles.tabButtonTextActive]}>
-              Orders ({salesOrders.length})
+              Orders
             </Text>
           </Pressable>
         </View>
       </Card>
+
+      {activeTab === "dashboard" && (
+        <View style={styles.subTabViewContainer}>
+          <Card>
+            <View style={styles.sectionHeaderRow}>
+              <View>
+                <Text style={styles.subtitle}>Seller workspace</Text>
+                <Text style={styles.sectionHint}>Jump into the next marketplace task</Text>
+              </View>
+              <View style={styles.sectionIconBadge}>
+                <MaterialCommunityIcons name="chart-line" size={18} color={colors.green} />
+              </View>
+            </View>
+            <View style={styles.dashboardActionRow}>
+              <View style={styles.flexItem}>
+                <Button icon="tag-plus-outline" onPress={() => setActiveTab("new")}>Create Listing</Button>
+              </View>
+              <View style={styles.flexItem}>
+                <Button icon="package-variant-closed" variant="secondary" onPress={() => setActiveTab("inventory")}>
+                  View Inventory
+                </Button>
+              </View>
+            </View>
+            <View style={styles.dashboardActionRow}>
+              <View style={styles.flexItem}>
+                <Button icon="cash-register" variant="secondary" onPress={() => setActiveTab("orders")}>
+                  Review Orders
+                </Button>
+              </View>
+            </View>
+          </Card>
+        </View>
+      )}
 
       {/* activeTab === "new" */}
       {activeTab === "new" && (
@@ -500,23 +588,39 @@ export function SellerDashboard() {
             {/* Leafy scan result card */}
             {scanResult && !isScanning && (
               <View style={styles.scanCard}>
-                <View style={styles.scanHeader}>
+                <Pressable style={styles.scanHeader} onPress={() => setShowScanDetails((current) => !current)}>
                   <View style={styles.scanHeaderLeft}>
                     <MaterialCommunityIcons color={colors.green} name="leaf-circle" size={18} />
-                    <Text style={styles.scanEyebrow}>Leafy AI Result</Text>
+                    <View style={styles.scanSummaryWrap}>
+                      <Text style={styles.scanEyebrow}>Leafy AI Identified</Text>
+                      <Text style={styles.scanSummary} numberOfLines={1}>
+                        {scanResult.bestMatch} ({scanResult.confidence}% confidence)
+                      </Text>
+                    </View>
                   </View>
-                  <Text style={[styles.scanStatusBadge, sellerRegulation.category !== "safe" && styles.scanStatusWarning]}>
-                    {sellerRegulation.label}
-                  </Text>
-                </View>
-                <Text style={styles.scanTitle}>{scanResult.bestMatch}</Text>
-                <Text style={styles.scanMeta}>
-                  {scanResult.scientificName ?? "Scientific name unavailable"} · {scanResult.confidence}% match
-                </Text>
-                {scanResult.family && (
-                  <Text style={styles.scanMeta}>Family: {scanResult.family}</Text>
+                  <View style={styles.scanHeaderRight}>
+                    <Text style={[styles.scanStatusBadge, sellerRegulation.category !== "safe" && styles.scanStatusWarning]}>
+                      {sellerRegulation.label}
+                    </Text>
+                    <MaterialCommunityIcons
+                      name={showScanDetails ? "chevron-up" : "chevron-down"}
+                      size={18}
+                      color={colors.greenMuted}
+                    />
+                  </View>
+                </Pressable>
+                {showScanDetails && (
+                  <View style={styles.scanDetails}>
+                    <Text style={styles.scanTitle}>{scanResult.bestMatch}</Text>
+                    <Text style={styles.scanMeta}>
+                      {scanResult.scientificName ?? "Scientific name unavailable"} - {scanResult.confidence}% match
+                    </Text>
+                    {scanResult.family && (
+                      <Text style={styles.scanMeta}>Family: {scanResult.family}</Text>
+                    )}
+                    <Text style={styles.scanBody}>{sellerRegulation.message}</Text>
+                  </View>
                 )}
-                <Text style={styles.scanBody}>{sellerRegulation.message}</Text>
               </View>
             )}
 
@@ -566,56 +670,26 @@ export function SellerDashboard() {
                   <Text style={styles.fieldSkeletonText}>Filling plant details...</Text>
                 </View>
               ) : null}
-              <TextInput
-                onChangeText={setName}
-                placeholder="Plant name"
-                placeholderTextColor="#8a9583"
-                style={styles.input}
-                value={name}
-              />
-              <TextInput
-                onChangeText={setLocalName}
-                placeholder="Local name, optional"
-                placeholderTextColor="#8a9583"
-                style={styles.input}
-                value={localName}
-              />
-              <TextInput
-                onChangeText={setScientificName}
-                placeholder="Scientific name, optional"
-                placeholderTextColor="#8a9583"
-                style={styles.input}
-                value={scientificName}
-              />
-              <TextInput
-                onChangeText={setCategory}
-                placeholder="Category (e.g. Root Crops, Vegetables)"
-                placeholderTextColor="#8a9583"
-                style={styles.input}
-                value={category}
-              />
+              <FloatingField label="Plant name" onChangeText={setName} value={name} />
+              <FloatingField label="Local name, optional" onChangeText={setLocalName} value={localName} />
+              <FloatingField label="Scientific name, optional" onChangeText={setScientificName} value={scientificName} />
+              <FloatingField label="Category" onChangeText={setCategory} value={category} />
             </View>
 
             <View style={styles.formRow}>
               <View style={styles.formColLarge}>
-                <Text style={styles.formLabel}>Price (PHP)</Text>
-                <TextInput
+                <FloatingField
+                  label="Price (PHP)"
                   keyboardType="numeric"
                   onChangeText={setPrice}
-                  placeholder="Price (PHP)"
-                  placeholderTextColor="#8a9583"
-                  style={styles.input}
                   value={price}
                 />
               </View>
               <View style={styles.formColSmall}>
-                <Text style={styles.formLabel}>Stock Qty</Text>
-                <TextInput
+                <FloatingField
+                  label="Stock Qty"
                   keyboardType="number-pad"
                   onChangeText={setQuantity}
-                  placeholder="Qty"
-                  placeholderTextColor="#8a9583"
-                  style={styles.input}
                   value={quantity}
                 />
               </View>
@@ -673,12 +747,11 @@ export function SellerDashboard() {
               </View>
             </View>
 
-            <TextInput
+            <FloatingField
+              label="Description"
               multiline
               onChangeText={setDescription}
-              placeholder="Description"
-              placeholderTextColor="#8a9583"
-              style={[styles.input, styles.textarea]}
+              inputStyle={styles.textarea}
               value={description}
             />
 
@@ -701,8 +774,8 @@ export function SellerDashboard() {
         </View>
       )}
 
-      {/* activeTab === "stock" */}
-      {activeTab === "stock" && (
+      {/* activeTab === "inventory" */}
+      {activeTab === "inventory" && (
         <View style={styles.subTabViewContainer}>
           <Card>
             <View style={styles.sectionHeaderRow}>
@@ -868,21 +941,9 @@ export function SellerDashboard() {
               const isPending = order.status === "pending";
               const isAccepted = order.status === "accepted";
               const isPaid = order.status === "paid";
-              const statusCol =
-                order.status === "pending"
-                  ? "#b45309"
-                  : order.status === "accepted"
-                  ? "#7c3aed"
-                  : order.status === "paid"
-                  ? "#0369a1"
-                  : order.status === "completed"
-                  ? colors.green
-                  : "#dc2626";
-
-              const statusText = 
-                order.status === "paid"
-                  ? "Ready"
-                  : order.status.charAt(0).toUpperCase() + order.status.slice(1);
+              const isUpdatingOrder = updatingOrderId === order.id;
+              const isOrderExpanded = expandedOrderId === order.id;
+              const statusMeta = getOrderStatusMeta(order);
               const safetyFee = order.platformFee || Math.round(order.subtotal * 0.1 * 100) / 100;
               const sellerPayout = Math.max(order.subtotal - safetyFee, 0);
 
@@ -890,31 +951,51 @@ export function SellerDashboard() {
                 <View key={order.id} style={styles.orderCard}>
                   <View style={styles.orderHeader}>
                     <Text style={styles.orderListingName} numberOfLines={1}>{order.listingName}</Text>
-                    <View style={[styles.orderStatusBadge, { backgroundColor: `${statusCol}18` }]}>
-                      <Text style={[styles.orderStatusText, { color: statusCol }]}>
-                        {statusText}
+                    <View style={[styles.orderStatusBadge, { backgroundColor: statusMeta.bg }]}>
+                      {statusMeta.urgent && <View style={styles.orderUrgencyDot} />}
+                      <MaterialCommunityIcons name={statusMeta.icon} size={12} color={statusMeta.color} />
+                      <Text style={[styles.orderStatusText, { color: statusMeta.color }]}>
+                        {statusMeta.label}
                       </Text>
                     </View>
                   </View>
+                  {statusMeta.urgent && (
+                    <View style={styles.orderUrgencyRow}>
+                      <MaterialCommunityIcons name="alert-circle-outline" size={13} color="#dc2626" />
+                      <Text style={styles.orderUrgencyText}>Pending action</Text>
+                    </View>
+                  )}
                   <Text style={styles.orderBuyerName}>Buyer: {order.buyerName}</Text>
                   <Text style={styles.orderInfo}>
                     Qty: {order.quantity} · Total: {formatCurrency(order.subtotal)}
                   </Text>
                   <Text style={styles.orderInfo}>Method: {order.meetupOrDelivery || "Delivery"}</Text>
-                  <View style={styles.payoutBox}>
-                    <View style={styles.payoutRow}>
-                      <Text style={styles.payoutLabel}>Item Price</Text>
-                      <Text style={styles.payoutValue}>{formatCurrency(order.subtotal)}</Text>
+                  <Pressable
+                    onPress={() => setExpandedOrderId((current) => (current === order.id ? null : order.id))}
+                    style={styles.payoutSummaryRow}
+                  >
+                    <View>
+                      <Text style={styles.payoutSummaryLabel}>Estimated Seller Payout</Text>
+                      <Text style={styles.payoutSummaryValue}>{formatCurrency(sellerPayout)}</Text>
                     </View>
-                    <View style={styles.payoutRow}>
-                      <Text style={styles.payoutLabel}>GrowMate Safety Fee (10%)</Text>
-                      <Text style={styles.payoutFee}>-{formatCurrency(safetyFee)}</Text>
+                    <MaterialCommunityIcons
+                      name={isOrderExpanded ? "chevron-up" : "information-outline"}
+                      size={18}
+                      color={colors.green}
+                    />
+                  </Pressable>
+                  {isOrderExpanded && (
+                    <View style={styles.payoutBox}>
+                      <View style={styles.payoutRow}>
+                        <Text style={styles.payoutLabel}>Item Price</Text>
+                        <Text style={styles.payoutValue}>{formatCurrency(order.subtotal)}</Text>
+                      </View>
+                      <View style={styles.payoutRow}>
+                        <Text style={styles.payoutLabel}>GrowMate Safety Fee (10%)</Text>
+                        <Text style={styles.payoutFee}>-{formatCurrency(safetyFee)}</Text>
+                      </View>
                     </View>
-                    <View style={[styles.payoutRow, styles.payoutTotalRow]}>
-                      <Text style={styles.payoutTotalLabel}>Estimated Seller Payout</Text>
-                      <Text style={styles.payoutTotalValue}>{formatCurrency(sellerPayout)}</Text>
-                    </View>
-                  </View>
+                  )}
 
                   {/* Order actions */}
                   {(isPending || isPaid) && (
@@ -923,13 +1004,15 @@ export function SellerDashboard() {
                         <>
                           <Pressable
                             onPress={() => handleUpdateSalesOrderStatus(order.id, "accepted")}
-                            style={styles.orderBtnAccept}
+                            disabled={isUpdatingOrder}
+                            style={[styles.orderBtnAccept, isUpdatingOrder && styles.orderBtnDisabled]}
                           >
-                            <Text style={styles.orderBtnAcceptText}>Accept Order</Text>
+                            <Text style={styles.orderBtnAcceptText}>{isUpdatingOrder ? "Updating..." : "Accept Order"}</Text>
                           </Pressable>
                           <Pressable
                             onPress={() => handleUpdateSalesOrderStatus(order.id, "cancelled")}
-                            style={styles.orderBtnCancel}
+                            disabled={isUpdatingOrder}
+                            style={[styles.orderBtnCancel, isUpdatingOrder && styles.orderBtnDisabled]}
                           >
                             <Text style={styles.orderBtnCancelText}>Reject</Text>
                           </Pressable>
@@ -938,9 +1021,10 @@ export function SellerDashboard() {
                       {isPaid && (
                         <Pressable
                           onPress={() => handleUpdateSalesOrderStatus(order.id, "completed")}
-                          style={styles.orderBtnComplete}
+                          disabled={isUpdatingOrder}
+                          style={[styles.orderBtnComplete, isUpdatingOrder && styles.orderBtnDisabled]}
                         >
-                          <Text style={styles.orderBtnCompleteText}>Mark Completed</Text>
+                          <Text style={styles.orderBtnCompleteText}>{isUpdatingOrder ? "Updating..." : "Mark Completed"}</Text>
                         </Pressable>
                       )}
                     </View>
@@ -1078,6 +1162,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    flex: 1,
+    minWidth: 0,
+  },
+  scanHeaderRight: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  scanSummaryWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   scanEyebrow: {
     color: colors.greenMuted,
@@ -1099,6 +1194,19 @@ const styles = StyleSheet.create({
   scanStatusWarning: {
     backgroundColor: "#fff2cc",
     color: "#8a5a00",
+  },
+  scanSummary: {
+    color: colors.green,
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 2,
+  },
+  scanDetails: {
+    borderTopColor: "#cce8bd",
+    borderTopWidth: 1,
+    gap: 6,
+    marginTop: 10,
+    paddingTop: 10,
   },
   scanTitle: {
     color: colors.green,
@@ -1457,17 +1565,17 @@ const styles = StyleSheet.create({
   },
   stockStepper: {
     flexDirection: "row",
-    gap: 6,
+    gap: 8,
   },
   stockBtn: {
     alignItems: "center",
-    backgroundColor: colors.cream,
-    borderColor: colors.line,
-    borderRadius: 10,
+    backgroundColor: "#f3f4f6",
+    borderColor: "#d1d5db",
+    borderRadius: 12,
     borderWidth: 1,
-    height: 30,
+    height: 40,
     justifyContent: "center",
-    width: 30,
+    width: 40,
   },
   stockBtnDisabled: {
     opacity: 0.45,
@@ -1490,14 +1598,14 @@ const styles = StyleSheet.create({
   },
 
   // ── Stats dashboard UI ──────────────────────────────────
-  statsGrid: {
-    flexDirection: "row",
+  statsCarousel: {
     gap: 8,
     marginTop: 14,
     marginBottom: 6,
+    paddingRight: 4,
   },
   statsCardCol: {
-    flex: 1,
+    width: 126,
     backgroundColor: colors.cream,
     borderRadius: 14,
     borderWidth: 1,
@@ -1530,6 +1638,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
     textTransform: "uppercase",
     letterSpacing: 0.2,
+  },
+  dashboardActionRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 10,
   },
   formRow: {
     flexDirection: "row",
@@ -1574,9 +1687,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   orderStatusBadge: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
+  },
+  orderUrgencyDot: {
+    backgroundColor: "#dc2626",
+    borderRadius: 999,
+    height: 6,
+    width: 6,
+  },
+  orderUrgencyRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 4,
+    marginBottom: 5,
+    marginTop: -2,
+  },
+  orderUrgencyText: {
+    color: "#dc2626",
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase",
   },
   orderStatusText: {
     fontSize: 9,
@@ -1603,6 +1738,30 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 8,
   },
+  payoutSummaryRow: {
+    alignItems: "center",
+    backgroundColor: "#ecfdf5",
+    borderColor: "#bbf7d0",
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  payoutSummaryLabel: {
+    color: colors.greenMuted,
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  payoutSummaryValue: {
+    color: colors.green,
+    fontSize: 16,
+    fontWeight: "900",
+    marginTop: 2,
+  },
   payoutRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1624,22 +1783,6 @@ const styles = StyleSheet.create({
     color: "#b45309",
     fontSize: 11,
     fontWeight: "800",
-  },
-  payoutTotalRow: {
-    borderTopColor: colors.line,
-    borderTopWidth: 1,
-    paddingTop: 6,
-  },
-  payoutTotalLabel: {
-    color: colors.green,
-    fontSize: 11,
-    fontWeight: "900",
-    flex: 1,
-  },
-  payoutTotalValue: {
-    color: colors.green,
-    fontSize: 12,
-    fontWeight: "900",
   },
   orderActionsRow: {
     flexDirection: "row",
@@ -1687,6 +1830,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
   },
+  orderBtnDisabled: {
+    opacity: 0.55,
+  },
   showAllBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -1710,11 +1856,10 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: "row",
-    backgroundColor: colors.surface1,
-    borderRadius: 14,
-    padding: 4,
-    marginTop: 16,
-    gap: 4,
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    marginTop: 14,
+    gap: 6,
   },
   tabButton: {
     flex: 1,
@@ -1722,11 +1867,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
+    backgroundColor: colors.cream,
+    borderColor: colors.line,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 9,
   },
   tabButtonActive: {
     backgroundColor: colors.green,
+    borderColor: colors.green,
   },
   tabButtonText: {
     color: colors.greenMuted,
@@ -1830,7 +1979,78 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     paddingLeft: 4,
   },
+  floatingField: {
+    backgroundColor: colors.cream,
+    borderColor: colors.line,
+    borderRadius: 18,
+    borderWidth: 1,
+    minHeight: 52,
+    paddingHorizontal: 14,
+    paddingTop: 7,
+  },
+  floatingFieldFocused: {
+    borderColor: colors.green,
+    backgroundColor: colors.white,
+  },
+  floatingLabel: {
+    color: "#8a9583",
+    fontSize: 13,
+    fontWeight: "700",
+    left: 14,
+    maxWidth: "82%",
+    position: "absolute",
+    top: 15,
+  },
+  floatingLabelActive: {
+    color: colors.greenMid,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.2,
+    textTransform: "uppercase",
+    top: 6,
+  },
+  floatingInput: {
+    color: "#0c2b1d",
+    fontSize: 14,
+    fontWeight: "700",
+    paddingBottom: 10,
+    paddingHorizontal: 0,
+    paddingTop: 15,
+  },
 });
+
+type FloatingFieldProps = TextInputProps & {
+  label: string;
+  inputStyle?: StyleProp<TextStyle>;
+};
+
+function FloatingField({ label, inputStyle, value, onFocus, onBlur, ...props }: FloatingFieldProps) {
+  const [isFocused, setIsFocused] = useState(false);
+  const hasValue = String(value ?? "").length > 0;
+
+  return (
+    <View style={[styles.floatingField, isFocused && styles.floatingFieldFocused]}>
+      <Text style={[styles.floatingLabel, (isFocused || hasValue) && styles.floatingLabelActive]} numberOfLines={1}>
+        {label}
+      </Text>
+      <TextInput
+        {...props}
+        onBlur={(event) => {
+          setIsFocused(false);
+          onBlur?.(event);
+        }}
+        onFocus={(event) => {
+          setIsFocused(true);
+          onFocus?.(event);
+        }}
+        placeholder={isFocused || hasValue ? "" : label}
+        placeholderTextColor="#8a9583"
+        style={[styles.floatingInput, inputStyle]}
+        value={value}
+      />
+    </View>
+  );
+}
 
 function SellerListingSkeleton() {
   return (
