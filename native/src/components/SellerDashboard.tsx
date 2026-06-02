@@ -5,7 +5,14 @@ import { Card } from "./Card";
 import { useAuth } from "../context/AuthContext";
 import { createListingForReview, getSellerListings, deleteListing, updateListing, getUserOrders, updateOrderStatus, type ListingInput, type SellerListing, type Order } from "../services/listings";
 import { scanPlantWithLeafy, type LeafyScanResult } from "../services/leafyScan";
-import { pickImageFromLibrary, uploadPublicImage, type PickedImage } from "../services/storage";
+import {
+  pickImageFromLibrary,
+  pickPermitDocument,
+  uploadPrivateDocument,
+  uploadPublicImage,
+  type PickedDocument,
+  type PickedImage,
+} from "../services/storage";
 import { colors } from "../theme/colors";
 import { getSellerStats, type SellerStats } from "../services/profile";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -14,7 +21,7 @@ import { SkeletonBlock, SkeletonCard, SkeletonLine } from "./Skeleton";
 
 const units: ListingInput["unit"][] = ["Pot", "Cutting", "Seedling", "Node", "Pack"];
 const DELIVERY_ONLY = "Delivery";
-const listingStatusFilters = ["all", "active", "review", "archived"] as const;
+const listingStatusFilters = ["all", "active", "review", "needs_more_documents", "archived"] as const;
 type ListingStatusFilter = (typeof listingStatusFilters)[number];
 
 export function SellerDashboard() {
@@ -35,6 +42,7 @@ export function SellerDashboard() {
   const [unitIndex, setUnitIndex] = useState(0);
   const [description, setDescription] = useState("");
   const [photo, setPhoto] = useState<PickedImage | null>(null);
+  const [permitDocument, setPermitDocument] = useState<PickedDocument | null>(null);
   const [scanResult, setScanResult] = useState<LeafyScanResult | null>(null);
   const [location, setLocation] = useState("");
   const [deliveryOption] = useState(DELIVERY_ONLY);
@@ -45,6 +53,9 @@ export function SellerDashboard() {
   const [showAllListings, setShowAllListings] = useState(false);
   const [activeTab, setActiveTab] = useState<"new" | "stock" | "orders">("new");
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const requiresPermit = scanResult?.regulationStatus === "needs_permit";
+  const allowsSupportDocument = scanResult?.regulationStatus === "needs_permit" || scanResult?.regulationStatus === "needs_review";
+  const isIllegalListing = scanResult?.regulationStatus === "illegal" || scanResult?.saleStatus === "blocked";
 
   const filteredListings = useMemo(() => {
     const searchTerm = listingSearch.trim().toLowerCase();
@@ -132,6 +143,7 @@ export function SellerDashboard() {
       if (pickedPhoto) {
         // Reset previous scan state when a new photo is chosen
         setScanResult(null);
+        setPermitDocument(null);
         setMessage(null);
         setPhoto(pickedPhoto);
         // 🔑 Automatically scan after upload
@@ -152,6 +164,21 @@ export function SellerDashboard() {
     await runLeafyScan(photo);
   }
 
+  async function handlePickPermitDocument() {
+    setError(null);
+
+    try {
+      const pickedDocument = await pickPermitDocument();
+      if (pickedDocument) {
+        setPermitDocument(pickedDocument);
+        setMessage("Supporting document attached. Submit the listing for admin review when ready.");
+      }
+    } catch (documentError) {
+      const nextMessage = documentError instanceof Error ? documentError.message : "Unable to choose permit document.";
+      setError(nextMessage);
+    }
+  }
+
   async function handleCreateListing() {
     if (!user) return;
 
@@ -168,12 +195,20 @@ export function SellerDashboard() {
       return;
     }
 
+    if (isIllegalListing) {
+      setError("This plant cannot be listed on GrowMate because it may be prohibited under Philippine law.");
+      return;
+    }
+
     setIsSaving(true);
     setMessage(null);
     setError(null);
 
     try {
       const uploadedPhoto = photo ? await uploadPublicImage("listing-photos", user.id, "listings", photo) : null;
+      const uploadedPermit = permitDocument
+        ? await uploadPrivateDocument("regulated-plant-permits", user.id, "permits", permitDocument)
+        : null;
 
       await createListingForReview({
         sellerId: user.id,
@@ -191,10 +226,11 @@ export function SellerDashboard() {
         aiProvider: scanResult?.provider ?? null,
         aiConfidence: scanResult?.confidence ?? null,
         aiResult: scanResult ?? null,
+        permitDocumentPath: uploadedPermit?.path,
         initialStatus: "review",
       });
 
-      setMessage("Listing submitted for admin review before going live.");
+      setMessage(requiresPermit ? "Listing submitted for admin permit review." : "Listing submitted for admin review before going live.");
       setName("");
       setLocalName("");
       setScientificName("");
@@ -204,6 +240,7 @@ export function SellerDashboard() {
       setUnitIndex(0);
       setDescription("");
       setPhoto(null);
+      setPermitDocument(null);
       setScanResult(null);
       await loadDashboardData();
     } catch (saveError) {
@@ -248,6 +285,8 @@ export function SellerDashboard() {
         return { bg: "#dcfce7", text: "#166534", icon: "store-check-outline" as const, label: "Live" };
       case "review":
         return { bg: "#fff7ed", text: "#9a3412", icon: "clipboard-search-outline" as const, label: "Review" };
+      case "needs_more_documents":
+        return { bg: "#fef3c7", text: "#92400e", icon: "file-alert-outline" as const, label: "More docs" };
       case "archived":
         return { bg: "#f3f4f6", text: "#4b5563", icon: "archive-outline" as const, label: "Archived" };
       default:
@@ -419,7 +458,7 @@ export function SellerDashboard() {
                     <Text style={styles.scanEyebrow}>Leafy AI Result</Text>
                   </View>
                   <Text style={[styles.scanStatusBadge, scanResult.saleStatus !== "safe_to_sell" && styles.scanStatusWarning]}>
-                    {scanResult.saleStatus === "safe_to_sell" ? "Safe to sell" : "Needs review"}
+                    {scanResult.saleStatus === "blocked" ? "Blocked" : scanResult.saleStatus === "safe_to_sell" ? "Safe to sell" : "Needs review"}
                   </Text>
                 </View>
                 <Text style={styles.scanTitle}>{scanResult.bestMatch}</Text>
@@ -430,6 +469,47 @@ export function SellerDashboard() {
                   <Text style={styles.scanMeta}>Family: {scanResult.family}</Text>
                 )}
                 <Text style={styles.scanBody}>{scanResult.reviewReason}</Text>
+              </View>
+            )}
+
+            {isIllegalListing && (
+              <View style={styles.illegalCard}>
+                <View style={styles.permitCardHeader}>
+                  <MaterialCommunityIcons name="alert-octagon-outline" size={18} color="#991b1b" />
+                  <Text style={styles.illegalTitle}>Cannot be listed</Text>
+                </View>
+                <Text style={styles.illegalText}>
+                  This plant cannot be listed on GrowMate because it may be prohibited under Philippine law.
+                </Text>
+              </View>
+            )}
+
+            {allowsSupportDocument && !isIllegalListing && (
+              <View style={styles.permitCard}>
+                <View style={styles.permitCardHeader}>
+                  <MaterialCommunityIcons name="file-certificate-outline" size={18} color={colors.green} />
+                  <Text style={styles.permitTitle}>
+                    {requiresPermit ? "Permit or verification required" : "Optional supporting document"}
+                  </Text>
+                </View>
+                <Text style={styles.permitText}>
+                  {requiresPermit
+                    ? "This plant may require DENR/CITES verification before it can be sold or transported. Upload any permit, propagation proof, or supporting document you have."
+                    : "GrowMate needs admin review to verify the exact species. You may upload supporting proof if you have one."}
+                </Text>
+                {permitDocument && (
+                  <View style={styles.permitFileRow}>
+                    <MaterialCommunityIcons name="file-document-outline" size={16} color={colors.green} />
+                    <Text style={styles.permitFileName} numberOfLines={1}>{permitDocument.fileName}</Text>
+                  </View>
+                )}
+                <View style={styles.photoActionRow}>
+                  <View style={styles.photoActionBtn}>
+                    <Button icon={permitDocument ? "file-replace-outline" : "upload"} variant="secondary" onPress={handlePickPermitDocument}>
+                      {permitDocument ? "Replace document" : "Upload document"}
+                    </Button>
+                  </View>
+                </View>
               </View>
             )}
 
@@ -568,7 +648,7 @@ export function SellerDashboard() {
               </View>
             )}
 
-            <Button disabled={isSaving || isScanning} onPress={handleCreateListing}>
+            <Button disabled={isSaving || isScanning || isIllegalListing} onPress={handleCreateListing}>
               {isSaving ? "Submitting..." : "Submit for review"}
             </Button>
           </View>
@@ -608,7 +688,7 @@ export function SellerDashboard() {
                   style={[styles.statusFilterChip, listingStatusFilter === filter && styles.statusFilterChipActive]}
                 >
                   <Text style={[styles.statusFilterText, listingStatusFilter === filter && styles.statusFilterTextActive]}>
-                    {filter === "all" ? "All" : filter.charAt(0).toUpperCase() + filter.slice(1)}
+                    {filter === "all" ? "All" : filter === "needs_more_documents" ? "More Docs" : filter.charAt(0).toUpperCase() + filter.slice(1)}
                   </Text>
                 </Pressable>
               ))}
@@ -976,6 +1056,66 @@ const styles = StyleSheet.create({
     color: colors.greenMuted,
     fontSize: 13,
     fontWeight: "700",
+    lineHeight: 20,
+  },
+  permitCard: {
+    backgroundColor: "#fff7ed",
+    borderColor: "#fed7aa",
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 8,
+    padding: 14,
+  },
+  permitCardHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 7,
+  },
+  permitTitle: {
+    color: colors.green,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  permitText: {
+    color: colors.greenMuted,
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 20,
+  },
+  permitFileRow: {
+    alignItems: "center",
+    backgroundColor: colors.cream,
+    borderColor: colors.line,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  permitFileName: {
+    color: colors.green,
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  illegalCard: {
+    backgroundColor: "#fee2e2",
+    borderColor: "#fecaca",
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 8,
+    padding: 14,
+  },
+  illegalTitle: {
+    color: "#991b1b",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  illegalText: {
+    color: "#7f1d1d",
+    fontSize: 13,
+    fontWeight: "800",
     lineHeight: 20,
   },
   // ── Form fields ──────────────────────────────────────────

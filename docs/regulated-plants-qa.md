@@ -47,6 +47,19 @@ These inputs should be checked after scanner or data changes:
 - needs_review: keep seller listing in review until admin verifies exact species.
 - no match: allow normal review flow and show the compliance disclaimer.
 
+## Permit Upload QA
+
+- needs_permit listing without a document: listing stays in review, permit_review_status becomes required, admin approval is blocked until a document exists.
+- needs_permit listing with a PDF/JPG/PNG/WEBP document: file uploads to the private regulated-plant-permits bucket, listing stays in review, permit_review_status becomes submitted.
+- needs_review listing with optional document: file uploads privately and admin can review it, but a document is not required by default.
+- illegal listing: seller cannot submit it and the database trigger keeps illegal scan results blocked.
+- clear listing: normal review/publication path still works and permit_review_status remains not_required.
+- seller access control: sellers can upload/read only files under their own user-id folder in regulated-plant-permits.
+- public access control: public users cannot read regulated-plant-permits files.
+- admin access control: admins can open seller permit documents from the review queue.
+- non-admin moderation: non-admin users cannot call approval/rejection/request-more-documents RPC behavior successfully.
+- admin actions: approve sets permit_review_status to approved when a permit was required; reject/block set rejected; request more documents sets needs_more_documents.
+
 ## Remaining MVP Gap
 
-Permit upload is not a dedicated listing field yet. If a seller must upload DENR/CITES documents, add a listing compliance document upload path and show it in the admin queue.
+Permit upload now exists for listing review. The next polish step is adding seller-side replacement after a listing is already in needs_more_documents status.

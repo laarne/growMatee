@@ -84,6 +84,8 @@ export type ListingInput = {
   aiProvider?: string | null;
   aiConfidence?: number | null;
   aiResult?: Record<string, unknown> | null;
+  permitDocumentPath?: string | null;
+  permitDocumentUrl?: string | null;
   /** When 'active', listing goes live immediately (Leafy AI cleared it). Default: 'review' */
   initialStatus?: "active" | "review";
 };
@@ -304,6 +306,9 @@ export async function createListingForReview(input: ListingInput) {
       ai_provider: sanitizeNullableUserInput(input.aiProvider, { maxLength: 80 }),
       ai_confidence: input.aiConfidence ?? null,
       ai_result: input.aiResult ?? {},
+      permit_document_path: sanitizeNullableUserInput(input.permitDocumentPath, { maxLength: 500 }),
+      permit_document_url: sanitizeNullableUserInput(input.permitDocumentUrl, { maxLength: 500 }),
+      permit_uploaded_at: input.permitDocumentPath ? new Date().toISOString() : null,
       status,
       // Auto-set published_at when going live immediately
       published_at: isActive ? new Date().toISOString() : null,

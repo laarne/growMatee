@@ -35,6 +35,9 @@ type ListingReviewRow = {
   description: string | null;
   ai_confidence: number | string | null;
   ai_result: ListingAiResult | null;
+  permit_document_path: string | null;
+  permit_review_status: string | null;
+  permit_review_notes: string | null;
   created_at: string;
 };
 
@@ -89,6 +92,9 @@ export type PendingListingReview = {
   description: string | null;
   aiConfidence: number | null;
   aiResult: ListingAiResult | null;
+  permitDocumentUrl: string | null;
+  permitReviewStatus: string;
+  permitReviewNotes: string | null;
   createdAt: string;
 };
 
@@ -146,8 +152,8 @@ export async function getPendingListingReviews(): Promise<PendingListingReview[]
 
   const { data, error } = await supabase
     .from("listings")
-    .select("id, seller_id, name, local_name, scientific_name, category, price, quantity, unit, location, description, ai_confidence, ai_result, created_at")
-    .eq("status", "review")
+    .select("id, seller_id, name, local_name, scientific_name, category, price, quantity, unit, location, description, ai_confidence, ai_result, permit_document_path, permit_review_status, permit_review_notes, created_at")
+    .in("status", ["review", "needs_more_documents"])
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -157,7 +163,7 @@ export async function getPendingListingReviews(): Promise<PendingListingReview[]
   const listings = (data ?? []) as ListingReviewRow[];
   const profiles = await getProfilesByIds(listings.map((listing) => listing.seller_id));
 
-  return listings.map((listing) => {
+  return Promise.all(listings.map(async (listing) => {
     const profile = profiles.get(listing.seller_id);
 
     return {
@@ -175,9 +181,12 @@ export async function getPendingListingReviews(): Promise<PendingListingReview[]
       description: listing.description,
       aiConfidence: listing.ai_confidence === null ? null : Number(listing.ai_confidence),
       aiResult: listing.ai_result,
+      permitDocumentUrl: await createPrivateImageSignedUrl("regulated-plant-permits", listing.permit_document_path),
+      permitReviewStatus: listing.permit_review_status ?? "not_required",
+      permitReviewNotes: listing.permit_review_notes,
       createdAt: listing.created_at,
     };
-  });
+  }));
 }
 
 export async function approveSellerApplication(application: PendingSellerApplication, adminId: string) {
@@ -214,6 +223,26 @@ export async function rejectListingReview(listingId: string) {
     p_listing_id: listingId,
     p_status: "rejected",
     p_review_note: "Listing rejected by admin.",
+  });
+  if (error) throw error;
+}
+
+export async function requestMoreListingDocuments(listingId: string, note = "Please upload clearer DENR/CITES permit or propagation proof.") {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { error } = await supabase.rpc("admin_set_listing_review_status", {
+    p_listing_id: listingId,
+    p_status: "needs_more_documents",
+    p_review_note: note,
+  });
+  if (error) throw error;
+}
+
+export async function blockListingReview(listingId: string, note = "Listing blocked by admin after compliance review.") {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { error } = await supabase.rpc("admin_set_listing_review_status", {
+    p_listing_id: listingId,
+    p_status: "blocked",
+    p_review_note: note,
   });
   if (error) throw error;
 }

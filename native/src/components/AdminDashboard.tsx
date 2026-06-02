@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View, Image, Pressable } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View, Image, Pressable, Linking } from "react-native";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { useAuth } from "../context/AuthContext";
 import {
   approveListingReview,
   approveSellerApplication,
+  blockListingReview,
   getPendingListingReviews,
   getPendingSellerApplications,
+  requestMoreListingDocuments,
   rejectListingReview,
   rejectSellerApplication,
   type PendingListingReview,
@@ -453,13 +455,55 @@ export function AdminDashboard() {
                     </View>
                   ) : null}
 
+                  <View style={styles.permitReviewBox}>
+                    <Text style={styles.reasonLabel}>Permit Review</Text>
+                    <View style={styles.permitReviewRow}>
+                      <View style={styles.permitStatusPill}>
+                        <MaterialCommunityIcons name="file-certificate-outline" size={13} color={colors.green} />
+                        <Text style={styles.permitStatusText}>{listing.permitReviewStatus.replace(/_/g, " ")}</Text>
+                      </View>
+                      {listing.permitDocumentUrl ? (
+                        <Pressable onPress={() => Linking.openURL(listing.permitDocumentUrl!)} style={styles.permitLinkButton}>
+                          <MaterialCommunityIcons name="open-in-new" size={13} color={colors.green} />
+                          <Text style={styles.permitLinkText}>Open document</Text>
+                        </Pressable>
+                      ) : (
+                        <View style={styles.permitMissingPill}>
+                          <MaterialCommunityIcons name="file-remove-outline" size={13} color="#9a3412" />
+                          <Text style={styles.permitMissingText}>No document</Text>
+                        </View>
+                      )}
+                    </View>
+                    {listing.permitReviewNotes && (
+                      <Text style={styles.regulationBody}>{listing.permitReviewNotes}</Text>
+                    )}
+                  </View>
+
                   {/* Actions */}
-                  {renderActionButtons(
-                    "listing",
-                    listing.id,
-                    () => approveListingReview(listing.id),
-                    () => rejectListingReview(listing.id),
-                  )}
+                  <View style={styles.buttonRow}>
+                    <View style={styles.flexButton}>
+                      <Button disabled={actionId === listing.id} icon="check" onPress={() => runAction(listing.id, "Listing approved.", () => approveListingReview(listing.id))}>
+                        Approve
+                      </Button>
+                    </View>
+                    <View style={styles.flexButton}>
+                      <Button disabled={actionId === listing.id} icon="file-alert-outline" variant="secondary" onPress={() => runAction(listing.id, "More documents requested.", () => requestMoreListingDocuments(listing.id))}>
+                        More docs
+                      </Button>
+                    </View>
+                  </View>
+                  <View style={styles.buttonRowCompact}>
+                    <View style={styles.flexButton}>
+                      <Button disabled={actionId === listing.id} icon="close" variant="danger" onPress={() => runAction(listing.id, "Listing rejected.", () => rejectListingReview(listing.id))}>
+                        Reject
+                      </Button>
+                    </View>
+                    <View style={styles.flexButton}>
+                      <Button disabled={actionId === listing.id} icon="block-helper" variant="danger" onPress={() => runAction(listing.id, "Listing blocked.", () => blockListingReview(listing.id))}>
+                        Block
+                      </Button>
+                    </View>
+                  </View>
                 </View>
               ))
             )}
@@ -967,11 +1011,79 @@ const styles = StyleSheet.create({
     color: colors.green,
     lineHeight: 16,
   },
+  permitReviewBox: {
+    backgroundColor: colors.surface1,
+    borderColor: colors.line,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    gap: 8,
+    marginTop: 10,
+    padding: 10,
+  },
+  permitReviewRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  permitStatusPill: {
+    alignItems: "center",
+    backgroundColor: "#ecfdf5",
+    borderColor: "#bbf7d0",
+    borderRadius: radius.full,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  permitStatusText: {
+    color: colors.green,
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "capitalize",
+  },
+  permitLinkButton: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderColor: colors.line,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  permitLinkText: {
+    color: colors.green,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  permitMissingPill: {
+    alignItems: "center",
+    backgroundColor: "#fff7ed",
+    borderColor: "#fed7aa",
+    borderRadius: radius.full,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  permitMissingText: {
+    color: "#9a3412",
+    fontSize: 11,
+    fontWeight: "900",
+  },
 
   buttonRow: {
     flexDirection: "row",
     gap: 10,
     marginTop: 14,
+  },
+  buttonRowCompact: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 8,
   },
   flexButton: {
     flex: 1,
