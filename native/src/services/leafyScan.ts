@@ -31,6 +31,19 @@ export type LeafyScanResult = {
   careProfile?: PlantCareProfile | null;
   saleStatus: "safe_to_sell" | "review_required" | "blocked";
   reviewReason: string;
+  regulationStatus?: "needs_permit" | "needs_review" | "illegal" | null;
+  regulationRef?: string | null;
+  regulationMatches?: {
+    taxonName: string;
+    taxonRank: "species" | "genus" | "family" | "common_name";
+    matchType: "exact" | "broad";
+    status: "needs_permit" | "needs_review" | "illegal";
+    regulationRef: string;
+    sourceDocument: string;
+    sourceCategory: string | null;
+    notes: string | null;
+  }[];
+  complianceDisclaimer?: string;
   alternativeMatches?: {
     name: string;
     scientificName: string | null;

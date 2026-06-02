@@ -116,6 +116,19 @@ type CareProfile = {
   source: "cache" | "perenual" | "trefle" | "fallback";
 };
 
+type RegulatedPlantRule = {
+  id: string;
+  taxon_name: string;
+  taxon_rank: "species" | "genus" | "family" | "common_name";
+  match_type: "exact" | "broad";
+  status: "needs_permit" | "needs_review" | "illegal";
+  regulation_ref: string;
+  seller_explanation: string;
+  source_document: string;
+  source_category: string | null;
+  notes: string | null;
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -130,17 +143,7 @@ const scanLimit = 100;
 const scanWindowMs = 60 * 60 * 1000;
 const careLookupPromises = new Map<string, Promise<CareProfile>>();
 
-const reviewTerms = [
-  "waling-waling",
-  "vanda sanderiana",
-  "paphiopedilum",
-  "cycas wadei",
-  "nepenthes",
-  "rafflesia",
-  "dendrobium schuetzei",
-  "phalaenopsis micholitzii",
-  "palawan cherry",
-];
+const complianceDisclaimer = "GrowMate's regulation checker is a compliance helper, not legal advice.";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -278,28 +281,124 @@ function inferCategory(name: string, commonNames: string[]) {
   return "Indoor";
 }
 
-function getSaleDecision(name: string, commonNames: string[], confidence: number) {
-  const combined = normalizeText([name, ...commonNames].join(" "));
-  const matchedTerm = reviewTerms.find((term) => combined.includes(term));
-
-  if (matchedTerm && confidence >= 70) {
-    return {
-      saleStatus: "review_required" as const,
-      reviewReason: `Possible protected or restricted species match: ${matchedTerm}. Admin review is required before selling.`,
-    };
-  }
-
+function fallbackSaleDecision(confidence: number) {
   if (confidence < 35) {
     return {
       saleStatus: "review_required" as const,
       reviewReason: "Plant identity confidence is low. Add clearer photos for admin review.",
+      regulationStatus: "needs_review" as const,
+      regulationRef: null,
+      regulationMatches: [] as RegulatedPlantRule[],
     };
   }
 
   return {
     saleStatus: "safe_to_sell" as const,
     reviewReason: "No protected-species flag detected. Still confirm local rules before selling.",
+    regulationStatus: null,
+    regulationRef: null,
+    regulationMatches: [] as RegulatedPlantRule[],
   };
+}
+
+function buildRegulationDecision(rules: RegulatedPlantRule[], confidence: number) {
+  if (rules.length === 0) return fallbackSaleDecision(confidence);
+
+  const hasIllegal = rules.some((rule) => rule.status === "illegal");
+  const hasReview = rules.some((rule) => rule.status === "needs_review");
+  const refs = [...new Set(rules.map((rule) => rule.regulation_ref))];
+  const explanations = [...new Set(rules.map((rule) => rule.seller_explanation))];
+
+  if (hasIllegal) {
+    return {
+      saleStatus: "blocked" as const,
+      reviewReason: explanations[0] ?? "This plant cannot be listed on GrowMate because it may be prohibited by law.",
+      regulationStatus: "illegal" as const,
+      regulationRef: refs.join(" + "),
+      regulationMatches: rules,
+    };
+  }
+
+  const regulationStatus = hasReview ? "needs_review" as const : "needs_permit" as const;
+
+  return {
+    saleStatus: "review_required" as const,
+    reviewReason: explanations.join(" "),
+    regulationStatus,
+    regulationRef: refs.join(" + "),
+    regulationMatches: rules,
+  };
+}
+
+async function getRegulationDecision(
+  client: ReturnType<typeof createClient>,
+  scientificName: string,
+  commonNames: string[],
+  family: string | null | undefined,
+  genus: string | null | undefined,
+  confidence: number,
+) {
+  const normalizedScientificName = normalizeScientificName(scientificName);
+  const exactTaxonCandidates = [...new Set([
+    normalizedScientificName,
+    ...commonNames.map(normalizeScientificName),
+  ].filter(Boolean))];
+
+  const broadCandidates = [...new Set([
+    family ? normalizeScientificName(family) : "",
+    genus ? normalizeScientificName(genus) : "",
+    normalizedScientificName.split(" ")[0] ?? "",
+  ].filter(Boolean))];
+
+  const selectFields = "id, taxon_name, taxon_rank, match_type, status, regulation_ref, seller_explanation, source_document, source_category, notes";
+  const results: RegulatedPlantRule[] = [];
+
+  try {
+    if (exactTaxonCandidates.length > 0) {
+      const { data, error } = await client
+        .from("regulated_plant_rules")
+        .select(selectFields)
+        .eq("active", true)
+        .eq("match_type", "exact")
+        .in("normalized_taxon_name", exactTaxonCandidates);
+
+      if (error) throw error;
+      results.push(...((data ?? []) as RegulatedPlantRule[]));
+
+      const { data: commonData, error: commonError } = await client
+        .from("regulated_plant_rules")
+        .select(selectFields)
+        .eq("active", true)
+        .eq("match_type", "exact")
+        .in("normalized_common_name", exactTaxonCandidates);
+
+      if (commonError) throw commonError;
+      results.push(...((commonData ?? []) as RegulatedPlantRule[]));
+    }
+
+    if (broadCandidates.length > 0) {
+      const { data, error } = await client
+        .from("regulated_plant_rules")
+        .select(selectFields)
+        .eq("active", true)
+        .eq("match_type", "broad")
+        .in("normalized_taxon_name", broadCandidates);
+
+      if (error) throw error;
+      results.push(...((data ?? []) as RegulatedPlantRule[]));
+    }
+  } catch (error) {
+    console.warn("Regulated plant lookup failed:", error);
+    return fallbackSaleDecision(confidence);
+  }
+
+  const deduped = [...new Map(results.map((rule) => [rule.id, rule])).values()];
+  deduped.sort((a, b) => {
+    const rank = { illegal: 0, needs_review: 1, needs_permit: 2 };
+    return rank[a.status] - rank[b.status];
+  });
+
+  return buildRegulationDecision(deduped, confidence);
 }
 
 function fallbackCareProfile(scientificName: string, commonNames: string[], category: string): CareProfile {
@@ -889,7 +988,10 @@ Deno.serve(async (request) => {
   const commonNames = best.species.commonNames ?? [];
   const confidence = Math.round((best.score ?? 0) * 1000) / 10;
   const category = inferCategory(scientificName, commonNames);
-  const decision = getSaleDecision(scientificName, commonNames, confidence);
+  const family = best.species.family?.scientificNameWithoutAuthor ?? null;
+  const genus = best.species.genus?.scientificNameWithoutAuthor ?? null;
+  const regulationClient = supabaseAdmin ?? supabase;
+  const decision = await getRegulationDecision(regulationClient, scientificName, commonNames, family, genus, confidence);
   const careProfile = await getCareProfileWithCache(supabase, supabaseAdmin, scientificName, commonNames, category, perenualApiKey ?? undefined, trefleToken ?? undefined, currentUserIsAdmin);
 
   const alternativeMatches = (data.results ?? []).slice(1, 5).map((match) => {
@@ -927,13 +1029,26 @@ Deno.serve(async (request) => {
     bestMatch: commonNames[0] ?? scientificName,
     scientificName,
     commonNames,
-    family: best.species.family?.scientificNameWithoutAuthor ?? null,
-    genus: best.species.genus?.scientificNameWithoutAuthor ?? null,
+    family,
+    genus,
     confidence,
     category,
     careProfile: publicCareProfile,
     saleStatus: decision.saleStatus,
     reviewReason: decision.reviewReason,
+    regulationStatus: decision.regulationStatus,
+    regulationRef: decision.regulationRef,
+    regulationMatches: decision.regulationMatches.map((rule) => ({
+      taxonName: rule.taxon_name,
+      taxonRank: rule.taxon_rank,
+      matchType: rule.match_type,
+      status: rule.status,
+      regulationRef: rule.regulation_ref,
+      sourceDocument: rule.source_document,
+      sourceCategory: rule.source_category,
+      notes: rule.notes,
+    })),
+    complianceDisclaimer,
     alternativeMatches,
     remainingRequests: data.query?.remainingIdentificationRequests,
     scanLimit: {
