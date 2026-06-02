@@ -26,6 +26,7 @@ type ListingReviewRow = {
   seller_id: string;
   name: string;
   local_name: string | null;
+  scientific_name: string | null;
   category: string;
   price: number | string;
   quantity: number;
@@ -33,7 +34,28 @@ type ListingReviewRow = {
   location: string;
   description: string | null;
   ai_confidence: number | string | null;
+  ai_result: ListingAiResult | null;
   created_at: string;
+};
+
+type RegulationMatch = {
+  taxon_name?: string;
+  taxon_rank?: string;
+  match_type?: string;
+  status?: "needs_permit" | "needs_review" | "illegal";
+  regulation_ref?: string;
+  source_document?: string;
+  notes?: string | null;
+};
+
+type ListingAiResult = {
+  bestMatch?: string;
+  saleStatus?: "safe_to_sell" | "review_required" | "blocked";
+  reviewReason?: string;
+  regulationStatus?: "needs_permit" | "needs_review" | "illegal" | null;
+  regulationRef?: string | null;
+  regulationMatches?: RegulationMatch[];
+  complianceDisclaimer?: string;
 };
 
 export type PendingSellerApplication = {
@@ -58,6 +80,7 @@ export type PendingListingReview = {
   sellerName: string;
   name: string;
   localName: string | null;
+  scientificName: string | null;
   category: string;
   price: number;
   quantity: number;
@@ -65,6 +88,7 @@ export type PendingListingReview = {
   location: string;
   description: string | null;
   aiConfidence: number | null;
+  aiResult: ListingAiResult | null;
   createdAt: string;
 };
 
@@ -122,7 +146,7 @@ export async function getPendingListingReviews(): Promise<PendingListingReview[]
 
   const { data, error } = await supabase
     .from("listings")
-    .select("id, seller_id, name, local_name, category, price, quantity, unit, location, description, ai_confidence, created_at")
+    .select("id, seller_id, name, local_name, scientific_name, category, price, quantity, unit, location, description, ai_confidence, ai_result, created_at")
     .eq("status", "review")
     .order("created_at", { ascending: true });
 
@@ -142,6 +166,7 @@ export async function getPendingListingReviews(): Promise<PendingListingReview[]
       sellerName: profile?.display_name ?? "Verified seller",
       name: listing.name,
       localName: listing.local_name,
+      scientificName: listing.scientific_name,
       category: listing.category,
       price: Number(listing.price),
       quantity: listing.quantity,
@@ -149,6 +174,7 @@ export async function getPendingListingReviews(): Promise<PendingListingReview[]
       location: listing.location,
       description: listing.description,
       aiConfidence: listing.ai_confidence === null ? null : Number(listing.ai_confidence),
+      aiResult: listing.ai_result,
       createdAt: listing.created_at,
     };
   });

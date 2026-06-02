@@ -144,6 +144,10 @@ const scanWindowMs = 60 * 60 * 1000;
 const careLookupPromises = new Map<string, Promise<CareProfile>>();
 
 const complianceDisclaimer = "GrowMate's regulation checker is a compliance helper, not legal advice.";
+const clearRegulationMessage = "No regulated plant match was found in GrowMate's current database. Sellers are still responsible for following applicable laws.";
+const illegalRegulationMessage = "This plant cannot be listed on GrowMate because it may be prohibited under Philippine law.";
+const permitRegulationMessage = "This plant may be regulated and may require DENR/CITES permit verification before it can be sold or transported.";
+const reviewRegulationMessage = "This plant may be regulated, but GrowMate needs admin review to verify the exact species.";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -191,6 +195,46 @@ function normalizeText(value: string) {
 
 function normalizeScientificName(value: string) {
   return normalizeText(value).replace(/[^a-z0-9\s-]/g, "");
+}
+
+const regulatedPlantAliases: Record<string, string[]> = {
+  marijuana: ["cannabis sativa"],
+  marihuana: ["cannabis sativa"],
+  cannabis: ["cannabis sativa"],
+  "opium poppy": ["papaver somniferum"],
+  poppy: ["papaver somniferum"],
+  "coca leaf": ["coca leaf"],
+  coca: ["coca leaf"],
+  "pitcher plant": ["nepenthes"],
+  "pitcher plants": ["nepenthes"],
+  orchid: ["orchidaceae"],
+  orchids: ["orchidaceae"],
+  cycad: ["cycadaceae"],
+  cycads: ["cycadaceae"],
+  cycas: ["cycadaceae"],
+  "waling-waling": ["vanda sanderiana"],
+  "waling waling": ["vanda sanderiana"],
+  narra: ["pterocarpus indicus"],
+};
+
+function getTaxonCandidates(value: string | null | undefined) {
+  if (!value) return [];
+
+  const normalized = normalizeScientificName(value);
+  if (!normalized) return [];
+
+  const candidates = new Set<string>([normalized]);
+  const tokens = normalized.split(" ").filter(Boolean);
+
+  if (tokens.length >= 2) {
+    candidates.add(`${tokens[0]} ${tokens[1]}`);
+  }
+
+  for (const alias of regulatedPlantAliases[normalized] ?? []) {
+    candidates.add(normalizeScientificName(alias));
+  }
+
+  return [...candidates];
 }
 
 function toText(value: string[] | string | null | undefined) {
@@ -294,7 +338,7 @@ function fallbackSaleDecision(confidence: number) {
 
   return {
     saleStatus: "safe_to_sell" as const,
-    reviewReason: "No protected-species flag detected. Still confirm local rules before selling.",
+    reviewReason: clearRegulationMessage,
     regulationStatus: null,
     regulationRef: null,
     regulationMatches: [] as RegulatedPlantRule[],
@@ -307,23 +351,23 @@ function buildRegulationDecision(rules: RegulatedPlantRule[], confidence: number
   const hasIllegal = rules.some((rule) => rule.status === "illegal");
   const hasReview = rules.some((rule) => rule.status === "needs_review");
   const refs = [...new Set(rules.map((rule) => rule.regulation_ref))];
-  const explanations = [...new Set(rules.map((rule) => rule.seller_explanation))];
 
   if (hasIllegal) {
     return {
       saleStatus: "blocked" as const,
-      reviewReason: explanations[0] ?? "This plant cannot be listed on GrowMate because it may be prohibited by law.",
+      reviewReason: illegalRegulationMessage,
       regulationStatus: "illegal" as const,
       regulationRef: refs.join(" + "),
       regulationMatches: rules,
     };
   }
 
-  const regulationStatus = hasReview ? "needs_review" as const : "needs_permit" as const;
+  const hasExactPermit = rules.some((rule) => rule.status === "needs_permit" && rule.match_type === "exact");
+  const regulationStatus = hasReview && !hasExactPermit ? "needs_review" as const : "needs_permit" as const;
 
   return {
     saleStatus: "review_required" as const,
-    reviewReason: explanations.join(" "),
+    reviewReason: regulationStatus === "needs_review" ? reviewRegulationMessage : permitRegulationMessage,
     regulationStatus,
     regulationRef: refs.join(" + "),
     regulationMatches: rules,
@@ -338,16 +382,18 @@ async function getRegulationDecision(
   genus: string | null | undefined,
   confidence: number,
 ) {
-  const normalizedScientificName = normalizeScientificName(scientificName);
+  const scientificCandidates = getTaxonCandidates(scientificName);
+  const normalizedScientificName = scientificCandidates[0] ?? normalizeScientificName(scientificName);
   const exactTaxonCandidates = [...new Set([
-    normalizedScientificName,
-    ...commonNames.map(normalizeScientificName),
+    ...scientificCandidates,
+    ...commonNames.flatMap(getTaxonCandidates),
   ].filter(Boolean))];
 
   const broadCandidates = [...new Set([
     family ? normalizeScientificName(family) : "",
     genus ? normalizeScientificName(genus) : "",
     normalizedScientificName.split(" ")[0] ?? "",
+    ...exactTaxonCandidates.filter((candidate) => !candidate.includes(" ")),
   ].filter(Boolean))];
 
   const selectFields = "id, taxon_name, taxon_rank, match_type, status, regulation_ref, seller_explanation, source_document, source_category, notes";
@@ -364,6 +410,16 @@ async function getRegulationDecision(
 
       if (error) throw error;
       results.push(...((data ?? []) as RegulatedPlantRule[]));
+
+      const { data: binomialData, error: binomialError } = await client
+        .from("regulated_plant_rules")
+        .select(selectFields)
+        .eq("active", true)
+        .eq("match_type", "exact")
+        .in("normalized_binomial", exactTaxonCandidates);
+
+      if (binomialError) throw binomialError;
+      results.push(...((binomialData ?? []) as RegulatedPlantRule[]));
 
       const { data: commonData, error: commonError } = await client
         .from("regulated_plant_rules")

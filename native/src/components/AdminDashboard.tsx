@@ -117,6 +117,20 @@ export function AdminDashboard() {
     );
   }
 
+  function getRegulationLabel(status?: "needs_permit" | "needs_review" | "illegal" | null) {
+    if (status === "illegal") return "Illegal - block listing";
+    if (status === "needs_permit") return "Permit verification required";
+    if (status === "needs_review") return "Admin species review required";
+    return "No regulated match found";
+  }
+
+  function getRegulationIcon(status?: string | null) {
+    if (status === "illegal") return "alert-octagon";
+    if (status === "needs_permit") return "shield-key-outline";
+    if (status === "needs_review") return "shield-alert-outline";
+    return "shield-check-outline";
+  }
+
   return (
     <Card tint="flat" noPadding>
       {/* Header Panel */}
@@ -367,6 +381,14 @@ export function AdminDashboard() {
                     </View>
                   )}
 
+                  <View style={styles.reasonContainer}>
+                    <Text style={styles.reasonLabel}>Plant Identity</Text>
+                    <Text style={styles.reasonText}>
+                      {listing.scientificName ?? listing.aiResult?.bestMatch ?? listing.name}
+                      {listing.localName ? ` (${listing.localName})` : ""}
+                    </Text>
+                  </View>
+
                   {/* AI Confidence Banner if available */}
                   {listing.aiConfidence !== null && (
                     <View
@@ -390,6 +412,46 @@ export function AdminDashboard() {
                       </Text>
                     </View>
                   )}
+
+                  <View
+                    style={[
+                      styles.regulationBanner,
+                      listing.aiResult?.regulationStatus === "illegal" && styles.regulationBannerDanger,
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name={getRegulationIcon(listing.aiResult?.regulationStatus)}
+                      size={15}
+                      color={listing.aiResult?.regulationStatus === "illegal" ? colors.errorText : colors.warningText}
+                    />
+                    <View style={styles.regulationTextGroup}>
+                      <Text
+                        style={[
+                          styles.regulationTitle,
+                          listing.aiResult?.regulationStatus === "illegal" && styles.regulationTitleDanger,
+                        ]}
+                      >
+                        {getRegulationLabel(listing.aiResult?.regulationStatus)}
+                      </Text>
+                      <Text style={styles.regulationBody}>
+                        {listing.aiResult?.regulationRef ?? "Compliance disclaimer still applies."}
+                      </Text>
+                      {listing.aiResult?.reviewReason && (
+                        <Text style={styles.regulationBody}>{listing.aiResult.reviewReason}</Text>
+                      )}
+                    </View>
+                  </View>
+
+                  {listing.aiResult?.regulationMatches?.length ? (
+                    <View style={styles.reasonContainer}>
+                      <Text style={styles.reasonLabel}>Regulation Matches</Text>
+                      {listing.aiResult.regulationMatches.slice(0, 4).map((match, index) => (
+                        <Text key={`${match.taxon_name}-${index}`} style={styles.reasonText}>
+                          {match.taxon_name ?? "Rule match"} - {match.status ?? "review"} - {match.regulation_ref ?? match.source_document ?? "Source pending"}
+                        </Text>
+                      ))}
+                    </View>
+                  ) : null}
 
                   {/* Actions */}
                   {renderActionButtons(
@@ -870,6 +932,40 @@ const styles = StyleSheet.create({
   },
   aiBannerTextWarning: {
     color: colors.warningText,
+  },
+
+  regulationBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    padding: 10,
+    borderRadius: radius.sm,
+    marginTop: 10,
+    borderWidth: 1,
+    backgroundColor: colors.warning,
+    borderColor: "#fed7aa",
+  },
+  regulationBannerDanger: {
+    backgroundColor: colors.error,
+    borderColor: "#fecaca",
+  },
+  regulationTextGroup: {
+    flex: 1,
+    gap: 3,
+  },
+  regulationTitle: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: colors.warningText,
+  },
+  regulationTitleDanger: {
+    color: colors.errorText,
+  },
+  regulationBody: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.green,
+    lineHeight: 16,
   },
 
   buttonRow: {
