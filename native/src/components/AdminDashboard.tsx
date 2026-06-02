@@ -19,6 +19,7 @@ import { getReportsForAdmin, updateReportStatus, type Report } from "../services
 import { colors, radius, shadow } from "../theme/colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ImageZoomModal } from "./ImageZoomModal";
+import { getSellerRegulationCategory } from "../utils/regulation";
 
 type ActionKind = "seller" | "listing";
 type TabType = "sellers" | "listings" | "reports";
@@ -120,10 +121,10 @@ export function AdminDashboard() {
   }
 
   function getRegulationLabel(status?: "needs_permit" | "needs_review" | "illegal" | null) {
-    if (status === "illegal") return "Illegal - block listing";
-    if (status === "needs_permit") return "Permit verification required";
-    if (status === "needs_review") return "Admin species review required";
-    return "No regulated match found";
+    if (status === "illegal") return "Internal: illegal";
+    if (status === "needs_permit") return "Internal: needs_permit";
+    if (status === "needs_review") return "Internal: needs_review";
+    return "Internal: clear";
   }
 
   function getRegulationIcon(status?: string | null) {
@@ -341,6 +342,13 @@ export function AdminDashboard() {
             ) : (
               listings.map((listing) => (
                 <View key={listing.id} style={styles.reviewCard}>
+                  {(() => {
+                    const sellerFacingStatus = getSellerRegulationCategory(
+                      listing.aiResult?.regulationStatus ?? (listing.aiResult?.saleStatus === "safe_to_sell" ? "safe_to_sell" : null),
+                    );
+
+                    return (
+                      <>
                   {/* Header info */}
                   <View style={styles.cardHeader}>
                     <View style={styles.shopIconContainer}>
@@ -433,6 +441,9 @@ export function AdminDashboard() {
                           listing.aiResult?.regulationStatus === "illegal" && styles.regulationTitleDanger,
                         ]}
                       >
+                        Seller sees: {sellerFacingStatus.label}
+                      </Text>
+                      <Text style={styles.regulationBody}>
                         {getRegulationLabel(listing.aiResult?.regulationStatus)}
                       </Text>
                       <Text style={styles.regulationBody}>
@@ -504,6 +515,9 @@ export function AdminDashboard() {
                       </Button>
                     </View>
                   </View>
+                      </>
+                    );
+                  })()}
                 </View>
               ))
             )}

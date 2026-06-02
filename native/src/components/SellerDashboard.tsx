@@ -28,6 +28,7 @@ import { colors } from "../theme/colors";
 import { getSellerStats, type SellerStats } from "../services/profile";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { formatCurrency } from "../utils/currency";
+import { getSellerRegulationCategory } from "../utils/regulation";
 import { SkeletonBlock, SkeletonCard, SkeletonLine } from "./Skeleton";
 
 const units: ListingInput["unit"][] = ["Pot", "Cutting", "Seedling", "Node", "Pack"];
@@ -64,9 +65,10 @@ export function SellerDashboard() {
   const [showAllListings, setShowAllListings] = useState(false);
   const [activeTab, setActiveTab] = useState<"new" | "stock" | "orders">("new");
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const sellerRegulation = getSellerRegulationCategory(scanResult?.regulationStatus ?? (scanResult?.saleStatus === "safe_to_sell" ? "safe_to_sell" : null));
   const requiresPermit = scanResult?.regulationStatus === "needs_permit";
   const allowsSupportDocument = scanResult?.regulationStatus === "needs_permit" || scanResult?.regulationStatus === "needs_review";
-  const isIllegalListing = scanResult?.regulationStatus === "illegal" || scanResult?.saleStatus === "blocked";
+  const isIllegalListing = sellerRegulation.category === "blocked" || scanResult?.saleStatus === "blocked";
 
   const filteredListings = useMemo(() => {
     const searchTerm = listingSearch.trim().toLowerCase();
@@ -126,6 +128,7 @@ export function SellerDashboard() {
 
     try {
       const result = await scanPlantWithLeafy(pickedPhoto);
+      const nextSellerRegulation = getSellerRegulationCategory(result.regulationStatus ?? (result.saleStatus === "safe_to_sell" ? "safe_to_sell" : null));
       setScanResult(result);
       // Auto-fill fields — only overwrite if the field is currently empty
       setName((current) => current.trim() || result.bestMatch);
@@ -133,11 +136,13 @@ export function SellerDashboard() {
       setCategory((current) => current.trim() || result.category);
       // Build a helpful auto-description
       const confidence = `Leafy AI identified this as ${result.bestMatch} (${result.confidence}% confidence).`;
-      setDescription((current) => current.trim() || `${confidence} ${result.reviewReason}`);
+      setDescription((current) => current.trim() || `${confidence} ${nextSellerRegulation.message}`);
       setMessage(
-        result.saleStatus === "safe_to_sell"
-          ? "✅ Leafy scan complete — fields filled automatically."
-          : "⚠️ Leafy scan complete — admin review will be required."
+        nextSellerRegulation.category === "safe"
+          ? "Leafy scan complete. Fields filled automatically."
+          : nextSellerRegulation.category === "requires_review"
+          ? "Leafy scan complete. This listing requires admin review."
+          : "Leafy scan complete. This plant cannot be listed."
       );
     } catch (scanError) {
       const nextMessage = scanError instanceof Error ? scanError.message : "Leafy scan failed.";
@@ -207,7 +212,7 @@ export function SellerDashboard() {
     }
 
     if (isIllegalListing) {
-      setError("This plant cannot be listed on GrowMate because it may be prohibited under Philippine law.");
+      setError(sellerRegulation.message);
       return;
     }
 
@@ -238,14 +243,14 @@ export function SellerDashboard() {
         aiConfidence: scanResult?.confidence ?? null,
         aiResult: scanResult ?? null,
         permitDocumentPath: uploadedPermit?.path,
-        initialStatus: scanResult?.saleStatus === "safe_to_sell" ? "active" : "review",
+        initialStatus: sellerRegulation.shouldPublish ? "active" : "review",
       });
 
       setMessage(
-        scanResult?.saleStatus === "safe_to_sell"
+        sellerRegulation.shouldPublish
           ? "Listing is live in the marketplace."
-          : requiresPermit
-          ? "Listing submitted for admin permit review."
+          : sellerRegulation.category === "requires_review"
+          ? "Listing submitted for admin review."
           : "Listing submitted for admin review before going live.",
       );
       setName("");
@@ -498,8 +503,8 @@ export function SellerDashboard() {
                     <MaterialCommunityIcons color={colors.green} name="leaf-circle" size={18} />
                     <Text style={styles.scanEyebrow}>Leafy AI Result</Text>
                   </View>
-                  <Text style={[styles.scanStatusBadge, scanResult.saleStatus !== "safe_to_sell" && styles.scanStatusWarning]}>
-                    {scanResult.saleStatus === "blocked" ? "Blocked" : scanResult.saleStatus === "safe_to_sell" ? "Safe to sell" : "Needs review"}
+                  <Text style={[styles.scanStatusBadge, sellerRegulation.category !== "safe" && styles.scanStatusWarning]}>
+                    {sellerRegulation.label}
                   </Text>
                 </View>
                 <Text style={styles.scanTitle}>{scanResult.bestMatch}</Text>
@@ -509,7 +514,7 @@ export function SellerDashboard() {
                 {scanResult.family && (
                   <Text style={styles.scanMeta}>Family: {scanResult.family}</Text>
                 )}
-                <Text style={styles.scanBody}>{scanResult.reviewReason}</Text>
+                <Text style={styles.scanBody}>{sellerRegulation.message}</Text>
               </View>
             )}
 
@@ -517,11 +522,9 @@ export function SellerDashboard() {
               <View style={styles.illegalCard}>
                 <View style={styles.permitCardHeader}>
                   <MaterialCommunityIcons name="alert-octagon-outline" size={18} color="#991b1b" />
-                  <Text style={styles.illegalTitle}>Cannot be listed</Text>
+                  <Text style={styles.illegalTitle}>{sellerRegulation.label}</Text>
                 </View>
-                <Text style={styles.illegalText}>
-                  This plant cannot be listed on GrowMate because it may be prohibited under Philippine law.
-                </Text>
+                <Text style={styles.illegalText}>{sellerRegulation.message}</Text>
               </View>
             )}
 
@@ -529,14 +532,13 @@ export function SellerDashboard() {
               <View style={styles.permitCard}>
                 <View style={styles.permitCardHeader}>
                   <MaterialCommunityIcons name="file-certificate-outline" size={18} color={colors.green} />
-                  <Text style={styles.permitTitle}>
-                    {requiresPermit ? "Permit or verification required" : "Optional supporting document"}
-                  </Text>
+                  <Text style={styles.permitTitle}>Requires Review</Text>
                 </View>
+                <Text style={styles.permitText}>{sellerRegulation.message}</Text>
                 <Text style={styles.permitText}>
                   {requiresPermit
-                    ? "This plant may require DENR/CITES verification before it can be sold or transported. Upload any permit, propagation proof, or supporting document you have."
-                    : "GrowMate needs admin review to verify the exact species. You may upload supporting proof if you have one."}
+                    ? "Permit or supporting document recommended/required."
+                    : "Supporting document is optional but may help admin verify your listing."}
                 </Text>
                 {permitDocument && (
                   <View style={styles.permitFileRow}>

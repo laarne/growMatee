@@ -42,18 +42,23 @@ These inputs should be checked after scanner or data changes:
 
 ## Publishing Rules
 
-- illegal: block listing.
-- needs_permit: keep seller listing in review until admin verifies permit/documents.
-- needs_review: keep seller listing in review until admin verifies exact species.
-- no match: allow normal review flow and show the compliance disclaimer.
+- Seller-facing safe_to_sell/no regulation match: show Safe to list and publish normally.
+- Seller-facing needs_permit: show Requires Review, keep listing in review, and recommend/require supporting documents.
+- Seller-facing needs_review: show Requires Review, keep listing in review, and allow optional supporting documents.
+- Seller-facing illegal: show Cannot be listed and block submission.
+- Admin-facing review still shows exact internal status: needs_permit, needs_review, illegal, or clear.
 
 ## Permit Upload QA
 
 - needs_permit listing without a document: listing stays in review, permit_review_status becomes required, admin approval is blocked until a document exists.
+- needs_permit seller UI: shows Requires Review, not a separate needs_permit label.
 - needs_permit listing with a PDF/JPG/PNG/WEBP document: file uploads to the private regulated-plant-permits bucket, listing stays in review, permit_review_status becomes submitted.
 - needs_review listing with optional document: file uploads privately and admin can review it, but a document is not required by default.
+- needs_review seller UI: shows Requires Review, not a separate needs_review label.
 - illegal listing: seller cannot submit it and the database trigger keeps illegal scan results blocked.
+- illegal seller UI: shows Cannot be listed.
 - clear listing: normal review/publication path still works and permit_review_status remains not_required.
+- clear seller UI: shows Safe to list.
 - seller access control: sellers can upload/read only files under their own user-id folder in regulated-plant-permits.
 - public access control: public users cannot read regulated-plant-permits files.
 - admin access control: admins can open seller permit documents from the review queue.
