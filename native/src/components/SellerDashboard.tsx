@@ -3,7 +3,18 @@ import { ActivityIndicator, Image, StyleSheet, Text, TextInput, View, Pressable,
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { useAuth } from "../context/AuthContext";
-import { createListingForReview, getSellerListings, deleteListing, updateListing, getUserOrders, updateOrderStatus, type ListingInput, type SellerListing, type Order } from "../services/listings";
+import {
+  createListingForReview,
+  deleteListing,
+  getSellerListings,
+  getUserOrders,
+  submitListingPermitDocument,
+  updateListing,
+  updateOrderStatus,
+  type ListingInput,
+  type Order,
+  type SellerListing,
+} from "../services/listings";
 import { scanPlantWithLeafy, type LeafyScanResult } from "../services/leafyScan";
 import {
   pickImageFromLibrary,
@@ -227,10 +238,16 @@ export function SellerDashboard() {
         aiConfidence: scanResult?.confidence ?? null,
         aiResult: scanResult ?? null,
         permitDocumentPath: uploadedPermit?.path,
-        initialStatus: "review",
+        initialStatus: scanResult?.saleStatus === "safe_to_sell" ? "active" : "review",
       });
 
-      setMessage(requiresPermit ? "Listing submitted for admin permit review." : "Listing submitted for admin review before going live.");
+      setMessage(
+        scanResult?.saleStatus === "safe_to_sell"
+          ? "Listing is live in the marketplace."
+          : requiresPermit
+          ? "Listing submitted for admin permit review."
+          : "Listing submitted for admin review before going live.",
+      );
       setName("");
       setLocalName("");
       setScientificName("");
@@ -274,6 +291,30 @@ export function SellerDashboard() {
       setMessage(`${listing.name} stock updated to ${nextQuantity}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update listing stock.");
+    } finally {
+      setUpdatingListingId(null);
+    }
+  }
+
+  async function handleUploadPermitForExistingListing(listing: SellerListing) {
+    if (!user) return;
+
+    setUpdatingListingId(listing.id);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const pickedDocument = await pickPermitDocument();
+      if (!pickedDocument) {
+        return;
+      }
+
+      const uploadedPermit = await uploadPrivateDocument("regulated-plant-permits", user.id, "permits", pickedDocument);
+      await submitListingPermitDocument(listing.id, user.id, uploadedPermit.path);
+      setMessage(`${listing.name} permit document submitted for review.`);
+      await loadDashboardData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to submit permit document.");
     } finally {
       setUpdatingListingId(null);
     }
@@ -773,6 +814,19 @@ export function SellerDashboard() {
                           )}
                         </View>
                       </View>
+                      {listing.status === "needs_more_documents" && (
+                        <View style={styles.moreDocsRow}>
+                          <Button
+                            disabled={isUpdatingThisListing}
+                            icon="file-upload-outline"
+                            size="sm"
+                            variant="secondary"
+                            onPress={() => handleUploadPermitForExistingListing(listing)}
+                          >
+                            Upload documents
+                          </Button>
+                        </View>
+                      )}
                     </View>
                   </View>
                 </View>
@@ -1376,6 +1430,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
+  },
+  moreDocsRow: {
+    marginTop: 10,
   },
   stockPill: {
     backgroundColor: "#ecfdf5",

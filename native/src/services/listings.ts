@@ -340,6 +340,25 @@ export async function createListingForReview(input: ListingInput) {
   }
 }
 
+export async function submitListingPermitDocument(listingId: string, sellerId: string, permitDocumentPath: string) {
+  if (!supabase) throw new Error("Supabase is not configured.");
+
+  const { error } = await supabase
+    .from("listings")
+    .update({
+      permit_document_path: sanitizeUserInput(permitDocumentPath, { maxLength: 500 }),
+      permit_uploaded_at: new Date().toISOString(),
+      permit_review_status: "submitted",
+      status: "review",
+    })
+    .eq("id", listingId)
+    .eq("seller_id", sellerId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 export type Order = {
   id: string;
   listingId: string;

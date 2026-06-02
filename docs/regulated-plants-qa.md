@@ -60,6 +60,25 @@ These inputs should be checked after scanner or data changes:
 - non-admin moderation: non-admin users cannot call approval/rejection/request-more-documents RPC behavior successfully.
 - admin actions: approve sets permit_review_status to approved when a permit was required; reject/block set rejected; request more documents sets needs_more_documents.
 
+## End-to-End QA Pass
+
+Checked on 2026-06-02 after permit upload hardening:
+
+- Clear listing flow: safe Leafy AI results can publish immediately as active when regulationStatus is null, saleStatus is safe_to_sell, confidence is at least 35, and permit_review_status is not_required.
+- Illegal flow: seller UI blocks submission for illegal scan results; the database trigger also forces illegal scan results to blocked.
+- Needs permit flow: seller sees the permit card, can upload PDF/JPG/PNG/WEBP, listing stays in review, and permit_review_status becomes submitted when a file path exists.
+- Needs review flow: seller can optionally upload supporting documents, and listing stays in review until admin action.
+- More-documents flow: admin can request more documents; seller stock list shows a More Docs state and lets the seller upload a replacement/supporting document.
+- Admin review flow: admin queue shows regulation status/ref/matches, permit status, seller/listing details, and a signed private document link when present.
+- Storage security: regulated-plant-permits is private, limited to 10 MB, and only allows PDF/JPG/PNG/WEBP. Policies are authenticated owner/admin read, verified seller own-folder insert, and owner update.
+- Database QA checks: invalid permit_review_status = 0; needs_permit public without approved permit = 0; illegal not blocked = 0; duplicate permit paths = 0; permit storage objects without a listing = 0.
+
+## Bugs Fixed In QA
+
+- Clear safe listings were still being submitted to review from the seller UI. Fixed by setting initialStatus to active only when Leafy AI returns safe_to_sell.
+- The listing insert policy no longer allowed the safe clear active path after permit hardening. Fixed with a guarded policy requiring safe_to_sell, confidence >= 35, no regulationStatus, and permit_review_status = not_required.
+- Request-more-documents had no seller follow-up upload path. Fixed by adding an Upload documents action for needs_more_documents listings.
+
 ## Remaining MVP Gap
 
 Permit upload now exists for listing review. The next polish step is adding seller-side replacement after a listing is already in needs_more_documents status.
