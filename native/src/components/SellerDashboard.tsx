@@ -66,6 +66,8 @@ export function SellerDashboard() {
   const [activeTab, setActiveTab] = useState<"new" | "stock" | "orders">("new");
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const sellerRegulation = getSellerRegulationCategory(scanResult?.regulationStatus ?? (scanResult?.saleStatus === "safe_to_sell" ? "safe_to_sell" : null));
+  const hasSuccessfulScan = Boolean(scanResult);
+  const canPublishImmediately = hasSuccessfulScan && sellerRegulation.shouldPublish;
   const requiresPermit = scanResult?.regulationStatus === "needs_permit";
   const allowsSupportDocument = scanResult?.regulationStatus === "needs_permit" || scanResult?.regulationStatus === "needs_review";
   const isIllegalListing = sellerRegulation.category === "blocked" || scanResult?.saleStatus === "blocked";
@@ -243,11 +245,11 @@ export function SellerDashboard() {
         aiConfidence: scanResult?.confidence ?? null,
         aiResult: scanResult ?? null,
         permitDocumentPath: uploadedPermit?.path,
-        initialStatus: sellerRegulation.shouldPublish ? "active" : "review",
+        initialStatus: canPublishImmediately ? "active" : "review",
       });
 
       setMessage(
-        sellerRegulation.shouldPublish
+        canPublishImmediately
           ? "Listing is live in the marketplace."
           : sellerRegulation.category === "requires_review"
           ? "Listing submitted for admin review."
