@@ -36,7 +36,7 @@ const DELIVERY_ONLY = "Delivery";
 const listingStatusFilters = ["all", "active", "review", "needs_more_documents", "archived"] as const;
 type ListingStatusFilter = (typeof listingStatusFilters)[number];
 type SellerTab = "dashboard" | "new" | "inventory" | "orders";
-type SellerDashboardMode = "hub" | "create";
+export type SellerDashboardMode = "hub" | "create" | "inventory" | "orders";
 
 function getOrderStatusMeta(order: Order) {
   const createdTime = new Date(order.createdAt).getTime();
@@ -64,12 +64,12 @@ function getOrderStatusMeta(order: Order) {
 
 export function SellerDashboard({
   mode = "hub",
-  onCloseCreateListing,
-  onOpenCreateListing,
+  onCloseSellerRoute,
+  onOpenSellerRoute,
 }: {
   mode?: SellerDashboardMode;
-  onCloseCreateListing?: () => void;
-  onOpenCreateListing?: () => void;
+  onCloseSellerRoute?: () => void;
+  onOpenSellerRoute?: (route: Exclude<SellerDashboardMode, "hub">) => void;
 } = {}) {
   const { profile, user } = useAuth();
   const [listings, setListings] = useState<SellerListing[]>([]);
@@ -99,7 +99,9 @@ export function SellerDashboard({
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [showAllListings, setShowAllListings] = useState(false);
-  const [activeTab, setActiveTab] = useState<SellerTab>(mode === "create" ? "new" : "dashboard");
+  const [activeTab, setActiveTab] = useState<SellerTab>(
+    mode === "create" ? "new" : mode === "inventory" ? "inventory" : mode === "orders" ? "orders" : "dashboard",
+  );
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [showScanDetails, setShowScanDetails] = useState(false);
   const sellerRegulation = getSellerRegulationCategory(scanResult?.regulationStatus ?? (scanResult?.saleStatus === "safe_to_sell" ? "safe_to_sell" : null));
@@ -307,8 +309,8 @@ export function SellerDashboard({
       setScanResult(null);
       setShowScanDetails(false);
       await loadDashboardData();
-      if (mode === "create") {
-        onCloseCreateListing?.();
+      if (mode !== "hub") {
+        onCloseSellerRoute?.();
       } else {
         setActiveTab("inventory");
       }
@@ -478,17 +480,17 @@ export function SellerDashboard({
                 <Text style={styles.sellerActionTitle}>Dashboard</Text>
                 <Text style={styles.sellerActionHint}>Stats and signals</Text>
               </Pressable>
-              <Pressable style={[styles.sellerActionCard, styles.sellerActionCardPrimary]} onPress={() => onOpenCreateListing?.() ?? setActiveTab("new")}>
+              <Pressable style={[styles.sellerActionCard, styles.sellerActionCardPrimary]} onPress={() => onOpenSellerRoute?.("create") ?? setActiveTab("new")}>
                 <MaterialCommunityIcons name="tag-plus-outline" size={22} color={colors.white} />
                 <Text style={styles.sellerActionTitlePrimary}>Create Listing</Text>
                 <Text style={styles.sellerActionHintPrimary}>Add a plant</Text>
               </Pressable>
-              <Pressable style={styles.sellerActionCard} onPress={() => setActiveTab("inventory")}>
+              <Pressable style={styles.sellerActionCard} onPress={() => onOpenSellerRoute?.("inventory") ?? setActiveTab("inventory")}>
                 <MaterialCommunityIcons name="package-variant-closed" size={22} color={colors.green} />
                 <Text style={styles.sellerActionTitle}>Inventory</Text>
                 <Text style={styles.sellerActionHint}>Live and review</Text>
               </Pressable>
-              <Pressable style={styles.sellerActionCard} onPress={() => setActiveTab("orders")}>
+              <Pressable style={styles.sellerActionCard} onPress={() => onOpenSellerRoute?.("orders") ?? setActiveTab("orders")}>
                 <MaterialCommunityIcons name="cash-register" size={22} color={colors.green} />
                 <Text style={styles.sellerActionTitle}>Orders</Text>
                 <Text style={styles.sellerActionHint}>Incoming sales</Text>
@@ -499,11 +501,11 @@ export function SellerDashboard({
       )}
 
       {/* activeTab === "new" */}
-      {(mode === "create" || activeTab === "new") && (
+      {(mode === "create" || (mode === "hub" && activeTab === "new")) && (
         <View style={styles.subTabViewContainer}>
           <Card>
           {mode === "create" && (
-            <Pressable onPress={onCloseCreateListing} style={styles.createScreenBack}>
+            <Pressable onPress={onCloseSellerRoute} style={styles.createScreenBack}>
               <MaterialCommunityIcons name="arrow-left" size={18} color={colors.green} />
               <Text style={styles.createScreenBackText}>Seller Hub</Text>
             </Pressable>
@@ -743,10 +745,10 @@ export function SellerDashboard({
       )}
 
       {/* activeTab === "inventory" */}
-      {mode === "hub" && activeTab === "inventory" && (
+      {(mode === "inventory" || (mode === "hub" && activeTab === "inventory")) && (
         <View style={styles.subTabViewContainer}>
           <Card>
-            <Pressable onPress={() => setActiveTab("dashboard")} style={styles.createScreenBack}>
+            <Pressable onPress={mode === "hub" ? () => setActiveTab("dashboard") : onCloseSellerRoute} style={styles.createScreenBack}>
               <MaterialCommunityIcons name="arrow-left" size={18} color={colors.green} />
               <Text style={styles.createScreenBackText}>Seller Hub</Text>
             </Pressable>
@@ -902,10 +904,10 @@ export function SellerDashboard({
       )}
 
       {/* activeTab === "orders" */}
-      {mode === "hub" && activeTab === "orders" && (
+      {(mode === "orders" || (mode === "hub" && activeTab === "orders")) && (
         <View style={styles.subTabViewContainer}>
           <Card>
-            <Pressable onPress={() => setActiveTab("dashboard")} style={styles.createScreenBack}>
+            <Pressable onPress={mode === "hub" ? () => setActiveTab("dashboard") : onCloseSellerRoute} style={styles.createScreenBack}>
               <MaterialCommunityIcons name="arrow-left" size={18} color={colors.green} />
               <Text style={styles.createScreenBackText}>Seller Hub</Text>
             </Pressable>

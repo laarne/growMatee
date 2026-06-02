@@ -16,10 +16,13 @@ import { ListingDetailScreen } from "./src/screens/ListingDetailScreen";
 import { OrdersScreen } from "./src/screens/OrdersScreen";
 import { colors } from "./src/theme/colors";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
+import { Screen } from "./src/components/Screen";
+import { SellerDashboard, type SellerDashboardMode } from "./src/components/SellerDashboard";
 import { ThemeProvider, useTheme } from "./src/context/ThemeContext";
 import { getUserOrders } from "./src/services/listings";
 
 type TabKey = "Market" | "Feed" | "Garden" | "Messages" | "Rankings" | "Orders" | "Profile";
+type SellerRoute = Exclude<SellerDashboardMode, "hub">;
 
 const tabs: TabKey[] = ["Market", "Feed", "Garden", "Orders", "Profile"];
 
@@ -174,6 +177,7 @@ function AppContent() {
   const { activeTab, setActiveTab } = useNavigationContext();
   const [activeChat, setActiveChat] = useState<{ id: string; title: string } | null>(null);
   const [activeListingId, setActiveListingId] = useState<string | null>(null);
+  const [activeSellerRoute, setActiveSellerRoute] = useState<SellerRoute | null>(null);
   const { isLoading, session } = useAuth();
   const { activeTheme } = useTheme();
   const [ordersBadgeCount, setOrdersBadgeCount] = useState(0);
@@ -243,6 +247,10 @@ function AppContent() {
     setActiveListingId(listingId);
   };
 
+  const handleOpenSellerRoute = (route: SellerRoute) => {
+    setActiveSellerRoute(route);
+  };
+
   if (activeChat) {
     return (
       <ChatDetailScreen
@@ -260,6 +268,19 @@ function AppContent() {
         onClose={() => setActiveListingId(null)}
         onOpenChat={handleOpenChat}
       />
+    );
+  }
+
+  if (activeSellerRoute) {
+    return (
+      <>
+        <StatusBar style={activeTheme === "dark" ? "light" : "dark"} />
+        <ErrorBoundary>
+          <Screen showHeader={false} scroll={true}>
+            <SellerDashboard mode={activeSellerRoute} onCloseSellerRoute={() => setActiveSellerRoute(null)} />
+          </Screen>
+        </ErrorBoundary>
+      </>
     );
   }
 
@@ -288,7 +309,11 @@ function AppContent() {
         )}
         {activeTab === "Profile" && (
           <ErrorBoundary>
-            <ProfileScreen onOpenChat={handleOpenChat} onOpenListingDetail={handleOpenListingDetail} />
+            <ProfileScreen
+              onOpenChat={handleOpenChat}
+              onOpenListingDetail={handleOpenListingDetail}
+              onOpenSellerRoute={handleOpenSellerRoute}
+            />
           </ErrorBoundary>
         )}
       </View>
